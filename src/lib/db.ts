@@ -100,6 +100,28 @@ export async function deleteFoodEntry(id: string): Promise<void> {
   await db.delete("foodEntries", id);
 }
 
+export async function listAllFoodEntries(): Promise<FoodEntry[]> {
+  const db = await getDB();
+  return db.getAll("foodEntries");
+}
+
+export async function listRecentDistinctFoodEntries(
+  limit = 8
+): Promise<FoodEntry[]> {
+  const all = await listAllFoodEntries();
+  const sorted = all.sort((a, b) => b.timestamp - a.timestamp);
+  const seen = new Set<string>();
+  const result: FoodEntry[] = [];
+  for (const entry of sorted) {
+    const key = entry.itemName.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(entry);
+    if (result.length >= limit) break;
+  }
+  return result;
+}
+
 // ---- Workout entries ----
 
 export async function listWorkoutEntriesForDate(
@@ -146,6 +168,18 @@ export async function listDistinctExerciseNames(): Promise<string[]> {
   const all = await listAllWorkoutEntries();
   const names = new Set(all.map((e) => e.exerciseName));
   return Array.from(names).sort((a, b) => a.localeCompare(b));
+}
+
+export async function findLastWorkoutEntryForExercise(
+  exerciseName: string
+): Promise<WorkoutEntry | null> {
+  const target = exerciseName.trim().toLowerCase();
+  if (!target) return null;
+  const all = await listAllWorkoutEntries();
+  const matches = all
+    .filter((e) => e.exerciseName.trim().toLowerCase() === target)
+    .sort((a, b) => b.timestamp - a.timestamp);
+  return matches[0] ?? null;
 }
 
 // ---- Coaching context / settings ----

@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
 import { SetEntry, WorkoutEntry } from "@/lib/types";
 import { inferMuscleGroups } from "@/lib/muscleGroups";
 import { matchExerciseNames } from "@/lib/fuzzyMatch";
 import { COMMON_EXERCISES } from "@/lib/commonExercises";
+import { findLastWorkoutEntryForExercise } from "@/lib/db";
+import { formatShortDate } from "@/lib/date";
 
 export default function LogWorkoutModal({
   exerciseNames,
@@ -34,6 +36,26 @@ export default function LogWorkoutModal({
     () => matchExerciseNames(exerciseName, allNames, 6, historyNames),
     [exerciseName, allNames, historyNames]
   );
+
+  const [lastEntry, setLastEntry] = useState<WorkoutEntry | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const name = exerciseName.trim();
+    (async () => {
+      const found = name ? await findLastWorkoutEntryForExercise(name) : null;
+      if (!cancelled) setLastEntry(found);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [exerciseName]);
+
+  function useLastTime() {
+    if (!lastEntry) return;
+    setSets(lastEntry.sets.map((s) => ({ ...s })));
+    setBodyweight(lastEntry.bodyweight ?? false);
+  }
 
   function selectSuggestion(name: string) {
     setExerciseName(name);
@@ -133,6 +155,28 @@ export default function LogWorkoutModal({
             </ul>
           )}
         </div>
+
+        {lastEntry && (
+          <div className="flex items-center justify-between rounded-md bg-neutral-800/50 px-3 py-1.5 text-xs">
+            <span className="text-neutral-400">
+              Last time ({formatShortDate(lastEntry.dateKey)}):{" "}
+              <span className="text-neutral-300">
+                {lastEntry.sets
+                  .map((s) =>
+                    lastEntry.bodyweight ? `${s.reps} reps` : `${s.reps}×${s.weight}lb`
+                  )
+                  .join(", ")}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={useLastTime}
+              className="shrink-0 text-emerald-400 hover:underline"
+            >
+              Use these
+            </button>
+          </div>
+        )}
 
         <label className="flex items-center gap-2 text-xs text-neutral-400">
           <input

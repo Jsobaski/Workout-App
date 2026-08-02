@@ -8,9 +8,11 @@ import { blobToBase64, blobToObjectUrl, resizeImageFile } from "@/lib/image";
 type Mode = "text" | "photo";
 
 export default function AddFoodModal({
+  recentFoods,
   onClose,
   onSave,
 }: {
+  recentFoods: FoodEntry[];
   onClose: () => void;
   onSave: (entry: Omit<FoodEntry, "id" | "dateKey">) => Promise<void>;
 }) {
@@ -68,6 +70,15 @@ export default function AddFoodModal({
     } finally {
       setEstimating(false);
     }
+  }
+
+  function pickRecent(entry: FoodEntry) {
+    setItemName(entry.itemName);
+    setCalories(String(entry.calories));
+    setProteinG(String(entry.proteinG));
+    setConfidenceNote("");
+    setHasEstimate(false);
+    setError(null);
   }
 
   async function handleSave() {
@@ -142,6 +153,24 @@ export default function AddFoodModal({
       )}
 
       <div className="space-y-3">
+        {mode === "text" && recentFoods.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs text-neutral-500">Recent</p>
+            <div className="flex flex-wrap gap-1.5">
+              {recentFoods.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => pickRecent(f)}
+                  className="rounded-full border border-neutral-700 bg-neutral-800/60 px-3 py-1 text-xs text-neutral-300 hover:border-emerald-700 hover:bg-emerald-950/40"
+                >
+                  {f.itemName} · {f.calories} kcal
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <input
           value={itemName}
           onChange={(e) => setItemName(e.target.value)}
