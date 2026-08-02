@@ -20,6 +20,7 @@ export default function LogWorkoutModal({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
   const [sets, setSets] = useState<SetEntry[]>([{ reps: 8, weight: 0 }]);
+  const [bodyweight, setBodyweight] = useState(false);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +51,10 @@ export default function LogWorkoutModal({
       e.preventDefault();
       selectSuggestion(suggestions[highlightIndex]);
     } else if (e.key === "Escape") {
+      // Next.js's root React listener and Modal's own document keydown
+      // listener are both on `document` — stopPropagation() alone doesn't
+      // stop a later same-node listener, only stopImmediatePropagation() does.
+      e.nativeEvent.stopImmediatePropagation();
       setShowSuggestions(false);
     }
   }
@@ -58,6 +63,13 @@ export default function LogWorkoutModal({
     setSets((prev) =>
       prev.map((s, i) => (i === index ? { ...s, [field]: value } : s))
     );
+  }
+
+  function toggleBodyweight(checked: boolean) {
+    setBodyweight(checked);
+    if (checked) {
+      setSets((prev) => prev.map((s) => ({ ...s, weight: 0 })));
+    }
   }
 
   async function handleSave() {
@@ -72,6 +84,7 @@ export default function LogWorkoutModal({
         exerciseName: exerciseName.trim(),
         muscleGroups: inferMuscleGroups(exerciseName.trim()),
         sets,
+        bodyweight: bodyweight || undefined,
         notes: notes.trim() || undefined,
       });
       onClose();
@@ -120,6 +133,16 @@ export default function LogWorkoutModal({
           )}
         </div>
 
+        <label className="flex items-center gap-2 text-xs text-neutral-400">
+          <input
+            type="checkbox"
+            checked={bodyweight}
+            onChange={(e) => toggleBodyweight(e.target.checked)}
+            className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-emerald-600"
+          />
+          Bodyweight exercise (no added weight)
+        </label>
+
         <div className="space-y-2">
           <p className="text-xs font-medium text-neutral-500">Sets</p>
           {sets.map((s, i) => (
@@ -132,13 +155,15 @@ export default function LogWorkoutModal({
                 placeholder="Reps"
                 className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
               />
-              <input
-                type="number"
-                value={s.weight}
-                onChange={(e) => updateSet(i, "weight", Number(e.target.value))}
-                placeholder="Weight (lb)"
-                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
-              />
+              {!bodyweight && (
+                <input
+                  type="number"
+                  value={s.weight}
+                  onChange={(e) => updateSet(i, "weight", Number(e.target.value))}
+                  placeholder="Weight (lb)"
+                  className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+                />
+              )}
               {sets.length > 1 && (
                 <button
                   onClick={() =>

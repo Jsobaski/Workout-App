@@ -74,9 +74,14 @@ export default function WorkoutSection({
                         key={i}
                         className="rounded bg-neutral-900 px-1.5 py-0.5"
                       >
-                        {s.reps}×{s.weight}lb
+                        {entry.bodyweight ? `${s.reps} reps` : `${s.reps}×${s.weight}lb`}
                       </span>
                     ))}
+                    {entry.bodyweight && (
+                      <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-neutral-500">
+                        Bodyweight
+                      </span>
+                    )}
                   </div>
                   {entry.notes && (
                     <div className="mt-1 text-xs italic text-neutral-500">
@@ -138,6 +143,7 @@ function EditWorkoutRow({
 }) {
   const [exerciseName, setExerciseName] = useState(entry.exerciseName);
   const [sets, setSets] = useState<SetEntry[]>(entry.sets.map((s) => ({ ...s })));
+  const [bodyweight, setBodyweight] = useState(entry.bodyweight ?? false);
   const [notes, setNotes] = useState(entry.notes ?? "");
 
   const updateSet = (index: number, field: keyof SetEntry, value: number) => {
@@ -145,6 +151,13 @@ function EditWorkoutRow({
       prev.map((s, i) => (i === index ? { ...s, [field]: value } : s))
     );
   };
+
+  function toggleBodyweight(checked: boolean) {
+    setBodyweight(checked);
+    if (checked) {
+      setSets((prev) => prev.map((s) => ({ ...s, weight: 0 })));
+    }
+  }
 
   return (
     <div className="space-y-2 rounded-lg border border-emerald-800 bg-neutral-800/70 p-3">
@@ -154,6 +167,15 @@ function EditWorkoutRow({
         className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
         placeholder="Exercise name"
       />
+      <label className="flex items-center gap-2 text-xs text-neutral-400">
+        <input
+          type="checkbox"
+          checked={bodyweight}
+          onChange={(e) => toggleBodyweight(e.target.checked)}
+          className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-emerald-600"
+        />
+        Bodyweight exercise (no added weight)
+      </label>
       <div className="space-y-1.5">
         {sets.map((s, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -165,13 +187,15 @@ function EditWorkoutRow({
               className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
               placeholder="Reps"
             />
-            <input
-              type="number"
-              value={s.weight}
-              onChange={(e) => updateSet(i, "weight", Number(e.target.value))}
-              className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
-              placeholder="Weight"
-            />
+            {!bodyweight && (
+              <input
+                type="number"
+                value={s.weight}
+                onChange={(e) => updateSet(i, "weight", Number(e.target.value))}
+                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
+                placeholder="Weight"
+              />
+            )}
             <button
               onClick={() => setSets((prev) => prev.filter((_, idx) => idx !== i))}
               className="text-neutral-500 hover:text-red-400"
@@ -208,6 +232,7 @@ function EditWorkoutRow({
               ...entry,
               exerciseName: exerciseName.trim() || entry.exerciseName,
               sets,
+              bodyweight: bodyweight || undefined,
               notes: notes.trim() || undefined,
             })
           }

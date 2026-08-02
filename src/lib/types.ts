@@ -10,6 +10,7 @@ export interface WorkoutEntry {
   exerciseName: string;
   muscleGroups: string[];
   sets: SetEntry[];
+  bodyweight?: boolean; // no added weight — e.g. pull-ups, knee raises
   notes?: string;
 }
 
