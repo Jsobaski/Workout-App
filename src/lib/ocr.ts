@@ -31,20 +31,19 @@ function extractForward(text: string, keyword: RegExp): number | null {
   return match ? parseNumber(match[1]) : null;
 }
 
-function extractNear(text: string, keyword: RegExp): number | null {
-  const direct = extractForward(text, keyword);
-  if (direct != null) return direct;
-  return extractForward(collapseSplitNumbers(text), keyword);
-}
-
 export async function scanNutritionLabel(image: Blob): Promise<LabelScanResult> {
   const { default: Tesseract } = await import("tesseract.js");
   const { data } = await Tesseract.recognize(image, "eng");
   const text = data.text;
+  // Collapse unconditionally (not just as a fallback): a stray OCR space can
+  // split "120" into "1 20", and searching the uncollapsed text first would
+  // match the leading fragment "1" and stop before ever trying the collapsed
+  // version that finds the real value.
+  const collapsed = collapseSplitNumbers(text);
 
   return {
-    calories: extractNear(text, /calories/),
-    proteinG: extractNear(text, /protein/),
+    calories: extractForward(collapsed, /calories/),
+    proteinG: extractForward(collapsed, /protein/),
     rawText: text.trim(),
   };
 }
