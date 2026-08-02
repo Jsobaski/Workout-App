@@ -4,6 +4,7 @@ import { useState } from "react";
 import Modal from "./Modal";
 import { FoodEntry } from "@/lib/types";
 import { blobToBase64, blobToObjectUrl, resizeImageFile } from "@/lib/image";
+import { scanNutritionLabel } from "@/lib/ocr";
 
 type Mode = "text" | "photo";
 
@@ -24,6 +25,7 @@ export default function AddFoodModal({
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [estimating, setEstimating] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasEstimate, setHasEstimate] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -69,6 +71,32 @@ export default function AddFoodModal({
       );
     } finally {
       setEstimating(false);
+    }
+  }
+
+  async function runLabelScan() {
+    if (!photoBlob) return;
+    setError(null);
+    setScanning(true);
+    try {
+      const result = await scanNutritionLabel(photoBlob);
+      if (result.calories == null && result.proteinG == null) {
+        throw new Error(
+          "Couldn't read calories or protein from that photo. Try a clearer, well-lit photo of the label, or use Estimate with AI instead."
+        );
+      }
+      if (result.calories != null) setCalories(String(result.calories));
+      if (result.proteinG != null) setProteinG(String(result.proteinG));
+      setConfidenceNote(
+        "Read from the nutrition label on-device — no AI used. Double-check against the label."
+      );
+      setHasEstimate(true);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not read that label."
+      );
+    } finally {
+      setScanning(false);
     }
   }
 
@@ -149,6 +177,15 @@ export default function AddFoodModal({
               onChange={(e) => handlePhotoChange(e.target.files?.[0])}
             />
           </label>
+          {photoBlob && (
+            <button
+              onClick={runLabelScan}
+              disabled={scanning}
+              className="mt-2 w-full rounded-lg border border-blue-700 py-2 text-sm font-medium text-blue-400 hover:bg-blue-950 disabled:opacity-40"
+            >
+              {scanning ? "Reading label…" : "Scan Label (free, no AI)"}
+            </button>
+          )}
         </div>
       )}
 
