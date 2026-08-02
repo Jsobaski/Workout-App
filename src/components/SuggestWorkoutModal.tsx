@@ -2,72 +2,88 @@
 
 import { useEffect, useState } from "react";
 import Modal from "./Modal";
-import { CoachingContext, SuggestedExercise, WorkoutEntry } from "@/lib/types";
+import { CoachingContext, SuggestedExercise, WorkoutSuggestion } from "@/lib/types";
 import { dateKeysInRange, todayKey } from "@/lib/date";
 import { listWorkoutEntriesInRange } from "@/lib/db";
 
 export default function SuggestWorkoutModal({
   coachingContext,
+  cached,
+  addedNames,
   onClose,
-  onPickExercise,
+  onLoaded,
+  onAdd,
 }: {
   coachingContext: CoachingContext;
+  cached: WorkoutSuggestion | null;
+  addedNames: Set<string>;
   onClose: () => void;
-  onPickExercise: (exercise: SuggestedExercise) => void;
+  onLoaded: (suggestion: WorkoutSuggestion) => void;
+  onAdd: (exercise: SuggestedExercise) => Promise<void>;
 }) {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
-  const [exercises, setExercises] = useState<SuggestedExercise[]>([]);
-  const [summary, setSummary] = useState("");
+  const [exercises, setExercises] = useState<SuggestedExercise[]>(cached?.exercises ?? []);
+  const [summary, setSummary] = useState(cached?.summary ?? "");
+  const [addingName, setAddingName] = useState<string | null>(null);
+
+  async function fetchSuggestion() {
+    setLoading(true);
+    setError(null);
+    try {
+      const recentDateKeys = dateKeysInRange(todayKey(), 7);
+      const recent = await listWorkoutEntriesInRange(recentDateKeys);
+      const recentWorkouts = recent
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .map((e) => ({
+          dateKey: e.dateKey,
+          exerciseName: e.exerciseName,
+          muscleGroups: e.muscleGroups,
+          sets: e.sets,
+          notes: e.notes,
+        }));
+
+      const res = await fetch("/api/suggest-workout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recentWorkouts, coachingContext }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Suggestion failed");
+      const suggestion: WorkoutSuggestion = {
+        exercises: data.exercises || [],
+        summary: data.summary || "",
+      };
+      setExercises(suggestion.exercises);
+      setSummary(suggestion.summary);
+      onLoaded(suggestion);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not get a suggestion right now."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const recentDateKeys = dateKeysInRange(todayKey(), 7);
-        const recent: WorkoutEntry[] = await listWorkoutEntriesInRange(
-          recentDateKeys
-        );
-        const recentWorkouts = recent
-          .sort((a, b) => a.timestamp - b.timestamp)
-          .map((e) => ({
-            dateKey: e.dateKey,
-            exerciseName: e.exerciseName,
-            muscleGroups: e.muscleGroups,
-            sets: e.sets,
-            notes: e.notes,
-          }));
-
-        const res = await fetch("/api/suggest-workout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ recentWorkouts, coachingContext }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Suggestion failed");
-        if (!cancelled) {
-          setExercises(data.exercises || []);
-          setSummary(data.summary || "");
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Could not get a suggestion right now."
-          );
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    if (!cached) {
+      void Promise.resolve().then(() => fetchSuggestion());
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleTap(exercise: SuggestedExercise) {
+    if (addedNames.has(exercise.name) || addingName) return;
+    setAddingName(exercise.name);
+    try {
+      await onAdd(exercise);
+    } finally {
+      setAddingName(null);
+    }
+  }
 
   return (
     <Modal title="Suggested Workout" onClose={onClose}>
@@ -99,29 +115,52 @@ export default function SuggestWorkoutModal({
           {exercises.length === 0 && (
             <p className="text-sm text-neutral-500">No suggestion returned.</p>
           )}
-          {exercises.map((ex, i) => (
+          {exercises.map((ex, i) => {
+            const added = addedNames.has(ex.name);
+            const adding = addingName === ex.name;
+            return (
+              <button
+                key={i}
+                onClick={() => handleTap(ex)}
+                disabled={added || adding}
+                className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                  added
+                    ? "border-emerald-800 bg-emerald-950/20 opacity-70"
+                    : "border-neutral-800 bg-neutral-800/40 hover:border-emerald-700 hover:bg-emerald-950/30"
+                } disabled:cursor-default`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-neutral-100">{ex.name}</span>
+                  <span
+                    className={`text-xs ${added ? "text-emerald-400" : "text-neutral-400"}`}
+                  >
+                    {added
+                      ? "✓ Added"
+                      : adding
+                        ? "Adding…"
+                        : `${ex.sets} × ${ex.reps} @ ${ex.weight}lb`}
+                  </span>
+                </div>
+                {ex.reasoning && (
+                  <p className="mt-1 text-xs text-neutral-500">{ex.reasoning}</p>
+                )}
+                {ex.caution && (
+                  <p className="mt-1 text-xs text-amber-400">⚠ {ex.caution}</p>
+                )}
+              </button>
+            );
+          })}
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-xs text-neutral-600">
+              Tap an exercise to add it to today&apos;s workout
+            </p>
             <button
-              key={i}
-              onClick={() => onPickExercise(ex)}
-              className="w-full rounded-lg border border-neutral-800 bg-neutral-800/40 p-3 text-left hover:border-emerald-700 hover:bg-emerald-950/30"
+              onClick={fetchSuggestion}
+              className="text-xs text-emerald-400 hover:underline"
             >
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-neutral-100">{ex.name}</span>
-                <span className="text-xs text-neutral-400">
-                  {ex.sets} × {ex.reps} @ {ex.weight}lb
-                </span>
-              </div>
-              {ex.reasoning && (
-                <p className="mt-1 text-xs text-neutral-500">{ex.reasoning}</p>
-              )}
-              {ex.caution && (
-                <p className="mt-1 text-xs text-amber-400">⚠ {ex.caution}</p>
-              )}
+              Get new suggestions
             </button>
-          ))}
-          <p className="pt-1 text-center text-xs text-neutral-600">
-            Tap an exercise to log it
-          </p>
+          </div>
         </div>
       )}
     </Modal>

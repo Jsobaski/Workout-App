@@ -5,13 +5,14 @@ import DayNav from "@/components/DayNav";
 import NutritionSection from "@/components/NutritionSection";
 import WorkoutSection from "@/components/WorkoutSection";
 import AddFoodModal from "@/components/AddFoodModal";
-import LogWorkoutModal, { WorkoutPrefill } from "@/components/LogWorkoutModal";
+import LogWorkoutModal from "@/components/LogWorkoutModal";
 import SuggestWorkoutModal from "@/components/SuggestWorkoutModal";
 import { useDayData } from "@/hooks/useDayData";
 import { useCoachingContext } from "@/hooks/useCoachingContext";
 import { useExerciseNames } from "@/hooks/useExerciseNames";
 import { todayKey } from "@/lib/date";
-import { SuggestedExercise } from "@/lib/types";
+import { SuggestedExercise, WorkoutSuggestion } from "@/lib/types";
+import { inferMuscleGroups } from "@/lib/muscleGroups";
 
 export default function DayViewPage() {
   const [dateKey, setDateKey] = useState(todayKey());
@@ -31,19 +32,28 @@ export default function DayViewPage() {
   const [showAddFood, setShowAddFood] = useState(false);
   const [showLogWorkout, setShowLogWorkout] = useState(false);
   const [showSuggest, setShowSuggest] = useState(false);
-  const [workoutPrefill, setWorkoutPrefill] = useState<WorkoutPrefill | undefined>();
+  const [workoutSuggestion, setWorkoutSuggestion] = useState<WorkoutSuggestion | null>(null);
+  const [addedSuggestionNames, setAddedSuggestionNames] = useState<Set<string>>(new Set());
 
-  function handlePickSuggestion(exercise: SuggestedExercise) {
-    setWorkoutPrefill({
+  function handleSuggestionLoaded(suggestion: WorkoutSuggestion) {
+    setWorkoutSuggestion(suggestion);
+    setAddedSuggestionNames(new Set());
+  }
+
+  async function handleAddSuggested(exercise: SuggestedExercise) {
+    await addWorkoutEntry({
+      timestamp: Date.now(),
       exerciseName: exercise.name,
-      sets: Array.from({ length: exercise.sets }, () => ({
+      muscleGroups:
+        exercise.muscleGroups && exercise.muscleGroups.length > 0
+          ? exercise.muscleGroups
+          : inferMuscleGroups(exercise.name),
+      sets: Array.from({ length: Math.max(1, exercise.sets) }, () => ({
         reps: exercise.reps,
         weight: exercise.weight,
       })),
-      caution: exercise.caution,
     });
-    setShowSuggest(false);
-    setShowLogWorkout(true);
+    setAddedSuggestionNames((prev) => new Set(prev).add(exercise.name));
   }
 
   return (
@@ -52,10 +62,7 @@ export default function DayViewPage() {
 
       <WorkoutSection
         entries={workoutEntries}
-        onAdd={() => {
-          setWorkoutPrefill(undefined);
-          setShowLogWorkout(true);
-        }}
+        onAdd={() => setShowLogWorkout(true)}
         onSuggest={() => setShowSuggest(true)}
         onUpdate={updateWorkoutEntry}
         onDelete={removeWorkoutEntry}
@@ -83,11 +90,7 @@ export default function DayViewPage() {
       {showLogWorkout && (
         <LogWorkoutModal
           exerciseNames={exerciseNames}
-          prefill={workoutPrefill}
-          onClose={() => {
-            setShowLogWorkout(false);
-            setWorkoutPrefill(undefined);
-          }}
+          onClose={() => setShowLogWorkout(false)}
           onSave={addWorkoutEntry}
         />
       )}
@@ -95,8 +98,11 @@ export default function DayViewPage() {
       {showSuggest && (
         <SuggestWorkoutModal
           coachingContext={coachingContext}
+          cached={workoutSuggestion}
+          addedNames={addedSuggestionNames}
           onClose={() => setShowSuggest(false)}
-          onPickExercise={handlePickSuggestion}
+          onLoaded={handleSuggestionLoaded}
+          onAdd={handleAddSuggested}
         />
       )}
     </div>

@@ -1,37 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Modal from "./Modal";
 import { SetEntry, WorkoutEntry } from "@/lib/types";
 import { inferMuscleGroups } from "@/lib/muscleGroups";
-
-export interface WorkoutPrefill {
-  exerciseName?: string;
-  sets?: SetEntry[];
-  notes?: string;
-  caution?: string;
-}
+import { matchExerciseNames } from "@/lib/fuzzyMatch";
+import { COMMON_EXERCISES } from "@/lib/commonExercises";
 
 export default function LogWorkoutModal({
   exerciseNames,
-  prefill,
   onClose,
   onSave,
 }: {
   exerciseNames: string[];
-  prefill?: WorkoutPrefill;
   onClose: () => void;
   onSave: (entry: Omit<WorkoutEntry, "id" | "dateKey">) => Promise<void>;
 }) {
-  const [exerciseName, setExerciseName] = useState(prefill?.exerciseName ?? "");
-  const [sets, setSets] = useState<SetEntry[]>(
-    prefill?.sets && prefill.sets.length > 0
-      ? prefill.sets
-      : [{ reps: 8, weight: 0 }]
-  );
-  const [notes, setNotes] = useState(prefill?.notes ?? "");
+  const [exerciseName, setExerciseName] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(0);
+  const [sets, setSets] = useState<SetEntry[]>([{ reps: 8, weight: 0 }]);
+  const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const allNames = useMemo(
+    () => Array.from(new Set([...exerciseNames, ...COMMON_EXERCISES])),
+    [exerciseNames]
+  );
+  const suggestions = useMemo(
+    () => matchExerciseNames(exerciseName, allNames),
+    [exerciseName, allNames]
+  );
+
+  function selectSuggestion(name: string) {
+    setExerciseName(name);
+    setShowSuggestions(false);
+  }
+
+  function handleNameKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!showSuggestions || suggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightIndex((i) => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      selectSuggestion(suggestions[highlightIndex]);
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+    }
+  }
 
   function updateSet(index: number, field: keyof SetEntry, value: number) {
     setSets((prev) =>
@@ -61,26 +82,42 @@ export default function LogWorkoutModal({
 
   return (
     <Modal title="Log Exercise" onClose={onClose}>
-      {prefill?.caution && (
-        <div className="mb-3 rounded-lg border border-amber-800 bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
-          ⚠ {prefill.caution}
-        </div>
-      )}
-
       <div className="space-y-3">
-        <div>
+        <div className="relative">
           <input
-            list="exercise-names"
             value={exerciseName}
-            onChange={(e) => setExerciseName(e.target.value)}
+            onChange={(e) => {
+              setExerciseName(e.target.value);
+              setShowSuggestions(true);
+              setHighlightIndex(0);
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setShowSuggestions(false)}
+            onKeyDown={handleNameKeyDown}
             placeholder="Exercise name"
+            autoComplete="off"
             className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
           />
-          <datalist id="exercise-names">
-            {exerciseNames.map((name) => (
-              <option key={name} value={name} />
-            ))}
-          </datalist>
+          {showSuggestions && suggestions.length > 0 && (
+            <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-neutral-700 bg-neutral-900 shadow-lg">
+              {suggestions.map((name, i) => (
+                <li key={name}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => selectSuggestion(name)}
+                    className={`w-full px-3 py-1.5 text-left text-sm ${
+                      i === highlightIndex
+                        ? "bg-emerald-950 text-emerald-300"
+                        : "text-neutral-200 hover:bg-neutral-800"
+                    }`}
+                  >
+                    {name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <div className="space-y-2">
