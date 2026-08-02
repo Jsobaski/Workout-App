@@ -33,12 +33,32 @@ export default function NutritionSection({
         </span>
       }
     >
-      {targetCalories && (targetCalories[0] || targetCalories[1]) ? (
-        <p className="mb-3 text-xs text-neutral-500">
-          Target: {targetCalories[0] ?? "?"}–{targetCalories[1] ?? "?"} kcal
-          {targetProtein ? ` · ${targetProtein}g protein` : ""}
-        </p>
-      ) : null}
+      {((targetCalories && (targetCalories[0] || targetCalories[1])) || targetProtein) && (
+        <div className="mb-3 space-y-2.5">
+          {targetCalories && (targetCalories[0] || targetCalories[1]) && (
+            <NutrientProgress
+              label="Calories"
+              value={totals.calories}
+              target={targetCalories[1] ?? targetCalories[0] ?? null}
+              rangeLabel={
+                targetCalories[0] && targetCalories[1]
+                  ? `${targetCalories[0]}–${targetCalories[1]}`
+                  : String(targetCalories[1] ?? targetCalories[0])
+              }
+              unit=" kcal"
+            />
+          )}
+          {targetProtein ? (
+            <NutrientProgress
+              label="Protein"
+              value={totals.proteinG}
+              target={targetProtein}
+              rangeLabel={String(targetProtein)}
+              unit="g"
+            />
+          ) : null}
+        </div>
+      )}
 
       {entries.length === 0 ? (
         <p className="py-2 text-sm text-neutral-500">No food logged yet.</p>
@@ -102,6 +122,44 @@ export default function NutritionSection({
         </button>
       </div>
     </CollapsibleSection>
+  );
+}
+
+function NutrientProgress({
+  label,
+  value,
+  target,
+  rangeLabel,
+  unit,
+}: {
+  label: string;
+  value: number;
+  target: number | null;
+  rangeLabel: string;
+  unit: string;
+}) {
+  if (!target) return null;
+  const pct = Math.min(100, Math.round((value / target) * 100));
+  const over = value > target;
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-xs">
+        <span className="text-neutral-500">{label}</span>
+        <span className={over ? "text-amber-400" : "text-neutral-300"}>
+          {value.toLocaleString()} / {rangeLabel}
+          {unit}
+        </span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-neutral-800">
+        <div
+          className={`h-full rounded-full transition-all ${
+            over ? "bg-amber-500" : "bg-emerald-500"
+          }`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
   );
 }
 

@@ -25,13 +25,14 @@ export default function LogWorkoutModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const historyNames = useMemo(() => new Set(exerciseNames), [exerciseNames]);
   const allNames = useMemo(
     () => Array.from(new Set([...exerciseNames, ...COMMON_EXERCISES])),
     [exerciseNames]
   );
   const suggestions = useMemo(
-    () => matchExerciseNames(exerciseName, allNames),
-    [exerciseName, allNames]
+    () => matchExerciseNames(exerciseName, allNames, 6, historyNames),
+    [exerciseName, allNames, historyNames]
   );
 
   function selectSuggestion(name: string) {

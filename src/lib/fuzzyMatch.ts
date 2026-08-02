@@ -28,7 +28,8 @@ function expandWords(query: string): string[] {
 export function matchExerciseNames(
   query: string,
   names: string[],
-  limit = 6
+  limit = 6,
+  historyNames?: Set<string>
 ): string[] {
   const trimmed = query.trim();
   if (!trimmed) return [];
@@ -45,6 +46,11 @@ export function matchExerciseNames(
         score = 2;
       } else if (tokens.length > 0 && tokens.every((t) => lowerName.includes(t))) {
         score = 1;
+      }
+      // Nudge previously-logged exercises above the generic starter list
+      // when they match equally well.
+      if (score >= 0 && historyNames?.has(name)) {
+        score += 0.5;
       }
       return { name, score };
     })
