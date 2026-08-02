@@ -170,6 +170,12 @@ export async function listDistinctExerciseNames(): Promise<string[]> {
   return Array.from(names).sort((a, b) => a.localeCompare(b));
 }
 
+export async function findMostRecentWorkoutEntry(): Promise<WorkoutEntry | null> {
+  const all = await listAllWorkoutEntries();
+  if (all.length === 0) return null;
+  return all.reduce((latest, e) => (e.timestamp > latest.timestamp ? e : latest));
+}
+
 export async function findLastWorkoutEntryForExercise(
   exerciseName: string
 ): Promise<WorkoutEntry | null> {

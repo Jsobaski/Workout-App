@@ -7,6 +7,7 @@ import WorkoutSection from "@/components/WorkoutSection";
 import AddFoodModal from "@/components/AddFoodModal";
 import LogWorkoutModal from "@/components/LogWorkoutModal";
 import SuggestWorkoutModal from "@/components/SuggestWorkoutModal";
+import WorkoutSplitModal from "@/components/WorkoutSplitModal";
 import { useDayData } from "@/hooks/useDayData";
 import { useCoachingContext } from "@/hooks/useCoachingContext";
 import { useExerciseNames } from "@/hooks/useExerciseNames";
@@ -34,6 +35,7 @@ export default function DayViewPage() {
   const [showAddFood, setShowAddFood] = useState(false);
   const [showLogWorkout, setShowLogWorkout] = useState(false);
   const [showSuggest, setShowSuggest] = useState(false);
+  const [showChooseSplit, setShowChooseSplit] = useState(false);
   const [workoutSuggestion, setWorkoutSuggestion] = useState<WorkoutSuggestion | null>(null);
   const [addedSuggestionNames, setAddedSuggestionNames] = useState<Set<string>>(new Set());
 
@@ -66,6 +68,7 @@ export default function DayViewPage() {
         entries={workoutEntries}
         onAdd={() => setShowLogWorkout(true)}
         onSuggest={() => setShowSuggest(true)}
+        onChooseSplit={() => setShowChooseSplit(true)}
         onUpdate={updateWorkoutEntry}
         onDelete={removeWorkoutEntry}
       />
@@ -94,6 +97,13 @@ export default function DayViewPage() {
         <LogWorkoutModal
           exerciseNames={exerciseNames}
           onClose={() => setShowLogWorkout(false)}
+          onSave={addWorkoutEntry}
+        />
+      )}
+
+      {showChooseSplit && (
+        <WorkoutSplitModal
+          onClose={() => setShowChooseSplit(false)}
           onSave={addWorkoutEntry}
         />
       )}

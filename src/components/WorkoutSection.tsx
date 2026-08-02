@@ -9,12 +9,14 @@ export default function WorkoutSection({
   entries,
   onAdd,
   onSuggest,
+  onChooseSplit,
   onUpdate,
   onDelete,
 }: {
   entries: WorkoutEntry[];
   onAdd: () => void;
   onSuggest: () => void;
+  onChooseSplit: () => void;
   onUpdate: (entry: WorkoutEntry) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
@@ -113,7 +115,13 @@ export default function WorkoutSection({
         <div className="text-sm font-semibold text-neutral-200">
           Total volume: {summary.totalVolume.toLocaleString()} lb
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={onChooseSplit}
+            className="rounded-lg border border-emerald-700 px-3 py-1.5 text-sm font-medium text-emerald-400 hover:bg-emerald-950"
+          >
+            Choose Split
+          </button>
           <button
             onClick={onSuggest}
             className="rounded-lg border border-emerald-700 px-3 py-1.5 text-sm font-medium text-emerald-400 hover:bg-emerald-950"
