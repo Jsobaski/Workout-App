@@ -3,7 +3,12 @@
 import { useMemo, useState } from "react";
 import Modal from "./Modal";
 import { FoodEntry } from "@/lib/types";
-import { blobToBase64, blobToObjectUrl, resizeImageFile } from "@/lib/image";
+import {
+  blobToBase64,
+  blobToObjectUrl,
+  prepareImageForOcr,
+  resizeImageFile,
+} from "@/lib/image";
 import { scanNutritionLabel } from "@/lib/ocr";
 import { fuzzyMatchNames } from "@/lib/fuzzyMatch";
 import { COMMON_FOODS, findCommonFood } from "@/lib/commonFoods";
@@ -147,10 +152,13 @@ export default function AddFoodModal({
     setScannedText(null);
     setScanning(true);
     try {
-      // Use the original, un-compressed photo for OCR — the resized/
-      // compressed copy used for the AI estimate blurs small label text
-      // and hurts accuracy. OCR never leaves the device, so full size is fine.
-      const result = await scanNutritionLabel(photoFile);
+      // Tesseract reads File/Blob objects as raw bytes and never applies
+      // EXIF orientation — a phone photo stored as landscape pixels + a
+      // "rotate 90°" EXIF flag (the normal case) gets OCR'd sideways and
+      // fails silently. Decode through canvas first so the pixels are
+      // actually upright, at a size that keeps label text sharp.
+      const oriented = await prepareImageForOcr(photoFile);
+      const result = await scanNutritionLabel(oriented);
       setScannedText(result.rawText || null);
       if (result.calories == null && result.proteinG == null) {
         throw new Error(

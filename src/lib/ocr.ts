@@ -13,17 +13,28 @@ function parseNumber(raw: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-// Only searches forward from the keyword (label text always precedes the
-// value on real Nutrition Facts panels) — a bidirectional search risks
-// grabbing an unrelated number from the next line when two fields sit close
-// together in noisy OCR output.
-function extractNear(text: string, keyword: RegExp): number | null {
+// OCR sometimes drops a stray space inside a number, e.g. "120" -> "1 20".
+function collapseSplitNumbers(text: string): string {
+  return text.replace(/(\d)\s+(\d{2}\b)/g, "$1$2");
+}
+
+// Forward-only: the label word precedes its value on real Nutrition Facts
+// panels in the vast majority of cases, and a bidirectional search risks
+// grabbing an unrelated nearby number (e.g. borrowing the next field's
+// value) when two fields sit close together in noisy OCR output.
+function extractForward(text: string, keyword: RegExp): number | null {
   const pattern = new RegExp(
     keyword.source + `[^\\d]{0,20}(\\d{1,3}(?:,\\d{3})*(?:\\.\\d+)?)`,
     "i"
   );
   const match = text.match(pattern);
   return match ? parseNumber(match[1]) : null;
+}
+
+function extractNear(text: string, keyword: RegExp): number | null {
+  const direct = extractForward(text, keyword);
+  if (direct != null) return direct;
+  return extractForward(collapseSplitNumbers(text), keyword);
 }
 
 export async function scanNutritionLabel(image: Blob): Promise<LabelScanResult> {
