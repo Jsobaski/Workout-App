@@ -25,7 +25,10 @@ function expandWords(query: string): string[] {
     .map((word) => ABBREVIATIONS[word] ?? word);
 }
 
-export function matchExerciseNames(
+// Generic fuzzy name matcher — used for both exercise and food name
+// autocomplete. The gym-abbreviation expansion above only ever helps
+// (foods never contain those substrings), so it's safe to share.
+export function fuzzyMatchNames(
   query: string,
   names: string[],
   limit = 6,

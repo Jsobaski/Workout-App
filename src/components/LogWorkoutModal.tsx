@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
 import { SetEntry, WorkoutEntry } from "@/lib/types";
 import { inferMuscleGroups } from "@/lib/muscleGroups";
-import { matchExerciseNames } from "@/lib/fuzzyMatch";
+import { fuzzyMatchNames } from "@/lib/fuzzyMatch";
 import { COMMON_EXERCISES } from "@/lib/commonExercises";
 import { findLastWorkoutEntryForExercise } from "@/lib/db";
 import { formatShortDate } from "@/lib/date";
@@ -33,7 +33,7 @@ export default function LogWorkoutModal({
     [exerciseNames]
   );
   const suggestions = useMemo(
-    () => matchExerciseNames(exerciseName, allNames, 6, historyNames),
+    () => fuzzyMatchNames(exerciseName, allNames, 6, historyNames),
     [exerciseName, allNames, historyNames]
   );
 

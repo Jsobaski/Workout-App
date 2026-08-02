@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Modal from "./Modal";
 import { FoodEntry } from "@/lib/types";
 import { blobToBase64, blobToObjectUrl, resizeImageFile } from "@/lib/image";
 import { scanNutritionLabel } from "@/lib/ocr";
+import { fuzzyMatchNames } from "@/lib/fuzzyMatch";
+import { COMMON_FOODS, findCommonFood } from "@/lib/commonFoods";
 
 type Mode = "text" | "photo";
 
@@ -23,16 +25,81 @@ export default function AddFoodModal({
   const [proteinG, setProteinG] = useState("");
   const [confidenceNote, setConfidenceNote] = useState("");
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [estimating, setEstimating] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasEstimate, setHasEstimate] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [scannedText, setScannedText] = useState<string | null>(null);
+  const [showScannedText, setShowScannedText] = useState(false);
+  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
+  const [nameHighlightIndex, setNameHighlightIndex] = useState(0);
+
+  const recentNames = useMemo(
+    () => Array.from(new Set(recentFoods.map((f) => f.itemName))),
+    [recentFoods]
+  );
+  const historyNames = useMemo(() => new Set(recentNames), [recentNames]);
+  const allFoodNames = useMemo(
+    () => Array.from(new Set([...recentNames, ...COMMON_FOODS.map((f) => f.name)])),
+    [recentNames]
+  );
+  const nameSuggestions = useMemo(
+    () => fuzzyMatchNames(itemName, allFoodNames, 6, historyNames),
+    [itemName, allFoodNames, historyNames]
+  );
+
+  function selectNameSuggestion(name: string) {
+    setShowNameSuggestions(false);
+    const recentMatch = recentFoods.find(
+      (f) => f.itemName.toLowerCase() === name.toLowerCase()
+    );
+    if (recentMatch) {
+      pickRecent(recentMatch);
+      return;
+    }
+    const common = findCommonFood(name);
+    if (common) {
+      setItemName(common.name);
+      setCalories(String(common.calories));
+      setProteinG(String(common.proteinG));
+      setConfidenceNote(
+        `Typical value for ${common.servingHint} — no AI used. Adjust for your actual portion.`
+      );
+      setHasEstimate(true);
+      setError(null);
+      return;
+    }
+    setItemName(name);
+  }
+
+  function handleNameKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!showNameSuggestions || nameSuggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setNameHighlightIndex((i) => Math.min(i + 1, nameSuggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setNameHighlightIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      selectNameSuggestion(nameSuggestions[nameHighlightIndex]);
+    } else if (e.key === "Escape") {
+      // Modal has its own document-level Escape listener; stop this one
+      // from also closing the whole modal (stopPropagation alone doesn't
+      // stop a later same-node listener — see LogWorkoutModal for the same fix).
+      e.nativeEvent.stopImmediatePropagation();
+      setShowNameSuggestions(false);
+    }
+  }
 
   async function handlePhotoChange(file: File | undefined) {
     if (!file) return;
     setError(null);
+    setScannedText(null);
+    setPhotoFile(file);
     const resized = await resizeImageFile(file);
     setPhotoBlob(resized);
     setPhotoPreview(blobToObjectUrl(resized));
@@ -75,14 +142,19 @@ export default function AddFoodModal({
   }
 
   async function runLabelScan() {
-    if (!photoBlob) return;
+    if (!photoFile) return;
     setError(null);
+    setScannedText(null);
     setScanning(true);
     try {
-      const result = await scanNutritionLabel(photoBlob);
+      // Use the original, un-compressed photo for OCR — the resized/
+      // compressed copy used for the AI estimate blurs small label text
+      // and hurts accuracy. OCR never leaves the device, so full size is fine.
+      const result = await scanNutritionLabel(photoFile);
+      setScannedText(result.rawText || null);
       if (result.calories == null && result.proteinG == null) {
         throw new Error(
-          "Couldn't read calories or protein from that photo. Try a clearer, well-lit photo of the label, or use Estimate with AI instead."
+          "Couldn't find calories or protein in that photo. Try a clearer, well-lit, flat-on photo of the label, or use Estimate with AI instead."
         );
       }
       if (result.calories != null) setCalories(String(result.calories));
@@ -178,13 +250,18 @@ export default function AddFoodModal({
             />
           </label>
           {photoBlob && (
-            <button
-              onClick={runLabelScan}
-              disabled={scanning}
-              className="mt-2 w-full rounded-lg border border-blue-700 py-2 text-sm font-medium text-blue-400 hover:bg-blue-950 disabled:opacity-40"
-            >
-              {scanning ? "Reading label…" : "Scan Label (free, no AI)"}
-            </button>
+            <>
+              <button
+                onClick={runLabelScan}
+                disabled={scanning}
+                className="mt-2 w-full rounded-lg border border-blue-700 py-2 text-sm font-medium text-blue-400 hover:bg-blue-950 disabled:opacity-40"
+              >
+                {scanning ? "Reading label…" : "Scan Label (free, no AI)"}
+              </button>
+              <p className="mt-1 text-center text-xs text-neutral-600">
+                Best results: label flat, well-lit, filling the frame
+              </p>
+            </>
           )}
         </div>
       )}
@@ -208,14 +285,52 @@ export default function AddFoodModal({
           </div>
         )}
 
-        <input
-          value={itemName}
-          onChange={(e) => setItemName(e.target.value)}
-          placeholder="Item name (e.g. Grilled chicken breast)"
-          className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
-        />
+        <div className="relative">
+          <input
+            value={itemName}
+            onChange={(e) => {
+              setItemName(e.target.value);
+              setShowNameSuggestions(true);
+              setNameHighlightIndex(0);
+            }}
+            onFocus={() => setShowNameSuggestions(true)}
+            onBlur={() => setShowNameSuggestions(false)}
+            onKeyDown={handleNameKeyDown}
+            placeholder="Item name (e.g. Grilled chicken breast, banana, egg)"
+            autoComplete="off"
+            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+          />
+          {mode === "text" && showNameSuggestions && nameSuggestions.length > 0 && (
+            <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-neutral-700 bg-neutral-900 shadow-lg">
+              {nameSuggestions.map((name, i) => {
+                const common = findCommonFood(name);
+                return (
+                  <li key={name}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => selectNameSuggestion(name)}
+                      className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm ${
+                        i === nameHighlightIndex
+                          ? "bg-emerald-950 text-emerald-300"
+                          : "text-neutral-200 hover:bg-neutral-800"
+                      }`}
+                    >
+                      <span>{name}</span>
+                      {common && (
+                        <span className="text-xs text-neutral-500">
+                          {common.calories} kcal · {common.servingHint}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
 
-        {mode === "text" && (
+        {mode === "text" && !hasEstimate && (
           <div className="flex gap-2">
             <input
               type="number"
@@ -274,6 +389,23 @@ export default function AddFoodModal({
         )}
 
         {error && <p className="text-xs text-red-400">{error}</p>}
+
+        {scannedText && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowScannedText((v) => !v)}
+              className="text-xs text-neutral-500 hover:underline"
+            >
+              {showScannedText ? "Hide" : "View"} scanned text
+            </button>
+            {showScannedText && (
+              <pre className="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap rounded-md bg-neutral-900 p-2 text-xs text-neutral-400">
+                {scannedText}
+              </pre>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-5 flex justify-end gap-2">

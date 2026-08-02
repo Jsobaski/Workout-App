@@ -8,11 +8,22 @@ export interface LabelScanResult {
   rawText: string;
 }
 
-function extractNumber(text: string, pattern: RegExp): number | null {
-  const match = text.match(pattern);
-  if (!match) return null;
-  const value = parseFloat(match[1]);
+function parseNumber(raw: string): number | null {
+  const value = parseFloat(raw.replace(/,/g, ""));
   return Number.isFinite(value) ? value : null;
+}
+
+// Only searches forward from the keyword (label text always precedes the
+// value on real Nutrition Facts panels) — a bidirectional search risks
+// grabbing an unrelated number from the next line when two fields sit close
+// together in noisy OCR output.
+function extractNear(text: string, keyword: RegExp): number | null {
+  const pattern = new RegExp(
+    keyword.source + `[^\\d]{0,20}(\\d{1,3}(?:,\\d{3})*(?:\\.\\d+)?)`,
+    "i"
+  );
+  const match = text.match(pattern);
+  return match ? parseNumber(match[1]) : null;
 }
 
 export async function scanNutritionLabel(image: Blob): Promise<LabelScanResult> {
@@ -21,8 +32,8 @@ export async function scanNutritionLabel(image: Blob): Promise<LabelScanResult> 
   const text = data.text;
 
   return {
-    calories: extractNumber(text, /calories[^\d]{0,15}(\d{1,4})/i),
-    proteinG: extractNumber(text, /protein[^\d]{0,15}(\d{1,3}(?:\.\d+)?)/i),
-    rawText: text,
+    calories: extractNear(text, /calories/),
+    proteinG: extractNear(text, /protein/),
+    rawText: text.trim(),
   };
 }
