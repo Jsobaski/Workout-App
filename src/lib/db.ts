@@ -3,6 +3,7 @@ import {
   CoachingContext,
   DEFAULT_COACHING_CONTEXT,
   FoodEntry,
+  GolfActivityEntry,
   WorkoutEntry,
 } from "./types";
 
@@ -17,6 +18,11 @@ interface GolfTrackerDB extends DBSchema {
     value: WorkoutEntry;
     indexes: { dateKey: string; timestamp: number; exerciseName: string };
   };
+  golfActivityEntries: {
+    key: string;
+    value: GolfActivityEntry;
+    indexes: { dateKey: string; timestamp: number };
+  };
   settings: {
     key: string;
     value: CoachingContext;
@@ -24,7 +30,7 @@ interface GolfTrackerDB extends DBSchema {
 }
 
 const DB_NAME = "golf-fitness-tracker";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<GolfTrackerDB>> | null = null;
 
@@ -51,6 +57,13 @@ function getDB(): Promise<IDBPDatabase<GolfTrackerDB>> {
           store.createIndex("dateKey", "dateKey");
           store.createIndex("timestamp", "timestamp");
           store.createIndex("exerciseName", "exerciseName");
+        }
+        if (!db.objectStoreNames.contains("golfActivityEntries")) {
+          const store = db.createObjectStore("golfActivityEntries", {
+            keyPath: "id",
+          });
+          store.createIndex("dateKey", "dateKey");
+          store.createIndex("timestamp", "timestamp");
         }
         if (!db.objectStoreNames.contains("settings")) {
           db.createObjectStore("settings", { keyPath: "key" });
@@ -186,6 +199,34 @@ export async function findLastWorkoutEntryForExercise(
     .filter((e) => e.exerciseName.trim().toLowerCase() === target)
     .sort((a, b) => b.timestamp - a.timestamp);
   return matches[0] ?? null;
+}
+
+// ---- Golf activity entries ----
+
+export async function listGolfActivityEntriesForDate(
+  dateKey: string
+): Promise<GolfActivityEntry[]> {
+  const db = await getDB();
+  const entries = await db.getAllFromIndex(
+    "golfActivityEntries",
+    "dateKey",
+    dateKey
+  );
+  return entries.sort((a, b) => a.timestamp - b.timestamp);
+}
+
+export async function saveGolfActivityEntry(
+  entry: Omit<GolfActivityEntry, "id"> & { id?: string }
+): Promise<GolfActivityEntry> {
+  const db = await getDB();
+  const full: GolfActivityEntry = { ...entry, id: entry.id ?? newId() };
+  await db.put("golfActivityEntries", full);
+  return full;
+}
+
+export async function deleteGolfActivityEntry(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete("golfActivityEntries", id);
 }
 
 // ---- Coaching context / settings ----

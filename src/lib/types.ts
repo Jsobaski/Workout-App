@@ -14,6 +14,22 @@ export interface WorkoutEntry {
   notes?: string;
 }
 
+export type GolfActivityType =
+  | "full_round"
+  | "nine_holes"
+  | "simulator"
+  | "practice_range"
+  | "short_game";
+
+export interface GolfActivityEntry {
+  id: string;
+  dateKey: string; // YYYY-MM-DD, local calendar day
+  timestamp: number; // ms epoch, when logged
+  activityType: GolfActivityType;
+  durationMin: number | null;
+  notes?: string;
+}
+
 export type FoodSource = "typed" | "photo";
 
 export interface FoodEntry {

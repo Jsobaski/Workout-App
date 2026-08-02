@@ -3,28 +3,34 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   deleteFoodEntry,
+  deleteGolfActivityEntry,
   deleteWorkoutEntry,
   listFoodEntriesForDate,
+  listGolfActivityEntriesForDate,
   listWorkoutEntriesForDate,
   saveFoodEntry,
+  saveGolfActivityEntry,
   saveWorkoutEntry,
 } from "@/lib/db";
-import { FoodEntry, WorkoutEntry } from "@/lib/types";
+import { FoodEntry, GolfActivityEntry, WorkoutEntry } from "@/lib/types";
 
 export function useDayData(dateKey: string) {
   const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
   const [workoutEntries, setWorkoutEntries] = useState<WorkoutEntry[]>([]);
+  const [golfActivityEntries, setGolfActivityEntries] = useState<GolfActivityEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [food, workouts] = await Promise.all([
+      const [food, workouts, golfActivities] = await Promise.all([
         listFoodEntriesForDate(dateKey),
         listWorkoutEntriesForDate(dateKey),
+        listGolfActivityEntriesForDate(dateKey),
       ]);
       setFoodEntries(food);
       setWorkoutEntries(workouts);
+      setGolfActivityEntries(golfActivities);
     } finally {
       setLoading(false);
     }
@@ -35,13 +41,15 @@ export function useDayData(dateKey: string) {
     (async () => {
       setLoading(true);
       try {
-        const [food, workouts] = await Promise.all([
+        const [food, workouts, golfActivities] = await Promise.all([
           listFoodEntriesForDate(dateKey),
           listWorkoutEntriesForDate(dateKey),
+          listGolfActivityEntriesForDate(dateKey),
         ]);
         if (!cancelled) {
           setFoodEntries(food);
           setWorkoutEntries(workouts);
+          setGolfActivityEntries(golfActivities);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -100,9 +108,26 @@ export function useDayData(dateKey: string) {
     [refresh]
   );
 
+  const addGolfActivityEntry = useCallback(
+    async (entry: Omit<GolfActivityEntry, "id" | "dateKey">) => {
+      await saveGolfActivityEntry({ ...entry, dateKey });
+      await refresh();
+    },
+    [dateKey, refresh]
+  );
+
+  const removeGolfActivityEntry = useCallback(
+    async (id: string) => {
+      await deleteGolfActivityEntry(id);
+      await refresh();
+    },
+    [refresh]
+  );
+
   return {
     foodEntries,
     workoutEntries,
+    golfActivityEntries,
     loading,
     refresh,
     addFoodEntry,
@@ -111,5 +136,7 @@ export function useDayData(dateKey: string) {
     addWorkoutEntry,
     updateWorkoutEntry,
     removeWorkoutEntry,
+    addGolfActivityEntry,
+    removeGolfActivityEntry,
   };
 }

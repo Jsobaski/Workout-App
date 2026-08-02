@@ -4,10 +4,12 @@ import { useState } from "react";
 import DayNav from "@/components/DayNav";
 import NutritionSection from "@/components/NutritionSection";
 import WorkoutSection from "@/components/WorkoutSection";
+import GolfActivitySection from "@/components/GolfActivitySection";
 import AddFoodModal from "@/components/AddFoodModal";
 import LogWorkoutModal from "@/components/LogWorkoutModal";
 import SuggestWorkoutModal from "@/components/SuggestWorkoutModal";
 import WorkoutSplitModal from "@/components/WorkoutSplitModal";
+import LogGolfActivityModal from "@/components/LogGolfActivityModal";
 import { useDayData } from "@/hooks/useDayData";
 import { useCoachingContext } from "@/hooks/useCoachingContext";
 import { useExerciseNames } from "@/hooks/useExerciseNames";
@@ -21,12 +23,15 @@ export default function DayViewPage() {
   const {
     foodEntries,
     workoutEntries,
+    golfActivityEntries,
     addFoodEntry,
     updateFoodEntry,
     removeFoodEntry,
     addWorkoutEntry,
     updateWorkoutEntry,
     removeWorkoutEntry,
+    addGolfActivityEntry,
+    removeGolfActivityEntry,
   } = useDayData(dateKey);
   const { context: coachingContext } = useCoachingContext();
   const exerciseNames = useExerciseNames(workoutEntries.length);
@@ -36,6 +41,7 @@ export default function DayViewPage() {
   const [showLogWorkout, setShowLogWorkout] = useState(false);
   const [showSuggest, setShowSuggest] = useState(false);
   const [showChooseSplit, setShowChooseSplit] = useState(false);
+  const [showLogGolfActivity, setShowLogGolfActivity] = useState(false);
   const [workoutSuggestion, setWorkoutSuggestion] = useState<WorkoutSuggestion | null>(null);
   const [addedSuggestionNames, setAddedSuggestionNames] = useState<Set<string>>(new Set());
 
@@ -73,6 +79,12 @@ export default function DayViewPage() {
         onDelete={removeWorkoutEntry}
       />
 
+      <GolfActivitySection
+        entries={golfActivityEntries}
+        onAdd={() => setShowLogGolfActivity(true)}
+        onDelete={removeGolfActivityEntry}
+      />
+
       <NutritionSection
         entries={foodEntries}
         targetCalories={[
@@ -105,6 +117,13 @@ export default function DayViewPage() {
         <WorkoutSplitModal
           onClose={() => setShowChooseSplit(false)}
           onSave={addWorkoutEntry}
+        />
+      )}
+
+      {showLogGolfActivity && (
+        <LogGolfActivityModal
+          onClose={() => setShowLogGolfActivity(false)}
+          onSave={addGolfActivityEntry}
         />
       )}
 
