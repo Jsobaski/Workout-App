@@ -247,12 +247,11 @@ export default function AddFoodModal({
                 className="mx-auto max-h-48 rounded-md"
               />
             ) : (
-              "Tap to take or upload a photo (label or plate)"
+              "Tap to take a photo or choose one from your library (label or plate)"
             )}
             <input
               type="file"
               accept="image/*"
-              capture="environment"
               className="hidden"
               onChange={(e) => handlePhotoChange(e.target.files?.[0])}
             />
