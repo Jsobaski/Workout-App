@@ -238,24 +238,37 @@ export default function AddFoodModal({
 
       {mode === "photo" && (
         <div className="mb-3">
-          <label className="block cursor-pointer rounded-lg border border-dashed border-neutral-700 p-4 text-center text-sm text-neutral-400 hover:border-emerald-700">
-            {photoPreview ? (
-              // eslint-disable-next-line @next/next/no-img-element
+          {photoPreview && (
+            <div className="mb-2 rounded-lg border border-neutral-700 p-2 text-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={photoPreview}
                 alt="Food preview"
                 className="mx-auto max-h-48 rounded-md"
               />
-            ) : (
-              "Tap to take a photo or choose one from your library (label or plate)"
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handlePhotoChange(e.target.files?.[0])}
-            />
-          </label>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <label className="flex-1 cursor-pointer rounded-lg border border-dashed border-neutral-700 py-3 text-center text-sm text-neutral-400 hover:border-emerald-700">
+              Take Photo
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => handlePhotoChange(e.target.files?.[0])}
+              />
+            </label>
+            <label className="flex-1 cursor-pointer rounded-lg border border-dashed border-neutral-700 py-3 text-center text-sm text-neutral-400 hover:border-emerald-700">
+              Choose from Library
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handlePhotoChange(e.target.files?.[0])}
+              />
+            </label>
+          </div>
           {photoBlob && (
             <>
               <button
