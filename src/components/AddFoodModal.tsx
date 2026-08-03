@@ -28,6 +28,7 @@ export default function AddFoodModal({
   const [itemName, setItemName] = useState("");
   const [calories, setCalories] = useState("");
   const [proteinG, setProteinG] = useState("");
+  const [servings, setServings] = useState("1");
   const [confidenceNote, setConfidenceNote] = useState("");
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -56,6 +57,13 @@ export default function AddFoodModal({
     [itemName, allFoodNames, historyNames]
   );
 
+  // Calories/protein fields hold per-serving values (that's what a label,
+  // an AI estimate, or the common-foods db all give you); servings scales
+  // that up to what actually gets logged.
+  const servingsNum = Number(servings) || 1;
+  const totalCalories = Math.round((Number(calories) || 0) * servingsNum);
+  const totalProteinG = Math.round((Number(proteinG) || 0) * servingsNum * 10) / 10;
+
   function selectNameSuggestion(name: string) {
     setShowNameSuggestions(false);
     const recentMatch = recentFoods.find(
@@ -70,6 +78,7 @@ export default function AddFoodModal({
       setItemName(common.name);
       setCalories(String(common.calories));
       setProteinG(String(common.proteinG));
+      setServings("1");
       setConfidenceNote(
         `Typical value for ${common.servingHint} — no AI used. Adjust for your actual portion.`
       );
@@ -108,6 +117,7 @@ export default function AddFoodModal({
     const resized = await resizeImageFile(file);
     setPhotoBlob(resized);
     setPhotoPreview(blobToObjectUrl(resized));
+    setServings("1");
     setHasEstimate(false);
   }
 
@@ -184,6 +194,7 @@ export default function AddFoodModal({
     setItemName(entry.itemName);
     setCalories(String(entry.calories));
     setProteinG(String(entry.proteinG));
+    setServings("1");
     setConfidenceNote("");
     setHasEstimate(false);
     setError(null);
@@ -196,14 +207,20 @@ export default function AddFoodModal({
     }
     setSaving(true);
     try {
+      const note =
+        servingsNum !== 1
+          ? `${confidenceNote ? confidenceNote + " " : ""}${servingsNum} servings logged (${
+              Number(calories) || 0
+            } kcal / ${Number(proteinG) || 0}g protein each).`
+          : confidenceNote;
       await onSave({
         timestamp: Date.now(),
         itemName: itemName.trim(),
-        calories: Number(calories) || 0,
-        proteinG: Number(proteinG) || 0,
+        calories: totalCalories,
+        proteinG: totalProteinG,
         source: mode === "photo" ? "photo" : "typed",
         photoThumbnail: mode === "photo" && photoBlob ? photoBlob : undefined,
-        confidenceNote: confidenceNote || undefined,
+        confidenceNote: note || undefined,
       });
       onClose();
     } finally {
@@ -350,22 +367,43 @@ export default function AddFoodModal({
           )}
         </div>
 
+        <div className="flex items-center gap-2">
+          <label className="shrink-0 text-xs font-medium text-neutral-500">
+            Servings
+          </label>
+          <input
+            type="number"
+            step="0.5"
+            min="0.25"
+            value={servings}
+            onChange={(e) => setServings(e.target.value)}
+            className="w-20 rounded-md border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100"
+          />
+        </div>
+
         {mode === "text" && !hasEstimate && (
-          <div className="flex gap-2">
-            <input
-              type="number"
-              value={calories}
-              onChange={(e) => setCalories(e.target.value)}
-              placeholder="Calories (optional)"
-              className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
-            />
-            <input
-              type="number"
-              value={proteinG}
-              onChange={(e) => setProteinG(e.target.value)}
-              placeholder="Protein g (optional)"
-              className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
-            />
+          <div className="space-y-1.5">
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={calories}
+                onChange={(e) => setCalories(e.target.value)}
+                placeholder="Calories per serving (optional)"
+                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+              />
+              <input
+                type="number"
+                value={proteinG}
+                onChange={(e) => setProteinG(e.target.value)}
+                placeholder="Protein g per serving (optional)"
+                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+              />
+            </div>
+            {servingsNum !== 1 && (Number(calories) > 0 || Number(proteinG) > 0) && (
+              <p className="text-xs font-medium text-emerald-400">
+                {servingsNum} servings = {totalCalories} kcal · {totalProteinG}g protein
+              </p>
+            )}
           </div>
         )}
 
@@ -384,7 +422,7 @@ export default function AddFoodModal({
         {hasEstimate && (
           <div className="space-y-2 rounded-lg bg-neutral-800/60 p-3">
             <p className="text-xs text-neutral-500">
-              Estimate — edit before saving:
+              Estimate (per serving) — edit before saving:
             </p>
             <div className="flex gap-2">
               <input
@@ -402,6 +440,11 @@ export default function AddFoodModal({
                 placeholder="Protein (g)"
               />
             </div>
+            {servingsNum !== 1 && (
+              <p className="text-xs font-medium text-emerald-400">
+                {servingsNum} servings = {totalCalories} kcal · {totalProteinG}g protein
+              </p>
+            )}
             {confidenceNote && (
               <p className="text-xs italic text-neutral-500">{confidenceNote}</p>
             )}
