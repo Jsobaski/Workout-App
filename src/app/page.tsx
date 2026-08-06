@@ -14,6 +14,7 @@ import { useDayData } from "@/hooks/useDayData";
 import { useCoachingContext } from "@/hooks/useCoachingContext";
 import { useExerciseNames } from "@/hooks/useExerciseNames";
 import { useRecentFoods } from "@/hooks/useRecentFoods";
+import { useFoodHistory } from "@/hooks/useFoodHistory";
 import { todayKey } from "@/lib/date";
 import { SuggestedExercise, WorkoutSuggestion } from "@/lib/types";
 import { inferMuscleGroups } from "@/lib/muscleGroups";
@@ -36,6 +37,7 @@ export default function DayViewPage() {
   const { context: coachingContext } = useCoachingContext();
   const exerciseNames = useExerciseNames(workoutEntries.length);
   const recentFoods = useRecentFoods(foodEntries.length);
+  const foodHistory = useFoodHistory(foodEntries.length);
 
   const [showAddFood, setShowAddFood] = useState(false);
   const [showLogWorkout, setShowLogWorkout] = useState(false);
@@ -100,6 +102,7 @@ export default function DayViewPage() {
       {showAddFood && (
         <AddFoodModal
           recentFoods={recentFoods}
+          foodHistory={foodHistory}
           onClose={() => setShowAddFood(false)}
           onSave={addFoodEntry}
         />

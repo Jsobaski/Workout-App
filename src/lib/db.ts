@@ -118,9 +118,12 @@ export async function listAllFoodEntries(): Promise<FoodEntry[]> {
   return db.getAll("foodEntries");
 }
 
-export async function listRecentDistinctFoodEntries(
-  limit = 8
-): Promise<FoodEntry[]> {
+// One entry per distinct item name (the most recent occurrence, so its
+// calories/protein reflect the last time it was logged), across all history
+// — not just a recent window. Backs both the "Recent" quick-add chips
+// (sliced short) and full-history autocomplete (used unsliced), so a food
+// logged weeks ago still auto-fills instead of requiring re-entry.
+export async function listAllDistinctFoodEntries(): Promise<FoodEntry[]> {
   const all = await listAllFoodEntries();
   const sorted = all.sort((a, b) => b.timestamp - a.timestamp);
   const seen = new Set<string>();
@@ -130,9 +133,15 @@ export async function listRecentDistinctFoodEntries(
     if (!key || seen.has(key)) continue;
     seen.add(key);
     result.push(entry);
-    if (result.length >= limit) break;
   }
   return result;
+}
+
+export async function listRecentDistinctFoodEntries(
+  limit = 8
+): Promise<FoodEntry[]> {
+  const all = await listAllDistinctFoodEntries();
+  return all.slice(0, limit);
 }
 
 // ---- Workout entries ----

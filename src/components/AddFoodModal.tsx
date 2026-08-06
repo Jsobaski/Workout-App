@@ -17,10 +17,12 @@ type Mode = "text" | "photo";
 
 export default function AddFoodModal({
   recentFoods,
+  foodHistory,
   onClose,
   onSave,
 }: {
   recentFoods: FoodEntry[];
+  foodHistory: FoodEntry[];
   onClose: () => void;
   onSave: (entry: Omit<FoodEntry, "id" | "dateKey">) => Promise<void>;
 }) {
@@ -43,14 +45,14 @@ export default function AddFoodModal({
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const [nameHighlightIndex, setNameHighlightIndex] = useState(0);
 
-  const recentNames = useMemo(
-    () => Array.from(new Set(recentFoods.map((f) => f.itemName))),
-    [recentFoods]
+  const pastNames = useMemo(
+    () => Array.from(new Set(foodHistory.map((f) => f.itemName))),
+    [foodHistory]
   );
-  const historyNames = useMemo(() => new Set(recentNames), [recentNames]);
+  const historyNames = useMemo(() => new Set(pastNames), [pastNames]);
   const allFoodNames = useMemo(
-    () => Array.from(new Set([...recentNames, ...COMMON_FOODS.map((f) => f.name)])),
-    [recentNames]
+    () => Array.from(new Set([...pastNames, ...COMMON_FOODS.map((f) => f.name)])),
+    [pastNames]
   );
   const nameSuggestions = useMemo(
     () => fuzzyMatchNames(itemName, allFoodNames, 6, historyNames),
@@ -66,11 +68,11 @@ export default function AddFoodModal({
 
   function selectNameSuggestion(name: string) {
     setShowNameSuggestions(false);
-    const recentMatch = recentFoods.find(
+    const pastMatch = foodHistory.find(
       (f) => f.itemName.toLowerCase() === name.toLowerCase()
     );
-    if (recentMatch) {
-      pickRecent(recentMatch);
+    if (pastMatch) {
+      pickRecent(pastMatch);
       return;
     }
     const common = findCommonFood(name);
@@ -341,6 +343,9 @@ export default function AddFoodModal({
             <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-neutral-700 bg-neutral-900 shadow-lg">
               {nameSuggestions.map((name, i) => {
                 const common = findCommonFood(name);
+                const past = foodHistory.find(
+                  (f) => f.itemName.toLowerCase() === name.toLowerCase()
+                );
                 return (
                   <li key={name}>
                     <button
@@ -357,6 +362,11 @@ export default function AddFoodModal({
                       {common && (
                         <span className="text-xs text-neutral-500">
                           {common.calories} kcal · {common.servingHint}
+                        </span>
+                      )}
+                      {!common && past && (
+                        <span className="text-xs text-neutral-500">
+                          {past.calories} kcal · {past.proteinG}g protein
                         </span>
                       )}
                     </button>
