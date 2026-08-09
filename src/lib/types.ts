@@ -14,6 +14,24 @@ export interface WorkoutEntry {
   notes?: string;
 }
 
+export interface BodyMeasurementEntry {
+  id: string;
+  dateKey: string; // YYYY-MM-DD, local calendar day
+  timestamp: number; // ms epoch, when logged
+  weightLb?: number;
+  bodyFatPct?: number;
+  neckIn?: number;
+  shouldersIn?: number;
+  chestIn?: number;
+  waistIn?: number;
+  hipsIn?: number;
+  bicepIn?: number;
+  forearmIn?: number;
+  thighIn?: number;
+  calfIn?: number;
+  notes?: string;
+}
+
 export type GolfActivityType =
   | "full_round"
   | "nine_holes"

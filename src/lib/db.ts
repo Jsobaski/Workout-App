@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import {
+  BodyMeasurementEntry,
   CoachingContext,
   DEFAULT_COACHING_CONTEXT,
   FoodEntry,
@@ -23,6 +24,11 @@ interface GolfTrackerDB extends DBSchema {
     value: GolfActivityEntry;
     indexes: { dateKey: string; timestamp: number };
   };
+  measurementEntries: {
+    key: string;
+    value: BodyMeasurementEntry;
+    indexes: { dateKey: string; timestamp: number };
+  };
   settings: {
     key: string;
     value: CoachingContext;
@@ -30,7 +36,7 @@ interface GolfTrackerDB extends DBSchema {
 }
 
 const DB_NAME = "golf-fitness-tracker";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBPDatabase<GolfTrackerDB>> | null = null;
 
@@ -60,6 +66,13 @@ function getDB(): Promise<IDBPDatabase<GolfTrackerDB>> {
         }
         if (!db.objectStoreNames.contains("golfActivityEntries")) {
           const store = db.createObjectStore("golfActivityEntries", {
+            keyPath: "id",
+          });
+          store.createIndex("dateKey", "dateKey");
+          store.createIndex("timestamp", "timestamp");
+        }
+        if (!db.objectStoreNames.contains("measurementEntries")) {
+          const store = db.createObjectStore("measurementEntries", {
             keyPath: "id",
           });
           store.createIndex("dateKey", "dateKey");
@@ -224,6 +237,11 @@ export async function listGolfActivityEntriesForDate(
   return entries.sort((a, b) => a.timestamp - b.timestamp);
 }
 
+export async function listAllGolfActivityEntries(): Promise<GolfActivityEntry[]> {
+  const db = await getDB();
+  return db.getAll("golfActivityEntries");
+}
+
 export async function saveGolfActivityEntry(
   entry: Omit<GolfActivityEntry, "id"> & { id?: string }
 ): Promise<GolfActivityEntry> {
@@ -236,6 +254,28 @@ export async function saveGolfActivityEntry(
 export async function deleteGolfActivityEntry(id: string): Promise<void> {
   const db = await getDB();
   await db.delete("golfActivityEntries", id);
+}
+
+// ---- Body measurement entries ----
+
+export async function listAllMeasurementEntries(): Promise<BodyMeasurementEntry[]> {
+  const db = await getDB();
+  const all = await db.getAll("measurementEntries");
+  return all.sort((a, b) => b.timestamp - a.timestamp);
+}
+
+export async function saveMeasurementEntry(
+  entry: Omit<BodyMeasurementEntry, "id"> & { id?: string }
+): Promise<BodyMeasurementEntry> {
+  const db = await getDB();
+  const full: BodyMeasurementEntry = { ...entry, id: entry.id ?? newId() };
+  await db.put("measurementEntries", full);
+  return full;
+}
+
+export async function deleteMeasurementEntry(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete("measurementEntries", id);
 }
 
 // ---- Coaching context / settings ----

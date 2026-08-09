@@ -2,31 +2,46 @@ import { blobToBase64 } from "./image";
 import {
   getCoachingContext,
   listAllFoodEntries,
+  listAllGolfActivityEntries,
+  listAllMeasurementEntries,
   listAllWorkoutEntries,
   saveCoachingContext,
   saveFoodEntry,
+  saveGolfActivityEntry,
+  saveMeasurementEntry,
   saveWorkoutEntry,
 } from "./db";
-import { CoachingContext, FoodEntry, WorkoutEntry } from "./types";
+import {
+  BodyMeasurementEntry,
+  CoachingContext,
+  FoodEntry,
+  GolfActivityEntry,
+  WorkoutEntry,
+} from "./types";
 
 interface BackupFoodEntry extends Omit<FoodEntry, "photoThumbnail"> {
   photoThumbnail?: { dataUrl: string; type: string };
 }
 
 export interface BackupData {
-  version: 1;
+  version: 1 | 2;
   exportedAt: string;
   foodEntries: BackupFoodEntry[];
   workoutEntries: WorkoutEntry[];
+  golfActivityEntries?: GolfActivityEntry[];
+  measurementEntries?: BodyMeasurementEntry[];
   coachingContext: CoachingContext;
 }
 
 export async function buildBackup(): Promise<BackupData> {
-  const [foodEntries, workoutEntries, coachingContext] = await Promise.all([
-    listAllFoodEntries(),
-    listAllWorkoutEntries(),
-    getCoachingContext(),
-  ]);
+  const [foodEntries, workoutEntries, golfActivityEntries, measurementEntries, coachingContext] =
+    await Promise.all([
+      listAllFoodEntries(),
+      listAllWorkoutEntries(),
+      listAllGolfActivityEntries(),
+      listAllMeasurementEntries(),
+      getCoachingContext(),
+    ]);
 
   const foodWithPhotos: BackupFoodEntry[] = await Promise.all(
     foodEntries.map(async (entry) => {
@@ -41,10 +56,12 @@ export async function buildBackup(): Promise<BackupData> {
   );
 
   return {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     foodEntries: foodWithPhotos,
     workoutEntries,
+    golfActivityEntries,
+    measurementEntries,
     coachingContext,
   };
 }
@@ -73,8 +90,13 @@ function base64ToBlob(dataUrl: string, type: string): Blob {
 
 export async function restoreBackup(
   data: BackupData
-): Promise<{ foodCount: number; workoutCount: number }> {
-  if (!data || data.version !== 1) {
+): Promise<{
+  foodCount: number;
+  workoutCount: number;
+  golfActivityCount: number;
+  measurementCount: number;
+}> {
+  if (!data || (data.version !== 1 && data.version !== 2)) {
     throw new Error("Unrecognized backup file — expected a Golf Fitness Tracker export.");
   }
 
@@ -92,6 +114,16 @@ export async function restoreBackup(
     await saveWorkoutEntry(entry);
   }
 
+  // Absent entirely in version-1 exports (feature didn't exist yet) — that's
+  // fine, the loops just no-op.
+  for (const entry of data.golfActivityEntries ?? []) {
+    await saveGolfActivityEntry(entry);
+  }
+
+  for (const entry of data.measurementEntries ?? []) {
+    await saveMeasurementEntry(entry);
+  }
+
   if (data.coachingContext) {
     await saveCoachingContext(data.coachingContext);
   }
@@ -99,5 +131,7 @@ export async function restoreBackup(
   return {
     foodCount: data.foodEntries?.length ?? 0,
     workoutCount: data.workoutEntries?.length ?? 0,
+    golfActivityCount: data.golfActivityEntries?.length ?? 0,
+    measurementCount: data.measurementEntries?.length ?? 0,
   };
 }

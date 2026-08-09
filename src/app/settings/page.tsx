@@ -49,9 +49,21 @@ export default function SettingsPage() {
       const text = await file.text();
       const parsed = JSON.parse(text);
       const result = await restoreBackup(parsed);
-      setBackupStatus(
-        `Restored ${result.workoutCount} workout entr${result.workoutCount === 1 ? "y" : "ies"} and ${result.foodCount} food entr${result.foodCount === 1 ? "y" : "ies"}.`
-      );
+      const parts = [
+        `${result.workoutCount} workout entr${result.workoutCount === 1 ? "y" : "ies"}`,
+        `${result.foodCount} food entr${result.foodCount === 1 ? "y" : "ies"}`,
+      ];
+      if (result.golfActivityCount > 0) {
+        parts.push(
+          `${result.golfActivityCount} golf activit${result.golfActivityCount === 1 ? "y" : "ies"}`
+        );
+      }
+      if (result.measurementCount > 0) {
+        parts.push(
+          `${result.measurementCount} measurement entr${result.measurementCount === 1 ? "y" : "ies"}`
+        );
+      }
+      setBackupStatus(`Restored ${parts.join(", ")}.`);
     } catch (err) {
       setBackupError(
         err instanceof Error ? err.message : "Could not import that file."
