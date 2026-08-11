@@ -101,6 +101,7 @@ export default function LogWorkoutModal({
       return;
     }
     setSaving(true);
+    setError(null);
     try {
       await onSave({
         timestamp: Date.now(),
@@ -111,6 +112,8 @@ export default function LogWorkoutModal({
         notes: notes.trim() || undefined,
       });
       onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save — try again.");
     } finally {
       setSaving(false);
     }

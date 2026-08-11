@@ -48,6 +48,7 @@ export default function WorkoutSplitModal({
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [loadingDay, setLoadingDay] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const day = useMemo(
     () => WORKOUT_SPLITS.find((d) => d.id === dayId) ?? WORKOUT_SPLITS[0],
@@ -131,6 +132,7 @@ export default function WorkoutSplitModal({
 
   async function handleLogSelected() {
     setSaving(true);
+    setError(null);
     try {
       for (const exercise of day.exercises) {
         const row = rows[exercise.name];
@@ -144,6 +146,8 @@ export default function WorkoutSplitModal({
         });
       }
       onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save — try again.");
     } finally {
       setSaving(false);
     }
@@ -273,6 +277,8 @@ export default function WorkoutSplitModal({
             })}
           </div>
         )}
+
+        {error && <p className="text-xs text-red-400">{error}</p>}
       </div>
 
       <div className="mt-5 flex justify-end gap-2">

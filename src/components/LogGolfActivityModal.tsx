@@ -18,6 +18,7 @@ export default function LogGolfActivityModal({
   const [durationMin, setDurationMin] = useState(GOLF_ACTIVITY_OPTIONS[0].defaultDurationMin);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function selectType(type: GolfActivityType) {
     setActivityType(type);
@@ -27,6 +28,7 @@ export default function LogGolfActivityModal({
 
   async function handleSave() {
     setSaving(true);
+    setError(null);
     try {
       await onSave({
         timestamp: Date.now(),
@@ -35,6 +37,8 @@ export default function LogGolfActivityModal({
         notes: notes.trim() || undefined,
       });
       onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save — try again.");
     } finally {
       setSaving(false);
     }
@@ -79,6 +83,8 @@ export default function LogGolfActivityModal({
           rows={2}
           className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
         />
+
+        {error && <p className="text-xs text-red-400">{error}</p>}
       </div>
 
       <div className="mt-5 flex justify-end gap-2">

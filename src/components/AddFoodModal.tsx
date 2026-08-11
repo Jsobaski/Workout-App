@@ -208,6 +208,7 @@ export default function AddFoodModal({
       return;
     }
     setSaving(true);
+    setError(null);
     try {
       const note =
         servingsNum !== 1
@@ -225,6 +226,8 @@ export default function AddFoodModal({
         confidenceNote: note || undefined,
       });
       onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save — try again.");
     } finally {
       setSaving(false);
     }
@@ -391,7 +394,7 @@ export default function AddFoodModal({
           />
         </div>
 
-        {mode === "text" && !hasEstimate && (
+        {!hasEstimate && (
           <div className="space-y-1.5">
             <div className="flex gap-2">
               <input

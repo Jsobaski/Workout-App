@@ -30,6 +30,7 @@ export default function LogMeasurementsModal({
       return;
     }
     setSaving(true);
+    setError(null);
     try {
       const entry: Omit<BodyMeasurementEntry, "id"> = {
         dateKey,
@@ -44,6 +45,8 @@ export default function LogMeasurementsModal({
       }
       await onSave(entry);
       onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save — try again.");
     } finally {
       setSaving(false);
     }
