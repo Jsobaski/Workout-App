@@ -20,9 +20,9 @@ export const WORKOUT_SPLITS: WorkoutSplitDay[] = [
     label: "Day 1 — Posterior Chain",
     exercises: [
       { name: "Trap Bar Deadlift" },
-      { name: "Lunges / Split Squats" },
-      { name: "Woodchopper" },
-      { name: "Core" },
+      { name: "DB Bulgarian Split Squats" },
+      { name: "Standing Cable Woodchopper (High-to-Low)" },
+      { name: "Captain's Chair Knee Raises", bodyweight: true },
     ],
   },
   {
@@ -30,28 +30,30 @@ export const WORKOUT_SPLITS: WorkoutSplitDay[] = [
     label: "Day 2 — Upper Pull",
     exercises: [
       { name: "Lat Pulldown" },
-      { name: "Cable Row" },
-      { name: "Face Pulls" },
-      { name: "Curls" },
+      { name: "Seated Cable Row" },
+      { name: "Cable Face Pulls w/ External Rotation" },
+      { name: "DB Bicep Curl" },
     ],
   },
   {
     id: "day3",
     label: "Day 3 — Legs/Rotational",
     exercises: [
-      { name: "Goblet Squat / Split Squats" },
-      { name: "Woodchopper" },
-      { name: "Core" },
+      { name: "Goblet Squat" },
+      { name: "DB Romanian Deadlift" },
+      { name: "Standing Cable Woodchopper (Low-to-High)" },
+      { name: "Standing Calf Raise" },
     ],
   },
   {
     id: "day4",
     label: "Day 4 — Upper Push",
     exercises: [
-      { name: "DB Bench Press", suggestedWeight: 35, weightHint: "35-40 lb" },
+      { name: "DB Bench Press (Flat)", suggestedWeight: 35, weightHint: "35-40 lb" },
+      { name: "Incline DB Press" },
       { name: "DB Shoulder Press", suggestedWeight: 25, weightHint: "25 lb" },
-      { name: "Cable Tricep Work" },
-      { name: "Pallof Press" },
+      { name: "Cable Tricep Pushdown" },
+      { name: "Half-Kneeling Pallof Press" },
     ],
   },
 ];
