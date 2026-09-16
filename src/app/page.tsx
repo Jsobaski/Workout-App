@@ -73,6 +73,7 @@ export default function DayViewPage() {
       <DayNav dateKey={dateKey} onChange={setDateKey} />
 
       <WorkoutSection
+        dateKey={dateKey}
         entries={workoutEntries}
         onAdd={() => setShowLogWorkout(true)}
         onSuggest={() => setShowSuggest(true)}

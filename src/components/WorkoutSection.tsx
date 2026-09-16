@@ -4,8 +4,10 @@ import { useState } from "react";
 import CollapsibleSection from "./CollapsibleSection";
 import { SetEntry, WorkoutEntry } from "@/lib/types";
 import { workoutSummary } from "@/lib/aggregate";
+import { copyToClipboard, formatWorkoutText } from "@/lib/shareText";
 
 export default function WorkoutSection({
+  dateKey,
   entries,
   onAdd,
   onSuggest,
@@ -13,6 +15,7 @@ export default function WorkoutSection({
   onUpdate,
   onDelete,
 }: {
+  dateKey: string;
   entries: WorkoutEntry[];
   onAdd: () => void;
   onSuggest: () => void;
@@ -22,6 +25,13 @@ export default function WorkoutSection({
 }) {
   const summary = workoutSummary(entries);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    await copyToClipboard(formatWorkoutText(dateKey, entries));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
 
   return (
     <CollapsibleSection
@@ -116,6 +126,13 @@ export default function WorkoutSection({
           Total volume: {summary.totalVolume.toLocaleString()} lb
         </div>
         <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleCopy}
+            disabled={entries.length === 0}
+            className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm font-medium text-neutral-300 hover:bg-neutral-800 disabled:opacity-40"
+          >
+            {copied ? "Copied!" : "Copy"}
+          </button>
           <button
             onClick={onChooseSplit}
             className="rounded-lg border border-emerald-700 px-3 py-1.5 text-sm font-medium text-emerald-400 hover:bg-emerald-950"
