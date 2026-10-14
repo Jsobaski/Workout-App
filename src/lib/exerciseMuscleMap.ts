@@ -14,6 +14,11 @@ export type ScoringMethod =
 export interface ExerciseMapping {
   muscles: MuscleContribution[];
   scoring: ScoringMethod;
+  /** Legacy/generic placeholder name (e.g. "Core", "Curls" — the split used
+   * these before being renamed to specific exercises). Still scores real
+   * logged history under these names, but never suggested as a "new"
+   * exercise to do in the Focus card. */
+  hidden?: boolean;
 }
 
 function primary(...groups: MuscleGroupId[]): MuscleContribution[] {
@@ -93,6 +98,38 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "farmer carry": { muscles: [...primary("forearms", "traps"), ...secondary("abs", "glutes")], scoring: proxy("deadlift", 0.5) },
   "calf raise": { muscles: primary("calves"), scoring: proxy("squat", 1.3) },
   "standing calf raise": { muscles: primary("calves"), scoring: proxy("squat", 1.3) },
+  "standing calf": { muscles: primary("calves"), scoring: proxy("squat", 1.3) },
+
+  // ---- Legacy split placeholder names ----
+  // The 4-day split originally used generic names before being renamed to
+  // specific exercises. Renaming the split definition doesn't retroactively
+  // rename already-logged history, so these still need to resolve — scored,
+  // just never suggested as a "new" exercise to do (hidden: true).
+  core: { muscles: [...primary("abs", "obliques")], scoring: volumeOnly, hidden: true },
+  curls: { muscles: [...primary("biceps"), ...secondary("forearms")], scoring: proxy("bench", 0.2), hidden: true },
+  woodchopper: { muscles: [...primary("obliques"), ...secondary("abs")], scoring: volumeOnly, hidden: true },
+  "cable tricep work": { muscles: primary("triceps"), scoring: proxy("bench", 0.2), hidden: true },
+
+  // ---- Near-miss name variants seen in real logs (plural, missing a
+  // qualifier, no apostrophe) that normalization alone doesn't bridge ----
+  "captain chair knee raises": { muscles: [...primary("abs"), ...secondary("obliques")], scoring: volumeOnly, hidden: true },
+  "face pulls": { muscles: [...primary("sideRearDelts"), ...secondary("upperBack", "traps")], scoring: proxy("row", 0.15) },
+  "cable face pulls": { muscles: [...primary("sideRearDelts"), ...secondary("upperBack", "traps")], scoring: proxy("row", 0.15) },
+  "standing cable woodchoppers (high to low)": { muscles: [...primary("obliques"), ...secondary("abs", "lats")], scoring: volumeOnly, hidden: true },
+  "romanian deadlift straight bar": { muscles: [...primary("hamstrings", "glutes"), ...secondary("lowerBack")], scoring: standard("deadlift"), hidden: true },
+
+  // ---- Machine/equipment variants not in the common list or split ----
+  "chest press - nautilus machine": { muscles: [...primary("midLowerChest", "triceps"), ...secondary("frontDelts")], scoring: standard("bench") },
+  "nautilus leverage chest press": { muscles: [...primary("midLowerChest", "triceps"), ...secondary("frontDelts")], scoring: standard("bench") },
+  "nautilus leverage incline chest press": { muscles: [...primary("upperChest", "frontDelts"), ...secondary("triceps")], scoring: standard("bench") },
+  "shoulder press machine": { muscles: [...primary("frontDelts"), ...secondary("triceps")], scoring: standard("ohp") },
+  "deltoid raise machine": { muscles: [...primary("sideRearDelts"), ...secondary("frontDelts")], scoring: proxy("ohp", 0.1) },
+  "nautilus impact rear deltoid machine": { muscles: [...primary("sideRearDelts"), ...secondary("upperBack")], scoring: proxy("row", 0.15) },
+  "nautilus impact bicep curl": { muscles: [...primary("biceps"), ...secondary("forearms")], scoring: proxy("bench", 0.2) },
+  "nautilus impact tricep extension": { muscles: primary("triceps"), scoring: proxy("bench", 0.2) },
+  "db overhead tricep extension": { muscles: primary("triceps"), scoring: proxy("bench", 0.2) },
+  "single arm cable tricep extension": { muscles: primary("triceps"), scoring: proxy("bench", 0.2) },
+  "landmine rotational press": { muscles: [...primary("obliques"), ...secondary("frontDelts", "triceps")], scoring: volumeOnly },
 };
 
 // Strip equipment/stance prefixes and trailing parentheticals, fold common
@@ -103,6 +140,7 @@ function normalizeExerciseName(name: string): string {
   return name
     .toLowerCase()
     .trim()
+    .replace(/['’]/g, "")
     .replace(/\([^)]*\)/g, "")
     .replace(/\bsquats\b/g, "squat")
     .replace(/\s+/g, " ")
@@ -140,6 +178,7 @@ function titleCaseExerciseName(key: string): string {
 export function exercisesForMuscle(group: MuscleGroupId, limit = 3): string[] {
   const seen = new Set<string>();
   const candidates = Object.entries(EXERCISE_MUSCLE_MAP)
+    .filter(([, mapping]) => !mapping.hidden)
     .map(([key, mapping]) => ({ key, mapping, contribution: mapping.muscles.find((m) => m.group === group) }))
     .filter((c): c is typeof c & { contribution: MuscleContribution } => c.contribution != null)
     .sort((a, b) => b.contribution.weight - a.contribution.weight);
