@@ -12,7 +12,7 @@ const RULES: { pattern: RegExp; groups: string[] }[] = [
   { pattern: /pallof|anti.?rotation|core|plank|dead.?bug|ab |knee raise|captain.?s chair|leg raise/i, groups: ["Core"] },
   { pattern: /rotation|swing|cable chop|wood.?chop/i, groups: ["Rotational Core"] },
   { pattern: /calf/i, groups: ["Calves"] },
-  { pattern: /hip thrust|glute bridge/i, groups: ["Glutes"] },
+  { pattern: /hip thrust|glute bridge|clamshell|hip abduction|lateral walk|glute/i, groups: ["Glutes"] },
 ];
 
 export function inferMuscleGroups(exerciseName: string): string[] {

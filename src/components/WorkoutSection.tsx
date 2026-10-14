@@ -5,6 +5,7 @@ import CollapsibleSection from "./CollapsibleSection";
 import { SetEntry, WorkoutEntry } from "@/lib/types";
 import { workoutSummary } from "@/lib/aggregate";
 import { copyToClipboard, formatWorkoutText } from "@/lib/shareText";
+import { BAND_OPTIONS, BandColor, bandLabel } from "@/lib/bands";
 
 export default function WorkoutSection({
   dateKey,
@@ -81,18 +82,21 @@ export default function WorkoutSection({
                     {entry.exerciseName}
                   </div>
                   <div className="mt-1 flex flex-wrap gap-1 text-xs text-neutral-400">
-                    {entry.sets.map((s, i) => (
-                      <span
-                        key={i}
-                        className="rounded bg-neutral-900 px-1.5 py-0.5"
-                      >
-                        {entry.timed
-                          ? `${s.durationSec}s`
-                          : entry.bodyweight
-                            ? `${s.reps} reps`
-                            : `${s.reps}×${s.weight}lb`}
-                      </span>
-                    ))}
+                    {entry.sets.map((s, i) => {
+                      const qty = entry.timed
+                        ? `${s.durationSec}s`
+                        : entry.bodyweight || entry.banded
+                          ? `${s.reps} reps`
+                          : `${s.reps}×${s.weight}lb`;
+                      return (
+                        <span
+                          key={i}
+                          className="rounded bg-neutral-900 px-1.5 py-0.5"
+                        >
+                          {entry.banded && s.bandColor ? `${qty} (${bandLabel(s.bandColor)})` : qty}
+                        </span>
+                      );
+                    })}
                     {entry.bodyweight && (
                       <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-neutral-500">
                         Bodyweight
@@ -174,12 +178,17 @@ function EditWorkoutRow({
   const [sets, setSets] = useState<SetEntry[]>(entry.sets.map((s) => ({ ...s })));
   const [bodyweight, setBodyweight] = useState(entry.bodyweight ?? false);
   const [timed, setTimed] = useState(entry.timed ?? false);
+  const [banded, setBanded] = useState(entry.banded ?? false);
   const [notes, setNotes] = useState(entry.notes ?? "");
 
   const updateSet = (index: number, field: keyof SetEntry, value: number) => {
     setSets((prev) =>
       prev.map((s, i) => (i === index ? { ...s, [field]: value } : s))
     );
+  };
+
+  const updateSetBand = (index: number, color: BandColor) => {
+    setSets((prev) => prev.map((s, i) => (i === index ? { ...s, bandColor: color } : s)));
   };
 
   function toggleBodyweight(checked: boolean) {
@@ -194,6 +203,13 @@ function EditWorkoutRow({
     setSets((prev) =>
       prev.map((s) => (checked ? { ...s, reps: 0, durationSec: s.durationSec ?? 60 } : { ...s, reps: s.reps || 8 }))
     );
+  }
+
+  function toggleBanded(checked: boolean) {
+    setBanded(checked);
+    if (checked) {
+      setSets((prev) => prev.map((s) => ({ ...s, bandColor: s.bandColor ?? "green" })));
+    }
   }
 
   return (
@@ -222,6 +238,15 @@ function EditWorkoutRow({
         />
         Timed (seconds) — e.g. planks, holds
       </label>
+      <label className="flex items-center gap-2 text-xs text-neutral-400">
+        <input
+          type="checkbox"
+          checked={banded}
+          onChange={(e) => toggleBanded(e.target.checked)}
+          className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-emerald-600"
+        />
+        Resistance band
+      </label>
       <div className="space-y-1.5">
         {sets.map((s, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -243,14 +268,28 @@ function EditWorkoutRow({
                 placeholder="Reps"
               />
             )}
-            {!bodyweight && (
-              <input
-                type="number"
-                value={s.weight}
-                onChange={(e) => updateSet(i, "weight", Number(e.target.value))}
+            {banded ? (
+              <select
+                value={s.bandColor ?? "green"}
+                onChange={(e) => updateSetBand(i, e.target.value as BandColor)}
                 className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
-                placeholder="Weight"
-              />
+              >
+                {BAND_OPTIONS.map((o) => (
+                  <option key={o.color} value={o.color}>
+                    {bandLabel(o.color)}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              !bodyweight && (
+                <input
+                  type="number"
+                  value={s.weight}
+                  onChange={(e) => updateSet(i, "weight", Number(e.target.value))}
+                  className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
+                  placeholder="Weight"
+                />
+              )
             )}
             <button
               onClick={() => setSets((prev) => prev.filter((_, idx) => idx !== i))}
@@ -290,6 +329,7 @@ function EditWorkoutRow({
               sets,
               bodyweight: bodyweight || undefined,
               timed: timed || undefined,
+              banded: banded || undefined,
               notes: notes.trim() || undefined,
             })
           }

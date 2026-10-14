@@ -50,3 +50,28 @@ describe("legacy split placeholder names", () => {
     expect(lookupExerciseMapping("Captain chair knee raises")).not.toBeNull();
   });
 });
+
+describe("glute medius / hip stability exercises", () => {
+  const glutesMedExercises = [
+    "Side-Lying Hip Abduction",
+    "Banded Lateral Walks",
+    "Clamshells with Band",
+    "Single-Leg Romanian Deadlift",
+    "Side Plank with Leg Raise",
+    "Step-Ups",
+    "Cable Hip Abduction",
+  ];
+
+  for (const name of glutesMedExercises) {
+    it(`resolves "${name}" and contributes to glutes`, () => {
+      const mapping = lookupExerciseMapping(name);
+      expect(mapping).not.toBeNull();
+      expect(mapping!.muscles.some((m) => m.group === "glutes")).toBe(true);
+    });
+  }
+
+  it("suggests glute-med work for the glutes muscle group", () => {
+    const suggestions = exercisesForMuscle("glutes", 10);
+    expect(suggestions.length).toBeGreaterThan(0);
+  });
+});

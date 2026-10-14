@@ -130,6 +130,24 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "db overhead tricep extension": { muscles: primary("triceps"), scoring: proxy("bench", 0.2) },
   "single arm cable tricep extension": { muscles: primary("triceps"), scoring: proxy("bench", 0.2) },
   "landmine rotational press": { muscles: [...primary("obliques"), ...secondary("frontDelts", "triceps")], scoring: volumeOnly },
+
+  // ---- Glute medius / hip stability (physical therapy) ----
+  // Activation/band drills have no meaningful absolute load (band
+  // resistance isn't comparable to barbell standards), so they're scored
+  // the same way as core anti-rotation work: consistency-driven, not
+  // load-driven. Single-leg RDL and hip abduction are genuinely loadable,
+  // just at a much lighter fraction of the bilateral/squat standard.
+  "side-lying hip abduction": { muscles: primary("glutes"), scoring: volumeOnly },
+  "banded lateral walks": { muscles: [...primary("glutes"), ...secondary("quads")], scoring: volumeOnly },
+  "clamshells with band": { muscles: primary("glutes"), scoring: volumeOnly },
+  "single-leg romanian deadlift": { muscles: [...primary("glutes", "hamstrings"), ...secondary("lowerBack", "forearms")], scoring: proxy("deadlift", 0.35) },
+  "side plank with leg raise": { muscles: [...primary("obliques", "glutes")], scoring: volumeOnly },
+  "side plank with top-leg raise": { muscles: [...primary("obliques", "glutes")], scoring: volumeOnly },
+  "step-ups": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6) },
+  "step-ups (lateral or standard)": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6) },
+  "cable hip abduction": { muscles: primary("glutes"), scoring: proxy("squat", 0.3) },
+  "standing hip abduction": { muscles: primary("glutes"), scoring: proxy("squat", 0.3) },
+  "cable or standing hip abduction": { muscles: primary("glutes"), scoring: proxy("squat", 0.3) },
 };
 
 // Strip equipment/stance prefixes and trailing parentheticals, fold common

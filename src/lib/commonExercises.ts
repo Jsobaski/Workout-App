@@ -36,4 +36,13 @@ export const COMMON_EXERCISES = [
   "Plank",
   "Farmer Carry",
   "Calf Raise",
+
+  // Glute medius / hip stability (physical therapy)
+  "Side-Lying Hip Abduction",
+  "Banded Lateral Walks",
+  "Clamshells with Band",
+  "Single-Leg Romanian Deadlift",
+  "Side Plank with Leg Raise",
+  "Step-Ups",
+  "Cable Hip Abduction",
 ];

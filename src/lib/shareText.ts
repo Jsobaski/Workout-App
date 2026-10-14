@@ -1,6 +1,7 @@
 import { WorkoutEntry } from "./types";
 import { workoutSummary } from "./aggregate";
 import { formatDisplayDate } from "./date";
+import { bandLabel } from "./bands";
 
 export function formatWorkoutText(dateKey: string, entries: WorkoutEntry[]): string {
   const lines = [`Workout — ${formatDisplayDate(dateKey)}`, ""];
@@ -11,9 +12,14 @@ export function formatWorkoutText(dateKey: string, entries: WorkoutEntry[]): str
 
   for (const entry of entries) {
     const setsText = entry.sets
-      .map((s) =>
-        entry.timed ? `${s.durationSec}s` : entry.bodyweight ? `${s.reps} reps` : `${s.reps}×${s.weight}lb`
-      )
+      .map((s) => {
+        const qty = entry.timed
+          ? `${s.durationSec}s`
+          : entry.bodyweight || entry.banded
+            ? `${s.reps} reps`
+            : `${s.reps}×${s.weight}lb`;
+        return entry.banded && s.bandColor ? `${qty} (${bandLabel(s.bandColor)})` : qty;
+      })
       .join(", ");
     lines.push(`${entry.exerciseName}: ${setsText}`);
     if (entry.notes) lines.push(`  (${entry.notes})`);

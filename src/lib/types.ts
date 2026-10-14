@@ -1,7 +1,10 @@
+import { BandColor } from "./bands";
+
 export interface SetEntry {
   reps: number;
   weight: number;
   durationSec?: number; // set when the parent entry is timed (e.g. plank holds) — reps is unused then
+  bandColor?: BandColor; // set when the parent entry is banded — stands in for weight
 }
 
 export interface WorkoutEntry {
@@ -13,6 +16,7 @@ export interface WorkoutEntry {
   sets: SetEntry[];
   bodyweight?: boolean; // no added weight — e.g. pull-ups, knee raises
   timed?: boolean; // logged by duration (seconds held) rather than reps — e.g. planks
+  banded?: boolean; // resistance comes from a band color, not a numeric weight
   notes?: string;
 }
 

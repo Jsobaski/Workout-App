@@ -8,6 +8,7 @@ import { fuzzyMatchNames } from "@/lib/fuzzyMatch";
 import { COMMON_EXERCISES } from "@/lib/commonExercises";
 import { findLastWorkoutEntryForExercise } from "@/lib/db";
 import { formatShortDate } from "@/lib/date";
+import { BAND_OPTIONS, BandColor, bandLabel } from "@/lib/bands";
 
 export default function LogWorkoutModal({
   exerciseNames,
@@ -24,6 +25,7 @@ export default function LogWorkoutModal({
   const [sets, setSets] = useState<SetEntry[]>([{ reps: 8, weight: 0 }]);
   const [bodyweight, setBodyweight] = useState(false);
   const [timed, setTimed] = useState(false);
+  const [banded, setBanded] = useState(false);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +59,7 @@ export default function LogWorkoutModal({
     setSets(lastEntry.sets.map((s) => ({ ...s })));
     setBodyweight(lastEntry.bodyweight ?? false);
     setTimed(lastEntry.timed ?? false);
+    setBanded(lastEntry.banded ?? false);
   }
 
   function selectSuggestion(name: string) {
@@ -90,6 +93,10 @@ export default function LogWorkoutModal({
     );
   }
 
+  function updateSetBand(index: number, color: BandColor) {
+    setSets((prev) => prev.map((s, i) => (i === index ? { ...s, bandColor: color } : s)));
+  }
+
   function toggleBodyweight(checked: boolean) {
     setBodyweight(checked);
     if (checked) {
@@ -102,6 +109,13 @@ export default function LogWorkoutModal({
     setSets((prev) =>
       prev.map((s) => (checked ? { ...s, reps: 0, durationSec: s.durationSec ?? 60 } : { ...s, reps: s.reps || 8 }))
     );
+  }
+
+  function toggleBanded(checked: boolean) {
+    setBanded(checked);
+    if (checked) {
+      setSets((prev) => prev.map((s) => ({ ...s, bandColor: s.bandColor ?? "green" })));
+    }
   }
 
   async function handleSave() {
@@ -119,6 +133,7 @@ export default function LogWorkoutModal({
         sets,
         bodyweight: bodyweight || undefined,
         timed: timed || undefined,
+        banded: banded || undefined,
         notes: notes.trim() || undefined,
       });
       onClose();
@@ -175,13 +190,14 @@ export default function LogWorkoutModal({
               Last time ({formatShortDate(lastEntry.dateKey)}):{" "}
               <span className="text-neutral-300">
                 {lastEntry.sets
-                  .map((s) =>
-                    lastEntry.timed
+                  .map((s) => {
+                    const qty = lastEntry.timed
                       ? `${s.durationSec}s`
-                      : lastEntry.bodyweight
+                      : lastEntry.bodyweight || lastEntry.banded
                         ? `${s.reps} reps`
-                        : `${s.reps}×${s.weight}lb`
-                  )
+                        : `${s.reps}×${s.weight}lb`;
+                    return lastEntry.banded && s.bandColor ? `${qty} (${bandLabel(s.bandColor)})` : qty;
+                  })
                   .join(", ")}
               </span>
             </span>
@@ -215,6 +231,16 @@ export default function LogWorkoutModal({
           Timed (seconds) — e.g. planks, holds
         </label>
 
+        <label className="flex items-center gap-2 text-xs text-neutral-400">
+          <input
+            type="checkbox"
+            checked={banded}
+            onChange={(e) => toggleBanded(e.target.checked)}
+            className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-emerald-600"
+          />
+          Resistance band — e.g. clamshells, lateral walks
+        </label>
+
         <div className="space-y-2">
           <p className="text-xs font-medium text-neutral-500">Sets</p>
           {sets.map((s, i) => (
@@ -237,14 +263,28 @@ export default function LogWorkoutModal({
                   className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
                 />
               )}
-              {!bodyweight && (
-                <input
-                  type="number"
-                  value={s.weight}
-                  onChange={(e) => updateSet(i, "weight", Number(e.target.value))}
-                  placeholder="Weight (lb)"
+              {banded ? (
+                <select
+                  value={s.bandColor ?? "green"}
+                  onChange={(e) => updateSetBand(i, e.target.value as BandColor)}
                   className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
-                />
+                >
+                  {BAND_OPTIONS.map((o) => (
+                    <option key={o.color} value={o.color}>
+                      {bandLabel(o.color)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                !bodyweight && (
+                  <input
+                    type="number"
+                    value={s.weight}
+                    onChange={(e) => updateSet(i, "weight", Number(e.target.value))}
+                    placeholder="Weight (lb)"
+                    className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+                  />
+                )
               )}
               {sets.length > 1 && (
                 <button
