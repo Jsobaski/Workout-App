@@ -20,6 +20,25 @@ function makeEntry(
   };
 }
 
+function makeTimedEntry(
+  id: string,
+  dateKey: string,
+  exerciseName: string,
+  sets: { reps: number; weight: number; durationSec: number }[],
+  bodyweight?: boolean
+): WorkoutEntry {
+  return {
+    id,
+    dateKey,
+    timestamp: new Date(`${dateKey}T12:00:00`).getTime(),
+    exerciseName,
+    muscleGroups: [],
+    sets,
+    bodyweight,
+    timed: true,
+  };
+}
+
 describe("computeMuscleEngine", () => {
   it("leaves an untouched muscle unrated (hasAnyData=false), not scored at 0", () => {
     const { statsByGroup } = computeMuscleEngine([], 180, "2026-10-14");
@@ -109,6 +128,28 @@ describe("computeMuscleEngine", () => {
       withoutFarmerCarry.statsByGroup.abs.peak! - 5
     );
     expect(withFarmerCarry.statsByGroup.abs.peak!).toBeGreaterThan(20);
+  });
+
+  it("scores a timed (duration-based) exercise using seconds in place of reps", () => {
+    const entries = [
+      makeTimedEntry("1", "2026-09-01", "Plank", [{ reps: 0, weight: 0, durationSec: 30 }], true),
+      makeTimedEntry("2", "2026-10-13", "Plank", [{ reps: 0, weight: 0, durationSec: 60 }], true),
+    ];
+    const { statsByGroup } = computeMuscleEngine(entries, 180, "2026-10-14");
+    // A 60s hold is well above 60% of the 30s-then-60s lifetime peak (60s
+    // itself), so it should count as fresh/meaningful.
+    expect(statsByGroup.abs.lastTrainedDateKey).toBe("2026-10-13");
+    expect(statsByGroup.abs.isStale).toBe(false);
+  });
+
+  it("a timed set under 60% of that lift's own best duration doesn't reset freshness", () => {
+    const entries = [
+      makeTimedEntry("1", "2026-09-01", "Plank", [{ reps: 0, weight: 0, durationSec: 90 }], true), // sets the peak
+      makeTimedEntry("2", "2026-10-13", "Plank", [{ reps: 0, weight: 0, durationSec: 20 }], true), // ~22% of peak
+    ];
+    const { statsByGroup } = computeMuscleEngine(entries, 180, "2026-10-14");
+    expect(statsByGroup.abs.lastTrainedDateKey).toBe("2026-09-01");
+    expect(statsByGroup.abs.isStale).toBe(true);
   });
 
   it("respects the asOfDateKey — later entries don't affect an earlier snapshot", () => {

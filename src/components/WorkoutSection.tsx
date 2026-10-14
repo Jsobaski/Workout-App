@@ -86,7 +86,11 @@ export default function WorkoutSection({
                         key={i}
                         className="rounded bg-neutral-900 px-1.5 py-0.5"
                       >
-                        {entry.bodyweight ? `${s.reps} reps` : `${s.reps}×${s.weight}lb`}
+                        {entry.timed
+                          ? `${s.durationSec}s`
+                          : entry.bodyweight
+                            ? `${s.reps} reps`
+                            : `${s.reps}×${s.weight}lb`}
                       </span>
                     ))}
                     {entry.bodyweight && (
@@ -169,6 +173,7 @@ function EditWorkoutRow({
   const [exerciseName, setExerciseName] = useState(entry.exerciseName);
   const [sets, setSets] = useState<SetEntry[]>(entry.sets.map((s) => ({ ...s })));
   const [bodyweight, setBodyweight] = useState(entry.bodyweight ?? false);
+  const [timed, setTimed] = useState(entry.timed ?? false);
   const [notes, setNotes] = useState(entry.notes ?? "");
 
   const updateSet = (index: number, field: keyof SetEntry, value: number) => {
@@ -182,6 +187,13 @@ function EditWorkoutRow({
     if (checked) {
       setSets((prev) => prev.map((s) => ({ ...s, weight: 0 })));
     }
+  }
+
+  function toggleTimed(checked: boolean) {
+    setTimed(checked);
+    setSets((prev) =>
+      prev.map((s) => (checked ? { ...s, reps: 0, durationSec: s.durationSec ?? 60 } : { ...s, reps: s.reps || 8 }))
+    );
   }
 
   return (
@@ -201,17 +213,36 @@ function EditWorkoutRow({
         />
         Bodyweight exercise (no added weight)
       </label>
+      <label className="flex items-center gap-2 text-xs text-neutral-400">
+        <input
+          type="checkbox"
+          checked={timed}
+          onChange={(e) => toggleTimed(e.target.checked)}
+          className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-emerald-600"
+        />
+        Timed (seconds) — e.g. planks, holds
+      </label>
       <div className="space-y-1.5">
         {sets.map((s, i) => (
           <div key={i} className="flex items-center gap-2">
             <span className="w-10 text-xs text-neutral-500">Set {i + 1}</span>
-            <input
-              type="number"
-              value={s.reps}
-              onChange={(e) => updateSet(i, "reps", Number(e.target.value))}
-              className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
-              placeholder="Reps"
-            />
+            {timed ? (
+              <input
+                type="number"
+                value={s.durationSec ?? 0}
+                onChange={(e) => updateSet(i, "durationSec", Number(e.target.value))}
+                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
+                placeholder="Seconds"
+              />
+            ) : (
+              <input
+                type="number"
+                value={s.reps}
+                onChange={(e) => updateSet(i, "reps", Number(e.target.value))}
+                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
+                placeholder="Reps"
+              />
+            )}
             {!bodyweight && (
               <input
                 type="number"
@@ -258,6 +289,7 @@ function EditWorkoutRow({
               exerciseName: exerciseName.trim() || entry.exerciseName,
               sets,
               bodyweight: bodyweight || undefined,
+              timed: timed || undefined,
               notes: notes.trim() || undefined,
             })
           }

@@ -11,7 +11,9 @@ export function formatWorkoutText(dateKey: string, entries: WorkoutEntry[]): str
 
   for (const entry of entries) {
     const setsText = entry.sets
-      .map((s) => (entry.bodyweight ? `${s.reps} reps` : `${s.reps}×${s.weight}lb`))
+      .map((s) =>
+        entry.timed ? `${s.durationSec}s` : entry.bodyweight ? `${s.reps} reps` : `${s.reps}×${s.weight}lb`
+      )
       .join(", ");
     lines.push(`${entry.exerciseName}: ${setsText}`);
     if (entry.notes) lines.push(`  (${entry.notes})`);

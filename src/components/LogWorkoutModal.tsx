@@ -23,6 +23,7 @@ export default function LogWorkoutModal({
   const [highlightIndex, setHighlightIndex] = useState(0);
   const [sets, setSets] = useState<SetEntry[]>([{ reps: 8, weight: 0 }]);
   const [bodyweight, setBodyweight] = useState(false);
+  const [timed, setTimed] = useState(false);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +56,7 @@ export default function LogWorkoutModal({
     if (!lastEntry) return;
     setSets(lastEntry.sets.map((s) => ({ ...s })));
     setBodyweight(lastEntry.bodyweight ?? false);
+    setTimed(lastEntry.timed ?? false);
   }
 
   function selectSuggestion(name: string) {
@@ -95,6 +97,13 @@ export default function LogWorkoutModal({
     }
   }
 
+  function toggleTimed(checked: boolean) {
+    setTimed(checked);
+    setSets((prev) =>
+      prev.map((s) => (checked ? { ...s, reps: 0, durationSec: s.durationSec ?? 60 } : { ...s, reps: s.reps || 8 }))
+    );
+  }
+
   async function handleSave() {
     if (!exerciseName.trim()) {
       setError("Enter an exercise name.");
@@ -109,6 +118,7 @@ export default function LogWorkoutModal({
         muscleGroups: inferMuscleGroups(exerciseName.trim()),
         sets,
         bodyweight: bodyweight || undefined,
+        timed: timed || undefined,
         notes: notes.trim() || undefined,
       });
       onClose();
@@ -166,7 +176,11 @@ export default function LogWorkoutModal({
               <span className="text-neutral-300">
                 {lastEntry.sets
                   .map((s) =>
-                    lastEntry.bodyweight ? `${s.reps} reps` : `${s.reps}×${s.weight}lb`
+                    lastEntry.timed
+                      ? `${s.durationSec}s`
+                      : lastEntry.bodyweight
+                        ? `${s.reps} reps`
+                        : `${s.reps}×${s.weight}lb`
                   )
                   .join(", ")}
               </span>
@@ -191,18 +205,38 @@ export default function LogWorkoutModal({
           Bodyweight exercise (no added weight)
         </label>
 
+        <label className="flex items-center gap-2 text-xs text-neutral-400">
+          <input
+            type="checkbox"
+            checked={timed}
+            onChange={(e) => toggleTimed(e.target.checked)}
+            className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-emerald-600"
+          />
+          Timed (seconds) — e.g. planks, holds
+        </label>
+
         <div className="space-y-2">
           <p className="text-xs font-medium text-neutral-500">Sets</p>
           {sets.map((s, i) => (
             <div key={i} className="flex items-center gap-2">
               <span className="w-12 text-xs text-neutral-500">Set {i + 1}</span>
-              <input
-                type="number"
-                value={s.reps}
-                onChange={(e) => updateSet(i, "reps", Number(e.target.value))}
-                placeholder="Reps"
-                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
-              />
+              {timed ? (
+                <input
+                  type="number"
+                  value={s.durationSec ?? 0}
+                  onChange={(e) => updateSet(i, "durationSec", Number(e.target.value))}
+                  placeholder="Seconds"
+                  className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+                />
+              ) : (
+                <input
+                  type="number"
+                  value={s.reps}
+                  onChange={(e) => updateSet(i, "reps", Number(e.target.value))}
+                  placeholder="Reps"
+                  className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+                />
+              )}
               {!bodyweight && (
                 <input
                   type="number"

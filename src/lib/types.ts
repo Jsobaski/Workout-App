@@ -1,6 +1,7 @@
 export interface SetEntry {
   reps: number;
   weight: number;
+  durationSec?: number; // set when the parent entry is timed (e.g. plank holds) — reps is unused then
 }
 
 export interface WorkoutEntry {
@@ -11,6 +12,7 @@ export interface WorkoutEntry {
   muscleGroups: string[];
   sets: SetEntry[];
   bodyweight?: boolean; // no added weight — e.g. pull-ups, knee raises
+  timed?: boolean; // logged by duration (seconds held) rather than reps — e.g. planks
   notes?: string;
 }
 

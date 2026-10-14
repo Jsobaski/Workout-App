@@ -57,6 +57,14 @@ function loadForSet(
   return bodyweightLb * (bodyweightFraction ?? 1) + set.weight;
 }
 
+// For a timed entry (e.g. plank holds), seconds held stands in for reps in
+// the Epley estimate — there's no absolute standard for isometric holds, so
+// this only ever feeds the freshness/consistency comparisons, which are
+// self-referential against that same exercise's own history anyway.
+function quantityForSet(set: { reps: number; durationSec?: number }, isTimed: boolean | undefined): number {
+  return isTimed ? set.durationSec ?? 0 : set.reps;
+}
+
 function standardsForMapping(mapping: ExerciseMapping): [number, number, number, number, number] | null {
   if (mapping.scoring.method === "standard") {
     return LIFT_FAMILY_STANDARDS[mapping.scoring.family];
@@ -98,7 +106,7 @@ export function computeMuscleEngine(
     const bwFraction = mapping.scoring.method === "standard" ? mapping.scoring.bodyweightFraction : undefined;
     for (const set of entry.sets) {
       const load = loadForSet(set, entry.bodyweight, effectiveBodyweight, bwFraction);
-      const e1RM = epley1RM(load, set.reps);
+      const e1RM = epley1RM(load, quantityForSet(set, entry.timed));
       const current = bestByExercise.get(key);
       if (!current || e1RM > current.e1RM) {
         bestByExercise.set(key, { exerciseName: entry.exerciseName.trim(), e1RM, dateKey: entry.dateKey });
@@ -134,7 +142,7 @@ export function computeMuscleEngine(
       if (liftPeak) {
         const hasMeaningfulSet = entry.sets.some((set) => {
           const load = loadForSet(set, entry.bodyweight, effectiveBodyweight, bwFraction);
-          const e1RM = epley1RM(load, set.reps);
+          const e1RM = epley1RM(load, quantityForSet(set, entry.timed));
           return e1RM >= FRESHNESS_SET_THRESHOLD_RATIO * liftPeak.e1RM;
         });
         if (hasMeaningfulSet && (!lastMeaningfulDateKey || entry.dateKey > lastMeaningfulDateKey)) {
