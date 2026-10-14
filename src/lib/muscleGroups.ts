@@ -5,7 +5,7 @@ const RULES: { pattern: RegExp; groups: string[] }[] = [
   { pattern: /deadlift|good morning|hip hinge|rdl/i, groups: ["Posterior Chain", "Glutes"] },
   { pattern: /squat|lunge|leg press|step.?up/i, groups: ["Quads", "Glutes"] },
   { pattern: /bench|chest press|push.?up|fly|incline/i, groups: ["Chest", "Triceps"] },
-  { pattern: /row|pulldown|pull.?up|chin.?up|lat/i, groups: ["Back", "Biceps"] },
+  { pattern: /row|pulldown|pull.?up|chin.?up|\blats?\b/i, groups: ["Back", "Biceps"] },
   { pattern: /shoulder press|overhead press|ohp|lateral raise|delt|face pull/i, groups: ["Shoulders"] },
   { pattern: /curl/i, groups: ["Biceps"] },
   { pattern: /tricep|dip|skull.?crusher|pushdown/i, groups: ["Triceps"] },
