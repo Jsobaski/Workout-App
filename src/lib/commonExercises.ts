@@ -42,8 +42,11 @@ export const COMMON_EXERCISES = [
   "Side-Lying Hip Abduction",
   "Banded Lateral Walks",
   "Clamshells with Band",
+  "Reverse Clamshells",
   "Single-Leg Romanian Deadlift",
   "Side Plank with Leg Raise",
   "Step-Ups",
   "Cable Hip Abduction",
+  "Leg Bridge",
+  "Single Leg Bridge",
 ];

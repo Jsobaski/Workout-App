@@ -28,6 +28,9 @@ describe("inferMuscleGroups", () => {
       "Clamshells with Band",
       "Cable Hip Abduction",
       "Standing Hip Abduction",
+      "Reverse Clamshells",
+      "Leg Bridge",
+      "Single Leg Bridge",
     ]) {
       expect(inferMuscleGroups(name)).toContain("Glutes");
     }

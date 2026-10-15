@@ -61,6 +61,10 @@ describe("glute medius / hip stability exercises", () => {
     "Side Plank with Leg Raise",
     "Step-Ups",
     "Cable Hip Abduction",
+    "Reverse Clamshells",
+    "Leg Bridge",
+    "Single Leg Bridge",
+    "Single Leg Bridges",
   ];
 
   for (const name of glutesMedExercises) {
