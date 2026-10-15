@@ -16,6 +16,7 @@ const userLoggedNames = [
   "DB Overhead Tricep extension",
   "Deltoid raise machine",
   "Face Pulls",
+  "Hoist preacher curl machine",
   "Landmine Rotational Press",
   "Nautilus Impact Tricep Extension",
   "Nautilus Leverage Chest press",

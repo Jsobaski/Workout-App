@@ -126,6 +126,7 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "deltoid raise machine": { muscles: [...primary("sideRearDelts"), ...secondary("frontDelts")], scoring: proxy("ohp", 0.1) },
   "nautilus impact rear deltoid machine": { muscles: [...primary("sideRearDelts"), ...secondary("upperBack")], scoring: proxy("row", 0.15) },
   "nautilus impact bicep curl": { muscles: [...primary("biceps"), ...secondary("forearms")], scoring: proxy("bench", 0.2) },
+  "hoist preacher curl machine": { muscles: [...primary("biceps"), ...secondary("forearms")], scoring: proxy("bench", 0.2) },
   "nautilus impact tricep extension": { muscles: primary("triceps"), scoring: proxy("bench", 0.2) },
   "db overhead tricep extension": { muscles: primary("triceps"), scoring: proxy("bench", 0.2) },
   "single arm cable tricep extension": { muscles: primary("triceps"), scoring: proxy("bench", 0.2) },
