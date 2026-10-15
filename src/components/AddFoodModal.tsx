@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
 import { FoodEntry } from "@/lib/types";
 import {
@@ -12,6 +12,7 @@ import {
 import { scanNutritionLabel } from "@/lib/ocr";
 import { fuzzyMatchNames } from "@/lib/fuzzyMatch";
 import { COMMON_FOODS, findCommonFood } from "@/lib/commonFoods";
+import { clearSavedPin, getSavedPin } from "@/lib/appPin";
 
 type Mode = "text" | "photo";
 
@@ -44,6 +45,13 @@ export default function AddFoodModal({
   const [showScannedText, setShowScannedText] = useState(false);
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const [nameHighlightIndex, setNameHighlightIndex] = useState(0);
+  const [pinSaved, setPinSaved] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setPinSaved(getSavedPin() !== null);
+    })();
+  }, []);
 
   const pastNames = useMemo(
     () => Array.from(new Set(foodHistory.map((f) => f.itemName))),
@@ -135,11 +143,20 @@ export default function AddFoodModal({
       } else {
         body.itemName = itemName.trim();
       }
+      const pin = getSavedPin();
       const res = await fetch("/api/estimate-food", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(pin ? { "x-app-pin": pin } : {}),
+        },
         body: JSON.stringify(body),
       });
+      if (res.status === 401) {
+        clearSavedPin();
+        setPinSaved(false);
+        throw new Error("Locked — unlock AI estimates with your PIN in Settings.");
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Estimate failed");
       setItemName(data.item || itemName);
@@ -420,17 +437,19 @@ export default function AddFoodModal({
           </div>
         )}
 
-        <button
-          onClick={runEstimate}
-          disabled={
-            estimating ||
-            (mode === "text" && !itemName.trim()) ||
-            (mode === "photo" && !photoBlob)
-          }
-          className="w-full rounded-lg border border-emerald-700 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950 disabled:opacity-40"
-        >
-          {estimating ? "Estimating…" : "Estimate with AI"}
-        </button>
+        {pinSaved && (
+          <button
+            onClick={runEstimate}
+            disabled={
+              estimating ||
+              (mode === "text" && !itemName.trim()) ||
+              (mode === "photo" && !photoBlob)
+            }
+            className="w-full rounded-lg border border-emerald-700 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950 disabled:opacity-40"
+          >
+            {estimating ? "Estimating…" : "Estimate with AI"}
+          </button>
+        )}
 
         {hasEstimate && (
           <div className="space-y-2 rounded-lg bg-neutral-800/60 p-3">

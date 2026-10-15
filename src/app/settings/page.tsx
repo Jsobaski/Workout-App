@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCoachingContext } from "@/hooks/useCoachingContext";
 import { buildBackup, downloadBackup, restoreBackup } from "@/lib/backup";
+import { clearSavedPin, getSavedPin, setSavedPin, verifyPin } from "@/lib/appPin";
 
 const ACTIVITY_LEVELS = [
   "Sedentary",
@@ -21,8 +22,38 @@ export default function SettingsPage() {
   const [restoring, setRestoring] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [pinInput, setPinInput] = useState("");
+  const [pinUnlocked, setPinUnlocked] = useState(false);
+  const [pinChecking, setPinChecking] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      setPinUnlocked(getSavedPin() !== null);
+    })();
+  }, []);
+
   if (loading) {
     return <p className="text-sm text-neutral-500">Loading…</p>;
+  }
+
+  async function handleUnlock() {
+    setPinChecking(true);
+    setPinError(null);
+    const ok = await verifyPin(pinInput.trim());
+    if (ok) {
+      setSavedPin(pinInput.trim());
+      setPinUnlocked(true);
+      setPinInput("");
+    } else {
+      setPinError("Wrong PIN");
+    }
+    setPinChecking(false);
+  }
+
+  function handleLock() {
+    clearSavedPin();
+    setPinUnlocked(false);
   }
 
   async function handleExport() {
@@ -204,6 +235,42 @@ export default function SettingsPage() {
         {backupError && (
           <p className="mt-2 text-xs text-red-400">{backupError}</p>
         )}
+      </FormSection>
+
+      <FormSection title="AI Features">
+        <p className="mb-3 text-xs text-neutral-500">
+          Estimate with AI is locked behind a PIN so it isn&apos;t left open to
+          anyone you share this app with.
+        </p>
+        {pinUnlocked ? (
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-emerald-400">Unlocked ✓</p>
+            <button
+              onClick={handleLock}
+              className="text-xs text-neutral-500 hover:underline"
+            >
+              Lock
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              type="password"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)}
+              placeholder="PIN"
+              className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+            />
+            <button
+              onClick={handleUnlock}
+              disabled={pinChecking || !pinInput.trim()}
+              className="shrink-0 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+            >
+              {pinChecking ? "Checking…" : "Unlock"}
+            </button>
+          </div>
+        )}
+        {pinError && <p className="mt-2 text-xs text-red-400">{pinError}</p>}
       </FormSection>
     </div>
   );

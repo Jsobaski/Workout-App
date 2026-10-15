@@ -24,6 +24,11 @@ Respond with ONLY a JSON object, no markdown fences, no extra prose, in this exa
 confidence_note should be a brief (<25 words) note on your confidence and any assumptions made (e.g. portion size assumed).`;
 
 export async function POST(req: NextRequest) {
+  const pin = req.headers.get("x-app-pin");
+  if (!pin || pin !== process.env.ESTIMATE_PIN) {
+    return NextResponse.json({ error: "Locked" }, { status: 401 });
+  }
+
   let body: EstimateFoodBody;
   try {
     body = await req.json();
