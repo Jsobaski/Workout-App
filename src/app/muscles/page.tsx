@@ -9,7 +9,7 @@ import WeeklyFocusCard from "@/components/WeeklyFocusCard";
 import { computeMuscleEngine } from "@/lib/muscleEngine";
 import { buildMuscleSeedData } from "@/lib/muscleSeedData";
 import { MuscleGroupId } from "@/lib/muscleTaxonomy";
-import { MUSCLE_TIERS, UNRATED_COLOR } from "@/lib/muscleScoreConfig";
+import { DEFAULT_STALE_THRESHOLD_DAYS, MUSCLE_TIERS, UNRATED_COLOR } from "@/lib/muscleScoreConfig";
 import { shiftDateKey, todayKey } from "@/lib/date";
 
 export default function MusclesPage() {
@@ -147,6 +147,11 @@ export default function MusclesPage() {
             {tier.label}
           </div>
         ))}
+        <p className="w-full text-center text-xs text-neutral-500">
+          <span className="text-neutral-400">Color</span> = strength tier.{" "}
+          <span className="text-neutral-400">Dimmed with a dashed outline</span> = not trained
+          meaningfully in {DEFAULT_STALE_THRESHOLD_DAYS}+ days (tier unchanged, just stale).
+        </p>
       </div>
 
       <section className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
