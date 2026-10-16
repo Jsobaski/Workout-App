@@ -36,6 +36,7 @@ export const COMMON_EXERCISES = [
   "Dead Bug",
   "Plank",
   "Farmer Carry",
+  "Back Extension",
   "Calf Raise",
 
   // Glute medius / hip stability (physical therapy)

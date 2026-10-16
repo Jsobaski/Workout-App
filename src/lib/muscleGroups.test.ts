@@ -35,4 +35,8 @@ describe("inferMuscleGroups", () => {
       expect(inferMuscleGroups(name)).toContain("Glutes");
     }
   });
+
+  it("tags back extensions as Posterior Chain", () => {
+    expect(inferMuscleGroups("Back Extensions")).toContain("Posterior Chain");
+  });
 });

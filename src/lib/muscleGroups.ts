@@ -2,7 +2,7 @@
 // roll up into a muscle-group summary (used for day totals and to steer
 // "avoid repeating recently-hit muscle groups" workout suggestions).
 const RULES: { pattern: RegExp; groups: string[] }[] = [
-  { pattern: /deadlift|good morning|hip hinge|rdl/i, groups: ["Posterior Chain", "Glutes"] },
+  { pattern: /deadlift|good morning|hip hinge|rdl|back extension|hyperextension/i, groups: ["Posterior Chain", "Glutes"] },
   { pattern: /squat|lunge|leg press|step.?up/i, groups: ["Quads", "Glutes"] },
   { pattern: /bench|chest press|push.?up|fly|incline/i, groups: ["Chest", "Triceps"] },
   { pattern: /row|pulldown|pull.?up|chin.?up|\blats?\b/i, groups: ["Back", "Biceps"] },

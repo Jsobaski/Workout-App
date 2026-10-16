@@ -80,3 +80,13 @@ describe("glute medius / hip stability exercises", () => {
     expect(suggestions.length).toBeGreaterThan(0);
   });
 });
+
+describe("back extensions", () => {
+  for (const name of ["Back Extension", "Back Extensions"]) {
+    it(`resolves "${name}" to lower back`, () => {
+      const mapping = lookupExerciseMapping(name);
+      expect(mapping).not.toBeNull();
+      expect(mapping!.muscles.find((m) => m.group === "lowerBack")?.weight).toBe(1.0);
+    });
+  }
+});

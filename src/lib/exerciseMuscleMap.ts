@@ -95,6 +95,8 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   plank: { muscles: [...primary("abs"), ...secondary("obliques", "lowerBack")], scoring: volumeOnly },
   "captain's chair knee raises": { muscles: [...primary("abs"), ...secondary("obliques")], scoring: volumeOnly },
 
+  "back extension": { muscles: [...primary("lowerBack"), ...secondary("glutes", "hamstrings")], scoring: standard("deadlift", 0.5) },
+  "back extensions": { muscles: [...primary("lowerBack"), ...secondary("glutes", "hamstrings")], scoring: standard("deadlift", 0.5) },
   "farmer carry": { muscles: [...primary("forearms", "traps"), ...secondary("abs", "glutes")], scoring: proxy("deadlift", 0.5) },
   "calf raise": { muscles: primary("calves"), scoring: proxy("squat", 1.3) },
   "standing calf raise": { muscles: primary("calves"), scoring: proxy("squat", 1.3) },
