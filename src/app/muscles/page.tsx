@@ -1,67 +1,86 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMuscleData } from "@/hooks/useMuscleData";
+import { useExerciseSettings } from "@/hooks/useExerciseSettings";
 import MuscleBodyMap from "@/components/MuscleBodyMap";
 import MuscleRadarChart from "@/components/MuscleRadarChart";
+import MuscleChangeChart from "@/components/MuscleChangeChart";
 import MuscleDetailPanel from "@/components/MuscleDetailPanel";
 import WeeklyFocusCard from "@/components/WeeklyFocusCard";
 import { computeMuscleEngine } from "@/lib/muscleEngine";
 import { buildMuscleSeedData } from "@/lib/muscleSeedData";
 import { MuscleGroupId } from "@/lib/muscleTaxonomy";
-import { DEFAULT_STALE_THRESHOLD_DAYS, MUSCLE_TIERS, UNRATED_COLOR } from "@/lib/muscleScoreConfig";
+import { compareSnapshots } from "@/lib/muscleComparison";
+import {
+  DEFAULT_STALE_THRESHOLD_DAYS,
+  MUSCLE_TIERS,
+  PAUSED_OUTLINE_COLOR,
+  TREND_WINDOW_DAYS,
+  UNRATED_COLOR,
+} from "@/lib/muscleScoreConfig";
 import { shiftDateKey, todayKey } from "@/lib/date";
 import { copyToClipboard } from "@/lib/shareText";
 import { formatMuscleSummaryText } from "@/lib/muscleShareText";
 
 export default function MusclesPage() {
   const { entries: realEntries, bodyweightLb: realBodyweight, loading } = useMuscleData();
+  const { overrides } = useExerciseSettings();
   const [view, setView] = useState<"front" | "back">("front");
   const [useSampleData, setUseSampleData] = useState(false);
   const [afterDateKey, setAfterDateKey] = useState(todayKey());
   const [beforeDateKey, setBeforeDateKey] = useState(shiftDateKey(todayKey(), -30));
   const [selectedGroups, setSelectedGroups] = useState<MuscleGroupId[] | null>(null);
   const [copied, setCopied] = useState(false);
+  const [comparisonView, setComparisonView] = useState<"change" | "radar">("change");
 
   const sampleEntries = useMemo(() => buildMuscleSeedData(todayKey()), []);
   const entries = useSampleData ? sampleEntries : realEntries;
   const bodyweightLb = useSampleData ? realBodyweight ?? 180 : realBodyweight;
 
   const afterResult = useMemo(
-    () => computeMuscleEngine(entries, bodyweightLb, afterDateKey),
-    [entries, bodyweightLb, afterDateKey]
+    () => computeMuscleEngine(entries, bodyweightLb, afterDateKey, DEFAULT_STALE_THRESHOLD_DAYS, overrides),
+    [entries, bodyweightLb, afterDateKey, overrides]
   );
   const beforeResult = useMemo(
-    () => computeMuscleEngine(entries, bodyweightLb, beforeDateKey),
-    [entries, bodyweightLb, beforeDateKey]
+    () => computeMuscleEngine(entries, bodyweightLb, beforeDateKey, DEFAULT_STALE_THRESHOLD_DAYS, overrides),
+    [entries, bodyweightLb, beforeDateKey, overrides]
   );
-  // Focus card and trend always reflect actual today / last-30-days, independent of
-  // whatever comparison dates the user has picked above.
+  // Focus card and trend always reflect actual today / the last TREND_WINDOW_DAYS,
+  // independent of whatever comparison dates the user has picked above.
   const currentResult = useMemo(
-    () => computeMuscleEngine(entries, bodyweightLb, todayKey()),
-    [entries, bodyweightLb]
+    () => computeMuscleEngine(entries, bodyweightLb, todayKey(), DEFAULT_STALE_THRESHOLD_DAYS, overrides),
+    [entries, bodyweightLb, overrides]
   );
-  const trend30Result = useMemo(
-    () => computeMuscleEngine(entries, bodyweightLb, shiftDateKey(todayKey(), -30)),
-    [entries, bodyweightLb]
+  const trendStartResult = useMemo(
+    () =>
+      computeMuscleEngine(
+        entries,
+        bodyweightLb,
+        shiftDateKey(todayKey(), -TREND_WINDOW_DAYS),
+        DEFAULT_STALE_THRESHOLD_DAYS,
+        overrides
+      ),
+    [entries, bodyweightLb, overrides]
   );
-  const trendByGroup = useMemo(() => {
-    const result: Partial<Record<MuscleGroupId, number | null>> = {};
-    for (const id of Object.keys(currentResult.statsByGroup) as MuscleGroupId[]) {
-      const now = currentResult.statsByGroup[id];
-      const then = trend30Result.statsByGroup[id];
-      result[id] = now.hasAnyData && then.hasAnyData ? now.effective! - then.effective! : null;
-    }
-    return result;
-  }, [currentResult, trend30Result]);
+  const comparison = useMemo(
+    () => compareSnapshots(beforeResult.statsByGroup, afterResult.statsByGroup),
+    [beforeResult, afterResult]
+  );
+  const trendDeltas = useMemo(
+    () => compareSnapshots(trendStartResult.statsByGroup, currentResult.statsByGroup),
+    [trendStartResult, currentResult]
+  );
 
   async function handleCopy() {
     const text = formatMuscleSummaryText({
       asOfDateKey: todayKey(),
       bodyweightLb,
       result: currentResult,
-      trendByGroup,
+      deltaByGroup: trendDeltas,
       entries,
+      overrides,
     });
     try {
       await copyToClipboard(text);
@@ -170,30 +189,65 @@ export default function MusclesPage() {
           <div key={tier.id} className="flex items-center gap-1.5 text-xs text-neutral-400">
             <span
               className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ background: tier.color, border: tier.id === "elite" ? "1px solid #737373" : undefined }}
+              style={{
+                background: tier.color,
+                border: tier.outline ? `1.5px solid ${tier.outline}` : undefined,
+                boxShadow: tier.outline ? `0 0 5px ${tier.outline}` : undefined,
+              }}
             />
             {tier.label}
           </div>
         ))}
+        <div className="flex items-center gap-1.5 text-xs text-neutral-400">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full bg-transparent"
+            style={{ border: `1.5px dashed ${PAUSED_OUTLINE_COLOR}` }}
+          />
+          Paused (restricted)
+        </div>
         <p className="w-full text-center text-xs text-neutral-500">
           <span className="text-neutral-400">Color</span> = strength tier.{" "}
           <span className="text-neutral-400">Dimmed with a dashed outline</span> = not trained
-          meaningfully in {DEFAULT_STALE_THRESHOLD_DAYS}+ days (tier unchanged, just stale).
+          meaningfully in {DEFAULT_STALE_THRESHOLD_DAYS}+ days (tier unchanged, just stale).{" "}
+          <span className="text-neutral-400">Blue dashed ring</span> = decay paused because the last work was a
+          PT-restricted exercise.
         </p>
+        <Link href="/settings#exercise-settings" className="w-full text-center text-xs text-emerald-400 hover:underline">
+          Edit load multipliers &amp; PT restrictions
+        </Link>
       </div>
 
       <section className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
-        <h2 className="mb-2 text-sm font-semibold text-neutral-300">Muscle Comparison</h2>
-        <MuscleRadarChart before={beforeResult.statsByGroup} after={afterResult.statsByGroup} />
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-neutral-300">Muscle Comparison</h2>
+          <div className="flex gap-1 text-xs">
+            {(["change", "radar"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setComparisonView(v)}
+                className={`rounded-md px-2.5 py-1 font-medium ${
+                  comparisonView === v ? "bg-emerald-600 text-white" : "bg-neutral-800 text-neutral-400"
+                }`}
+              >
+                {v === "change" ? "Change" : "Radar"}
+              </button>
+            ))}
+          </div>
+        </div>
+        {comparisonView === "change" ? (
+          <MuscleChangeChart deltas={comparison} />
+        ) : (
+          <MuscleRadarChart before={beforeResult.statsByGroup} after={afterResult.statsByGroup} />
+        )}
       </section>
 
-      <WeeklyFocusCard statsByGroup={currentResult.statsByGroup} />
+      <WeeklyFocusCard statsByGroup={currentResult.statsByGroup} deltas={trendDeltas} overrides={overrides} />
 
       {selectedGroups && (
         <MuscleDetailPanel
           groupIds={selectedGroups}
           statsByGroup={currentResult.statsByGroup}
-          trendByGroup={trendByGroup}
+          deltaByGroup={trendDeltas}
           onClose={() => setSelectedGroups(null)}
         />
       )}

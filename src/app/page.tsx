@@ -8,6 +8,7 @@ import GolfActivitySection from "@/components/GolfActivitySection";
 import AddFoodModal from "@/components/AddFoodModal";
 import LogWorkoutModal from "@/components/LogWorkoutModal";
 import { getSavedPin } from "@/lib/appPin";
+import { useExerciseSettings } from "@/hooks/useExerciseSettings";
 import SuggestWorkoutModal from "@/components/SuggestWorkoutModal";
 import WorkoutSplitModal from "@/components/WorkoutSplitModal";
 import LogGolfActivityModal from "@/components/LogGolfActivityModal";
@@ -36,6 +37,7 @@ export default function DayViewPage() {
     removeGolfActivityEntry,
   } = useDayData(dateKey);
   const { context: coachingContext } = useCoachingContext();
+  const { overrides: exerciseOverrides } = useExerciseSettings();
   const exerciseNames = useExerciseNames(workoutEntries.length);
   const recentFoods = useRecentFoods(foodEntries.length);
   const foodHistory = useFoodHistory(foodEntries.length);
@@ -86,6 +88,8 @@ export default function DayViewPage() {
         onAdd={() => setShowLogWorkout(true)}
         onSuggest={() => setShowSuggest(true)}
         canSuggest={aiUnlocked}
+        bodyweightLb={coachingContext.currentWeightLb}
+        exerciseOverrides={exerciseOverrides}
         onChooseSplit={() => setShowChooseSplit(true)}
         onUpdate={updateWorkoutEntry}
         onDelete={removeWorkoutEntry}

@@ -13,6 +13,8 @@ export interface MuscleTier {
   label: string;
   minScore: number; // inclusive
   color: string;
+  /** Ring drawn around the swatch/polygon — Elite uses a gold ring so it reads as "brightest" and can't be mistaken for unrated. */
+  outline?: string;
 }
 
 export const MUSCLE_TIERS: MuscleTier[] = [
@@ -20,16 +22,31 @@ export const MUSCLE_TIERS: MuscleTier[] = [
   { id: "developing", label: "Developing", minScore: 20, color: "#eab308" },
   { id: "solid", label: "Solid", minScore: 40, color: "#86efac" },
   { id: "strong", label: "Strong", minScore: 60, color: "#16a34a" },
-  { id: "elite", label: "Elite", minScore: 80, color: "#18181b" },
+  { id: "elite", label: "Elite", minScore: 80, color: "#fefce8", outline: "#facc15" },
 ];
+
+/** Soft glow drawn behind Elite regions on the body map. */
+export const ELITE_GLOW_COLOR = "#facc15";
+/** Outline for muscles whose decay/staleness is paused because a PT-restricted exercise last fed them. */
+export const PAUSED_OUTLINE_COLOR = "#38bdf8";
 
 export const UNRATED_COLOR = "#52525b"; // no logs yet for this muscle — gray, not "Needs Work"
 
 // ---- Scoring composition ----
 export const SECONDARY_MUSCLE_WEIGHT = 0.4; // a set's contribution to a secondary muscle, vs. 1.0 for primary
+export const MINOR_MUSCLE_WEIGHT = 0.15; // incidental credit (e.g. curls -> forearms); counts for score, never resets "last trained"
 export const VOLUME_BONUS_MAX_POINTS = 10; // max points the volume/consistency component can add on top of the load-standard score
 export const VOLUME_BONUS_WINDOW_DAYS = 28;
 export const VOLUME_BONUS_TARGET_SESSIONS = 8; // distinct training days hitting this muscle in the window for the full bonus
+
+// ---- Score display scale ----
+// Raw scores are uncapped internally (progress past "100" stays visible in the
+// detail panel/summary). The *displayed* score follows the raw score up to
+// SOFT_CAP_START, then compresses asymptotically toward 100 so that 100 is
+// effectively unreachable: display = start + (100 - start) * (1 - e^-((raw - start)/SOFT_CAP_SCALE)).
+// With scale 60: raw 100 -> ~86, raw 150 -> ~94, raw 200 -> ~97.
+export const SOFT_CAP_START = 80;
+export const SOFT_CAP_SCALE = 60;
 
 // ---- Freshness ----
 // A set only counts as "meaningful stimulus" (resets the freshness clock) if
@@ -39,6 +56,10 @@ export const DEFAULT_STALE_THRESHOLD_DAYS = 10;
 
 // ---- Bodyweight ----
 export const BODYWEIGHT_FALLBACK_LB = 170; // used only when the user hasn't set CoachingContext.currentWeightLb
+// Fraction of bodyweight a bodyweight-logged set is credited with when the
+// exercise doesn't define its own (per-exercise `bodyweightFraction` wins).
+// 0 means "no load credit": such sets feed consistency/reps-time only, never strength tiers.
+export const DEFAULT_BODYWEIGHT_FRACTION = 0.5;
 
 // ---- Strength standards ----
 // Bodyweight multiple of estimated 1RM at score breakpoints 0/25/50/75/100,
@@ -65,7 +86,13 @@ export const LIFT_FAMILY_STANDARDS: Record<LiftFamily, [number, number, number, 
 export const STANDARD_SCORE_BREAKPOINTS = [0, 25, 50, 75, 100] as const;
 
 // ---- Focus ranking ----
+// priority = (100 - effective score) + staleness bonus + golf bonus. The score
+// deficit (0-100) dominates; staleness and golf relevance are capped tie-breakers
+// (at most 20 + 10 points) so a very low-scoring muscle can't be buried below
+// a merely stale one. Muscles with paused (restricted) decay get no staleness bonus.
 export const FOCUS_TOP_N = 3;
-export const FOCUS_STALENESS_BOOST_PER_DAY = 1.5; // added to (100 - effective) per day stale, capped below
-export const FOCUS_STALENESS_BOOST_CAP = 30;
-export const FOCUS_GOLF_BOOST = 15;
+export const FOCUS_STALENESS_BOOST_PER_DAY = 1; // added per day stale, capped below
+export const FOCUS_STALENESS_BOOST_CAP = 20;
+export const FOCUS_GOLF_BOOST = 10;
+/** Window (days) for every "change vs. N days ago" figure shown in the UI and summary. */
+export const TREND_WINDOW_DAYS = 30;

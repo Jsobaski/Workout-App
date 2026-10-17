@@ -1,9 +1,9 @@
 import { WorkoutEntry } from "./types";
-import { workoutSummary } from "./aggregate";
+import { VolumeOptions, workoutSummary } from "./aggregate";
 import { formatDisplayDate } from "./date";
 import { bandLabel } from "./bands";
 
-export function formatWorkoutText(dateKey: string, entries: WorkoutEntry[]): string {
+export function formatWorkoutText(dateKey: string, entries: WorkoutEntry[], volumeOpts: VolumeOptions = {}): string {
   const lines = [`Workout — ${formatDisplayDate(dateKey)}`, ""];
   if (entries.length === 0) {
     lines.push("No workout logged.");
@@ -26,7 +26,7 @@ export function formatWorkoutText(dateKey: string, entries: WorkoutEntry[]): str
   }
 
   lines.push("");
-  lines.push(`Total volume: ${workoutSummary(entries).totalVolume.toLocaleString()} lb`);
+  lines.push(`Total volume: ${workoutSummary(entries, volumeOpts).totalVolume.toLocaleString()} lb`);
   return lines.join("\n");
 }
 

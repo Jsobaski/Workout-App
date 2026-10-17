@@ -5,6 +5,8 @@ import {
   DECAY_FLOOR_RATIO,
   DECAY_GRACE_DAYS,
   DECAY_HALF_LIFE_DAYS,
+  SOFT_CAP_SCALE,
+  SOFT_CAP_START,
   STANDARD_SCORE_BREAKPOINTS,
   VOLUME_BONUS_MAX_POINTS,
 } from "./muscleScoreConfig";
@@ -37,6 +39,35 @@ export function ratioToScore(ratio: number, breakpoints: readonly [number, numbe
     }
   }
   return 0;
+}
+
+/**
+ * Same interpolation as ratioToScore, but past the top breakpoint it keeps
+ * extending along the last segment's slope instead of clamping at 100, so a
+ * lift beyond "elite" still registers progress internally. Never negative.
+ */
+export function ratioToUncappedScore(ratio: number, breakpoints: readonly [number, number, number, number, number]): number {
+  const last = breakpoints.length - 1;
+  if (ratio <= breakpoints[0]) return 0;
+  if (ratio <= breakpoints[last]) return ratioToScore(ratio, breakpoints);
+  const slope = (STANDARD_SCORE_BREAKPOINTS[last] - STANDARD_SCORE_BREAKPOINTS[last - 1]) / (breakpoints[last] - breakpoints[last - 1]);
+  return 100 + (ratio - breakpoints[last]) * slope;
+}
+
+/**
+ * Maps an uncapped raw score onto the displayed 0-100 scale: identity up to
+ * SOFT_CAP_START, then asymptotically approaching (never reaching) 100.
+ */
+export function softCapScore(raw: number): number {
+  if (raw <= 0) return 0;
+  if (raw <= SOFT_CAP_START) return raw;
+  const headroom = 100 - SOFT_CAP_START;
+  return SOFT_CAP_START + headroom * (1 - Math.exp(-(raw - SOFT_CAP_START) / SOFT_CAP_SCALE));
+}
+
+/** Multiplier (0-1] that applyDecay would apply to any peak after `daysSincePeak` days. */
+export function decayFactor(daysSincePeak: number): number {
+  return applyDecay(100, daysSincePeak) / 100;
 }
 
 /**

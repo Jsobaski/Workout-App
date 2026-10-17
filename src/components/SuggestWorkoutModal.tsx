@@ -5,7 +5,8 @@ import Modal from "./Modal";
 import { clearSavedPin, getSavedPin } from "@/lib/appPin";
 import { CoachingContext, SuggestedExercise, WorkoutSuggestion } from "@/lib/types";
 import { dateKeysInRange, todayKey } from "@/lib/date";
-import { listWorkoutEntriesInRange } from "@/lib/db";
+import { getExerciseSettings, listWorkoutEntriesInRange } from "@/lib/db";
+import { listNeedsPtConfirmation, listRestrictedExercises } from "@/lib/exerciseSettings";
 
 export default function SuggestWorkoutModal({
   coachingContext,
@@ -46,6 +47,7 @@ export default function SuggestWorkoutModal({
           notes: e.notes,
         }));
 
+      const exerciseSettings = await getExerciseSettings();
       const pin = getSavedPin();
       const res = await fetch("/api/suggest-workout", {
         method: "POST",
@@ -53,7 +55,13 @@ export default function SuggestWorkoutModal({
           "Content-Type": "application/json",
           ...(pin ? { "x-app-pin": pin } : {}),
         },
-        body: JSON.stringify({ recentWorkouts, coachingContext }),
+        body: JSON.stringify({
+          recentWorkouts,
+          coachingContext,
+          restrictedExercises: listRestrictedExercises(exerciseSettings),
+          needsPtConfirmation: listNeedsPtConfirmation(exerciseSettings),
+          exerciseSettings,
+        }),
       });
       if (res.status === 401) {
         clearSavedPin();

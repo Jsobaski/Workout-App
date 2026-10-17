@@ -1,11 +1,13 @@
 import { blobToBase64 } from "./image";
 import {
   getCoachingContext,
+  getExerciseSettings,
   listAllFoodEntries,
   listAllGolfActivityEntries,
   listAllMeasurementEntries,
   listAllWorkoutEntries,
   saveCoachingContext,
+  saveExerciseSettings,
   saveFoodEntry,
   saveGolfActivityEntry,
   saveMeasurementEntry,
@@ -18,6 +20,7 @@ import {
   GolfActivityEntry,
   WorkoutEntry,
 } from "./types";
+import type { ExerciseSettingsOverrides } from "./exerciseSettings";
 
 interface BackupFoodEntry extends Omit<FoodEntry, "photoThumbnail"> {
   photoThumbnail?: { dataUrl: string; type: string };
@@ -31,16 +34,19 @@ export interface BackupData {
   golfActivityEntries?: GolfActivityEntry[];
   measurementEntries?: BodyMeasurementEntry[];
   coachingContext: CoachingContext;
+  /** Per-exercise load multipliers / PT restrictions. Absent in older exports. */
+  exerciseSettings?: ExerciseSettingsOverrides;
 }
 
 export async function buildBackup(): Promise<BackupData> {
-  const [foodEntries, workoutEntries, golfActivityEntries, measurementEntries, coachingContext] =
+  const [foodEntries, workoutEntries, golfActivityEntries, measurementEntries, coachingContext, exerciseSettings] =
     await Promise.all([
       listAllFoodEntries(),
       listAllWorkoutEntries(),
       listAllGolfActivityEntries(),
       listAllMeasurementEntries(),
       getCoachingContext(),
+      getExerciseSettings(),
     ]);
 
   const foodWithPhotos: BackupFoodEntry[] = await Promise.all(
@@ -63,6 +69,7 @@ export async function buildBackup(): Promise<BackupData> {
     golfActivityEntries,
     measurementEntries,
     coachingContext,
+    exerciseSettings,
   };
 }
 
@@ -126,6 +133,10 @@ export async function restoreBackup(
 
   if (data.coachingContext) {
     await saveCoachingContext(data.coachingContext);
+  }
+
+  if (data.exerciseSettings) {
+    await saveExerciseSettings(data.exerciseSettings);
   }
 
   return {

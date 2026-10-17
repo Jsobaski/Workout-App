@@ -4,16 +4,18 @@ import Modal from "./Modal";
 import { MuscleGroupId, muscleGroup } from "@/lib/muscleTaxonomy";
 import { MuscleStats, tierForScore } from "@/lib/muscleEngine";
 import { formatShortDate } from "@/lib/date";
+import { MuscleDelta, describeDeltaStatus } from "@/lib/muscleComparison";
+import { TREND_WINDOW_DAYS } from "@/lib/muscleScoreConfig";
 
 export default function MuscleDetailPanel({
   groupIds,
   statsByGroup,
-  trendByGroup,
+  deltaByGroup,
   onClose,
 }: {
   groupIds: MuscleGroupId[];
   statsByGroup: Record<MuscleGroupId, MuscleStats>;
-  trendByGroup?: Partial<Record<MuscleGroupId, number | null>>;
+  deltaByGroup?: Record<MuscleGroupId, MuscleDelta>;
   onClose: () => void;
 }) {
   const title = groupIds.map((id) => muscleGroup(id).label).join(" & ") || "Muscle";
@@ -36,7 +38,7 @@ export default function MuscleDetailPanel({
           }
 
           const tier = tierForScore(stats.effective!);
-          const trend = trendByGroup?.[id];
+          const delta = deltaByGroup?.[id];
 
           return (
             <div key={id} className="space-y-2 border-t border-neutral-800 pt-3 first:border-0 first:pt-0">
@@ -45,7 +47,7 @@ export default function MuscleDetailPanel({
               <div className="flex items-center gap-2">
                 <span
                   className="inline-block h-3 w-3 rounded-full"
-                  style={{ background: tier.color, border: tier.id === "elite" ? "1px solid #525252" : undefined }}
+                  style={{ background: tier.color, border: tier.outline ? `1.5px solid ${tier.outline}` : undefined }}
                 />
                 <span className="text-sm font-medium text-neutral-100">{tier.label}</span>
                 <span className="text-xs text-neutral-500">
@@ -53,9 +55,23 @@ export default function MuscleDetailPanel({
                   {stats.peak != null && Math.round(stats.peak) !== Math.round(stats.effective!) && (
                     <> &middot; peak {Math.round(stats.peak)}</>
                   )}
+                  {stats.effectiveRaw != null && stats.effectiveRaw > 100 && (
+                    <> &middot; raw {Math.round(stats.effectiveRaw)} (uncapped)</>
+                  )}
                 </span>
               </div>
 
+              {stats.pausedRestricted && (
+                <p className="rounded-md bg-sky-950/60 px-2 py-1 text-xs text-sky-300">
+                  Paused (restricted) — the last primary work for this muscle was a PT-restricted exercise, so decay
+                  and staleness are on hold rather than dropping.
+                </p>
+              )}
+              {stats.scoringBasis === "reps-time" && (
+                <p className="text-xs text-neutral-500">
+                  Scored by reps/time and training consistency — no load standard applies to this muscle&apos;s work.
+                </p>
+              )}
               {stats.peak != null && stats.effective != null && stats.peak > stats.effective && (
                 <p className="text-xs text-neutral-500">
                   Decayed from peak — an estimate based on time since last meaningful training, not a new measurement.
@@ -83,13 +99,29 @@ export default function MuscleDetailPanel({
                     </span>
                   </div>
                 )}
-                {trend != null && (
+                {delta && describeDeltaStatus(delta) && (
                   <div className="col-span-2">
-                    Trend:{" "}
-                    <span className={trend > 0 ? "text-emerald-400" : trend < 0 ? "text-red-400" : "text-neutral-200"}>
-                      {trend > 0 ? "+" : ""}
-                      {Math.round(trend)} pts over last 30 days
+                    Change vs {TREND_WINDOW_DAYS} days ago:{" "}
+                    <span
+                      className={
+                        delta.delta == null
+                          ? "text-neutral-300"
+                          : delta.delta > 0
+                            ? "text-emerald-400"
+                            : delta.delta < 0
+                              ? "text-red-400"
+                              : "text-neutral-200"
+                      }
+                    >
+                      {describeDeltaStatus(delta)}
                     </span>
+                    {delta.anchorExercise && <span className="text-neutral-500"> (on {delta.anchorExercise})</span>}
+                  </div>
+                )}
+                {stats.lastSecondaryDateKey && (
+                  <div className="col-span-2 text-neutral-500">
+                    Incidental (secondary) work: {formatShortDate(stats.lastSecondaryDateKey)} — doesn&apos;t count as
+                    training this muscle directly.
                   </div>
                 )}
               </div>

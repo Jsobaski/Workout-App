@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeMuscleEngine } from "./muscleEngine";
+import { compareSnapshots } from "./muscleComparison";
 import { formatMuscleSummaryText } from "./muscleShareText";
 import { WorkoutEntry } from "./types";
 
@@ -15,7 +16,14 @@ const entry = (id: string, dateKey: string, exerciseName: string, weight: number
 describe("formatMuscleSummaryText", () => {
   const entries = [entry("1", "2026-10-10", "Bench Press", 135), entry("2", "2026-10-12", "Mystery Machine", 50)];
   const result = computeMuscleEngine(entries, 180, "2026-10-14");
-  const text = formatMuscleSummaryText({ asOfDateKey: "2026-10-14", bodyweightLb: 180, result, trendByGroup: {}, entries });
+  const earlier = computeMuscleEngine(entries, 180, "2026-09-14");
+  const text = formatMuscleSummaryText({
+    asOfDateKey: "2026-10-14",
+    bodyweightLb: 180,
+    result,
+    deltaByGroup: compareSnapshots(earlier.statsByGroup, result.statsByGroup),
+    entries,
+  });
 
   it("lists scored muscles with tier and score, and untrained ones as no data", () => {
     expect(text).toMatch(/- Mid\/Lower Chest: \w[\w ]* \(\d+\)/);

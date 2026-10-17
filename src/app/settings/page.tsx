@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useCoachingContext } from "@/hooks/useCoachingContext";
 import { buildBackup, downloadBackup, restoreBackup } from "@/lib/backup";
+import ExerciseSettingsEditor from "@/components/ExerciseSettingsEditor";
 import { clearSavedPin, getSavedPin, setSavedPin, verifyPin } from "@/lib/appPin";
 
 const ACTIVITY_LEVELS = [
@@ -236,6 +237,12 @@ export default function SettingsPage() {
           <p className="mt-2 text-xs text-red-400">{backupError}</p>
         )}
       </FormSection>
+
+      <div id="exercise-settings">
+        <FormSection title="Exercise settings">
+          <ExerciseSettingsEditor />
+        </FormSection>
+      </div>
 
       <FormSection title="AI Features">
         <p className="mb-3 text-xs text-neutral-500">

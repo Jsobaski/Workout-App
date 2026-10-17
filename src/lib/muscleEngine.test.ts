@@ -114,10 +114,10 @@ describe("computeMuscleEngine", () => {
     // touch shouldn't reclassify Abs into the small 10-point load-standard
     // branch instead of the 70-point consistency branch core work needs.
     const entries = [
-      makeEntry("1", "2026-09-22", "Pallof Press", [{ reps: 12, weight: 25 }]),
-      makeEntry("2", "2026-09-29", "Half-Kneeling Pallof Press", [{ reps: 10, weight: 25 }]),
-      makeEntry("3", "2026-10-06", "Standing Cable Woodchopper (High-to-Low)", [{ reps: 10, weight: 30 }]),
-      makeEntry("4", "2026-10-12", "Captain's Chair Knee Raises", [{ reps: 12, weight: 0 }], true),
+      makeEntry("1", "2026-09-22", "Plank", [{ reps: 1, weight: 0 }], true),
+      makeEntry("2", "2026-09-29", "Dead Bug", [{ reps: 10, weight: 0 }], true),
+      makeEntry("3", "2026-10-06", "Captain's Chair Knee Raises", [{ reps: 12, weight: 0 }], true),
+      makeEntry("4", "2026-10-12", "Plank", [{ reps: 1, weight: 0 }], true),
       makeEntry("5", "2026-09-18", "Farmer Carry", [{ reps: 1, weight: 60 }]),
     ];
     const withFarmerCarry = computeMuscleEngine(entries, 180, "2026-10-14");

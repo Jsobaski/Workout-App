@@ -6,7 +6,13 @@ import { WorkoutEntry } from "./types";
 import { shiftDateKey } from "./date";
 import { BodyMapRegion } from "./bodyMapGeometry";
 import { MUSCLE_GROUPS, MuscleGroupId } from "./muscleTaxonomy";
-import { ExerciseMapping, lookupExerciseMapping } from "./exerciseMuscleMap";
+import { ExerciseMapping } from "./exerciseMuscleMap";
+import {
+  ExerciseSettingsOverrides,
+  ResolvedExerciseConfig,
+  effectiveLoadForSet,
+  resolveExerciseConfig,
+} from "./exerciseSettings";
 import {
   BODYWEIGHT_FALLBACK_LB,
   DEFAULT_STALE_THRESHOLD_DAYS,
@@ -19,7 +25,15 @@ import {
   VOLUME_BONUS_TARGET_SESSIONS,
   VOLUME_BONUS_WINDOW_DAYS,
 } from "./muscleScoreConfig";
-import { applyDecay, clampScore, daysBetween, epley1RM, ratioToScore, volumeConsistencyBonus } from "./muscleScoring";
+import {
+  applyDecay,
+  daysBetween,
+  decayFactor,
+  epley1RM,
+  ratioToUncappedScore,
+  softCapScore,
+  volumeConsistencyBonus,
+} from "./muscleScoring";
 
 export interface BestLift {
   exerciseName: string;
@@ -27,34 +41,49 @@ export interface BestLift {
   dateKey: string;
 }
 
+/** One load-scored exercise's standing for one muscle — the unit used for like-for-like comparisons. */
+export interface ExerciseScoreSnapshot {
+  key: string;
+  name: string;
+  /** This exercise's contribution weight to the muscle (1.0 primary, 0.4 secondary, 0.15 minor). */
+  weight: number;
+  e1RM: number;
+  /** Weighted, display-scale score at this exercise's lifetime best. */
+  peakScore: number;
+  /** peakScore decayed by this exercise's own time since last meaningful set. */
+  effectiveScore: number;
+  lastDateKey: string | null;
+}
+
 export interface MuscleStats {
   group: MuscleGroupId;
   hasAnyData: boolean;
-  /** Lifetime-best raw composite score (0-100) as of the queried date. Null when hasAnyData is false. */
+  /** Lifetime-best composite score on the displayed 0-100 scale (soft-capped, so 100 is effectively unreachable). Null when hasAnyData is false. */
   peak: number | null;
   /** Peak decayed for recency — what actually drives the tier/color. */
   effective: number | null;
+  /** Uncapped versions of peak/effective: keep climbing past 100 so progress stays visible. */
+  peakRaw: number | null;
+  effectiveRaw: number | null;
+  /** "load": scored against a strength standard. "reps-time": scored by training consistency (no meaningful load). */
+  scoringBasis: "load" | "reps-time" | null;
+  /** Last meaningful *primary* work. Secondary/minor credit never moves this. */
   lastTrainedDateKey: string | null;
+  /** Last meaningful secondary/minor exposure — informational only, not part of staleness. */
+  lastSecondaryDateKey: string | null;
   daysStale: number | null;
   isStale: boolean;
+  /** Decay/staleness is paused because the last primary work for this muscle was a PT-restricted exercise. */
+  pausedRestricted: boolean;
   bestLift: BestLift | null;
   contributingExercises: string[];
+  exerciseScores: ExerciseScoreSnapshot[];
 }
 
 export interface MuscleEngineResult {
   statsByGroup: Record<MuscleGroupId, MuscleStats>;
   /** Distinct logged exercise names that couldn't be mapped to any muscle — surfaced in the UI, never silently dropped. */
   needsMapping: string[];
-}
-
-function loadForSet(
-  set: { reps: number; weight: number },
-  isBodyweight: boolean | undefined,
-  bodyweightLb: number,
-  bodyweightFraction: number | undefined
-): number {
-  if (!isBodyweight) return set.weight;
-  return bodyweightLb * (bodyweightFraction ?? 1) + set.weight;
 }
 
 // For a timed entry (e.g. plank holds), seconds held stands in for reps in
@@ -77,43 +106,97 @@ function standardsForMapping(mapping: ExerciseMapping): [number, number, number,
   return null; // volumeOnly
 }
 
+interface ResolvedEntry {
+  entry: WorkoutEntry;
+  cfg: ResolvedExerciseConfig;
+  /** At least one set reached FRESHNESS_SET_THRESHOLD_RATIO of this exercise's best effort. */
+  meaningful: boolean;
+}
+
+interface ExerciseBest {
+  name: string;
+  bestE1RM: number;
+  bestE1RMDateKey: string;
+  /** e1RM when the set carried load, otherwise reps/seconds — only ever compared within one exercise. */
+  bestEffort: number;
+}
+
 export function computeMuscleEngine(
   entries: WorkoutEntry[],
   bodyweightLb: number | null,
   asOfDateKey: string,
-  staleThresholdDays: number = DEFAULT_STALE_THRESHOLD_DAYS
+  staleThresholdDays: number = DEFAULT_STALE_THRESHOLD_DAYS,
+  overrides?: ExerciseSettingsOverrides
 ): MuscleEngineResult {
   const effectiveBodyweight = bodyweightLb && bodyweightLb > 0 ? bodyweightLb : BODYWEIGHT_FALLBACK_LB;
   const relevant = entries.filter((e) => e.dateKey <= asOfDateKey);
 
-  const mappingByKey = new Map<string, ExerciseMapping | null>();
+  const configByName = new Map<string, ResolvedExerciseConfig | null>();
   const needsMapping = new Set<string>();
+  const resolvedEntries: { entry: WorkoutEntry; cfg: ResolvedExerciseConfig }[] = [];
   for (const entry of relevant) {
-    const key = entry.exerciseName.trim().toLowerCase();
-    if (mappingByKey.has(key)) continue;
-    const mapping = lookupExerciseMapping(entry.exerciseName);
-    mappingByKey.set(key, mapping);
-    if (!mapping) needsMapping.add(entry.exerciseName.trim());
+    const nameKey = entry.exerciseName.trim().toLowerCase();
+    if (!configByName.has(nameKey)) {
+      const cfg = resolveExerciseConfig(entry.exerciseName, overrides);
+      configByName.set(nameKey, cfg);
+      if (!cfg) needsMapping.add(entry.exerciseName.trim());
+    }
+    const cfg = configByName.get(nameKey);
+    if (cfg) resolvedEntries.push({ entry, cfg });
   }
 
-  // Lifetime-best e1RM per exercise (as of asOfDateKey) — the "current e1RM"
-  // used both for the load-standard score and as the freshness threshold.
-  const bestByExercise = new Map<string, BestLift>();
-  for (const entry of relevant) {
-    const key = entry.exerciseName.trim().toLowerCase();
-    const mapping = mappingByKey.get(key);
-    if (!mapping) continue;
-    const bwFraction = mapping.scoring.method === "standard" ? mapping.scoring.bodyweightFraction : undefined;
+  function measureSet(entry: WorkoutEntry, set: WorkoutEntry["sets"][number], cfg: ResolvedExerciseConfig) {
+    const load = effectiveLoadForSet(set.weight, {
+      isBodyweight: entry.bodyweight,
+      bodyweightLb: effectiveBodyweight,
+      bodyweightFraction: cfg.bodyweightFraction,
+      loadMultiplier: cfg.loadMultiplier,
+    });
+    const quantity = quantityForSet(set, entry.timed);
+    const e1RM = epley1RM(load, quantity);
+    return { e1RM, effort: load > 0 ? e1RM : quantity };
+  }
+
+  // Lifetime-best per canonical exercise (as of asOfDateKey) — variants of the
+  // same movement (e.g. "Calf Raise" / "Standing Calf") combine here. The best
+  // e1RM drives the load-standard score; the best effort is the freshness bar.
+  const bestByExercise = new Map<string, ExerciseBest>();
+  for (const { entry, cfg } of resolvedEntries) {
     for (const set of entry.sets) {
-      const load = loadForSet(set, entry.bodyweight, effectiveBodyweight, bwFraction);
-      const e1RM = epley1RM(load, quantityForSet(set, entry.timed));
-      const current = bestByExercise.get(key);
-      if (!current || e1RM > current.e1RM) {
-        bestByExercise.set(key, { exerciseName: entry.exerciseName.trim(), e1RM, dateKey: entry.dateKey });
+      const { e1RM, effort } = measureSet(entry, set, cfg);
+      const current = bestByExercise.get(cfg.key) ?? {
+        name: cfg.displayName,
+        bestE1RM: 0,
+        bestE1RMDateKey: entry.dateKey,
+        bestEffort: 0,
+      };
+      if (e1RM > current.bestE1RM) {
+        current.bestE1RM = e1RM;
+        current.bestE1RMDateKey = entry.dateKey;
       }
+      if (effort > current.bestEffort) current.bestEffort = effort;
+      bestByExercise.set(cfg.key, current);
     }
   }
 
+  // Freshness: a session only counts as meaningful stimulus if one of its sets
+  // is >= 60% of this specific exercise's own best — warm-ups don't count.
+  const resolved: ResolvedEntry[] = resolvedEntries.map(({ entry, cfg }) => {
+    const best = bestByExercise.get(cfg.key)!;
+    const meaningful =
+      best.bestEffort > 0 &&
+      entry.sets.some((set) => measureSet(entry, set, cfg).effort >= FRESHNESS_SET_THRESHOLD_RATIO * best.bestEffort);
+    return { entry, cfg, meaningful };
+  });
+
+  const lastMeaningfulByExercise = new Map<string, string>();
+  for (const r of resolved) {
+    if (!r.meaningful) continue;
+    const current = lastMeaningfulByExercise.get(r.cfg.key);
+    if (!current || r.entry.dateKey > current) lastMeaningfulByExercise.set(r.cfg.key, r.entry.dateKey);
+  }
+
+  const windowStart = shiftDateKey(asOfDateKey, -VOLUME_BONUS_WINDOW_DAYS);
   const statsByGroup = {} as Record<MuscleGroupId, MuscleStats>;
 
   for (const groupDef of MUSCLE_GROUPS) {
@@ -121,51 +204,76 @@ export function computeMuscleEngine(
     let hasLoadablePrimary = false;
     let bestWeightedLiftScore = 0;
     let bestLift: BestLift | null = null;
-    let lastMeaningfulDateKey: string | null = null;
+    let lastPrimary: string | null = null;
+    let lastPrimaryRestricted: string | null = null;
+    let lastPrimaryAllowed: string | null = null;
+    let lastSecondary: string | null = null;
     const contributingExercises = new Set<string>();
+    const exerciseScores = new Map<string, ExerciseScoreSnapshot>();
+    // Training days in the consistency window, each weighted by the strongest
+    // contribution that day (a primary day counts 1, a secondary day 0.4).
+    const dayWeights = new Map<string, number>();
 
-    for (const entry of relevant) {
-      const key = entry.exerciseName.trim().toLowerCase();
-      const mapping = mappingByKey.get(key);
-      if (!mapping) continue;
-      const contribution = mapping.muscles.find((m) => m.group === groupDef.id);
+    for (const { entry, cfg, meaningful } of resolved) {
+      const contribution = cfg.mapping.muscles.find((m) => m.group === groupDef.id);
       if (!contribution) continue;
 
       hasAnyData = true;
-      contributingExercises.add(entry.exerciseName.trim());
+      contributingExercises.add(cfg.displayName);
+      const isPrimary = contribution.weight >= 1.0;
 
-      const liftPeak = bestByExercise.get(key);
-      const bwFraction = mapping.scoring.method === "standard" ? mapping.scoring.bodyweightFraction : undefined;
-
-      // Freshness: a set only resets the clock if it's >= 60% of this
-      // specific lift's own lifetime-best e1RM — warm-ups don't count.
-      if (liftPeak) {
-        const hasMeaningfulSet = entry.sets.some((set) => {
-          const load = loadForSet(set, entry.bodyweight, effectiveBodyweight, bwFraction);
-          const e1RM = epley1RM(load, quantityForSet(set, entry.timed));
-          return e1RM >= FRESHNESS_SET_THRESHOLD_RATIO * liftPeak.e1RM;
-        });
-        if (hasMeaningfulSet && (!lastMeaningfulDateKey || entry.dateKey > lastMeaningfulDateKey)) {
-          lastMeaningfulDateKey = entry.dateKey;
+      // Only primary work moves the "last trained" clock; secondary/minor
+      // exposure is tracked separately and never resets staleness.
+      if (meaningful) {
+        if (isPrimary) {
+          if (!lastPrimary || entry.dateKey > lastPrimary) lastPrimary = entry.dateKey;
+          if (cfg.restricted) {
+            if (!lastPrimaryRestricted || entry.dateKey > lastPrimaryRestricted) lastPrimaryRestricted = entry.dateKey;
+          } else if (!lastPrimaryAllowed || entry.dateKey > lastPrimaryAllowed) {
+            lastPrimaryAllowed = entry.dateKey;
+          }
+        } else if (!lastSecondary || entry.dateKey > lastSecondary) {
+          lastSecondary = entry.dateKey;
         }
       }
 
-      const standards = standardsForMapping(mapping);
-      if (standards && liftPeak) {
-        // Only a *primary* (1.0-weight) loadable contributor should reclassify
-        // the whole muscle into the "scored against a load standard" branch —
-        // a muscle mostly trained via volumeOnly work (e.g. Abs via Pallof/
-        // planks) shouldn't lose its consistency-driven scoring just because
-        // some unrelated lift (e.g. Farmer Carry) touches it as a minor
-        // secondary. The weighted score itself still counts either way.
-        if (contribution.weight >= 1.0) hasLoadablePrimary = true;
-        const ratio = liftPeak.e1RM / effectiveBodyweight;
-        const liftScore = ratioToScore(ratio, standards);
-        const weighted = liftScore * contribution.weight;
-        if (weighted > bestWeightedLiftScore) {
-          bestWeightedLiftScore = weighted;
-          bestLift = liftPeak;
-        }
+      if (entry.dateKey >= windowStart && entry.dateKey <= asOfDateKey) {
+        dayWeights.set(entry.dateKey, Math.max(dayWeights.get(entry.dateKey) ?? 0, contribution.weight));
+      }
+
+      const best = bestByExercise.get(cfg.key)!;
+      const standards = standardsForMapping(cfg.mapping);
+      // No load credit (e.g. bodyweight-only reps at fraction 0) -> best.bestE1RM is 0
+      // and the exercise feeds consistency only, never the strength score.
+      if (!standards || best.bestE1RM <= 0 || exerciseScores.has(cfg.key)) continue;
+
+      // Only a *primary* (1.0-weight) loadable contributor should reclassify
+      // the whole muscle into the "scored against a load standard" branch —
+      // a muscle mostly trained via volumeOnly work (e.g. Abs via planks)
+      // shouldn't lose its consistency-driven scoring just because some
+      // unrelated lift (e.g. Farmer Carry) touches it as a minor secondary.
+      // The weighted score itself still counts either way.
+      if (isPrimary) hasLoadablePrimary = true;
+      // Only a primary contributor may run past 100 (uncapped); incidental
+      // credit is capped at 100 before weighting so a huge number on an
+      // easy-to-max lift can't make a barely-trained muscle look strong.
+      const rawLiftScore = ratioToUncappedScore(best.bestE1RM / effectiveBodyweight, standards);
+      const liftScore = isPrimary ? rawLiftScore : Math.min(rawLiftScore, 100);
+      const weighted = liftScore * contribution.weight;
+      const peakScore = softCapScore(weighted);
+      const lastDateKey = lastMeaningfulByExercise.get(cfg.key) ?? null;
+      exerciseScores.set(cfg.key, {
+        key: cfg.key,
+        name: cfg.displayName,
+        weight: contribution.weight,
+        e1RM: best.bestE1RM,
+        peakScore,
+        effectiveScore: applyDecay(peakScore, lastDateKey ? daysBetween(lastDateKey, asOfDateKey) : Infinity),
+        lastDateKey,
+      });
+      if (weighted > bestWeightedLiftScore) {
+        bestWeightedLiftScore = weighted;
+        bestLift = { exerciseName: best.name, e1RM: best.bestE1RM, dateKey: best.bestE1RMDateKey };
       }
     }
 
@@ -175,51 +283,64 @@ export function computeMuscleEngine(
         hasAnyData: false,
         peak: null,
         effective: null,
+        peakRaw: null,
+        effectiveRaw: null,
+        scoringBasis: null,
         lastTrainedDateKey: null,
+        lastSecondaryDateKey: null,
         daysStale: null,
         isStale: false,
+        pausedRestricted: false,
         bestLift: null,
         contributingExercises: [],
+        exerciseScores: [],
       };
       continue;
     }
 
-    const windowStart = shiftDateKey(asOfDateKey, -VOLUME_BONUS_WINDOW_DAYS);
-    const distinctDaysInWindow = new Set(
-      relevant
-        .filter((e) => e.dateKey >= windowStart && e.dateKey <= asOfDateKey)
-        .filter((e) => {
-          const mapping = mappingByKey.get(e.exerciseName.trim().toLowerCase());
-          return mapping?.muscles.some((m) => m.group === groupDef.id) ?? false;
-        })
-        .map((e) => e.dateKey)
-    ).size;
-
+    const weightedDays = Array.from(dayWeights.values()).reduce((a, b) => a + b, 0);
     // A muscle with no *primary* loadable driver (anti-rotation holds,
-    // planks) has no load standard to meaningfully score against —
-    // consistency itself becomes the primary signal instead of a small
-    // top-up, even if a minor secondary lift contributed some load score.
-    const peak = hasLoadablePrimary
-      ? clampScore(bestWeightedLiftScore + volumeConsistencyBonus(distinctDaysInWindow, VOLUME_BONUS_TARGET_SESSIONS, VOLUME_BONUS_MAX_POINTS))
-      : clampScore(bestWeightedLiftScore + volumeConsistencyBonus(distinctDaysInWindow, VOLUME_BONUS_TARGET_SESSIONS, 70));
+    // planks, bodyweight-only reps) has no load standard to meaningfully
+    // score against — consistency itself becomes the primary signal instead
+    // of a small top-up.
+    const bonusMax = hasLoadablePrimary ? VOLUME_BONUS_MAX_POINTS : 70;
+    const peakRaw = bestWeightedLiftScore + volumeConsistencyBonus(weightedDays, VOLUME_BONUS_TARGET_SESSIONS, bonusMax);
+    const peak = softCapScore(peakRaw);
 
-    // Decay clock runs off "days since last meaningful stimulus" — the same
-    // date driving the freshness badge — rather than a separate "days since
-    // the single best-ever lift" concept, which would decay a muscle you're
-    // still training consistently just because today's sets aren't a new PR.
-    const daysStale = lastMeaningfulDateKey != null ? daysBetween(lastMeaningfulDateKey, asOfDateKey) : null;
-    const effective = daysStale != null ? applyDecay(peak, daysStale) : applyDecay(peak, Infinity);
+    // Decay clock runs off "days since last meaningful *primary* stimulus"
+    // rather than a separate "days since the single best-ever lift" concept,
+    // which would decay a muscle you're still training consistently just
+    // because today's sets aren't a new PR.
+    const daysStale = lastPrimary != null ? daysBetween(lastPrimary, asOfDateKey) : null;
+
+    // PT pause: when the last primary work for this muscle was a restricted
+    // exercise (nothing allowed since), the clock is frozen instead of letting
+    // the score decay for work you've been told not to do.
+    const pausedRestricted =
+      lastPrimaryRestricted != null &&
+      (lastPrimaryAllowed == null || lastPrimaryRestricted > lastPrimaryAllowed) &&
+      daysStale != null &&
+      daysStale >= staleThresholdDays;
+
+    const effective = pausedRestricted ? peak : applyDecay(peak, daysStale ?? Infinity);
+    const effectiveRaw = pausedRestricted ? peakRaw : peakRaw * decayFactor(daysStale ?? Infinity);
 
     statsByGroup[groupDef.id] = {
       group: groupDef.id,
       hasAnyData: true,
       peak,
       effective,
-      lastTrainedDateKey: lastMeaningfulDateKey,
+      peakRaw,
+      effectiveRaw,
+      scoringBasis: hasLoadablePrimary ? "load" : "reps-time",
+      lastTrainedDateKey: lastPrimary,
+      lastSecondaryDateKey: lastSecondary,
       daysStale,
-      isStale: daysStale == null ? true : daysStale >= staleThresholdDays,
+      isStale: pausedRestricted ? false : daysStale == null ? true : daysStale >= staleThresholdDays,
+      pausedRestricted,
       bestLift,
       contributingExercises: Array.from(contributingExercises).sort(),
+      exerciseScores: Array.from(exerciseScores.values()),
     };
   }
 
@@ -239,12 +360,17 @@ export function colorForStats(stats: MuscleStats): string {
   return tierForScore(stats.effective).color;
 }
 
+export function tierOutlineForScore(score: number | null): string | undefined {
+  return score == null ? undefined : tierForScore(score).outline;
+}
+
 export interface RegionStats {
   region: BodyMapRegion;
   groups: MuscleGroupId[];
   hasAnyData: boolean;
   effective: number | null;
   isStale: boolean;
+  isPaused: boolean;
 }
 
 /**
@@ -269,12 +395,14 @@ export function computeRegionStats(
       .filter((s) => s.hasAnyData && s.effective != null)
       .map((s) => s.effective as number);
     const anyStale = groups.some((g) => statsByGroup[g].hasAnyData && statsByGroup[g].isStale);
+    const anyPaused = groups.some((g) => statsByGroup[g].pausedRestricted);
     regions.set(region, {
       region,
       groups,
       hasAnyData: ratedEffectives.length > 0,
       effective: ratedEffectives.length > 0 ? ratedEffectives.reduce((a, b) => a + b, 0) / ratedEffectives.length : null,
       isStale: anyStale,
+      isPaused: anyPaused,
     });
   }
   return Object.fromEntries(regions) as Record<BodyMapRegion, RegionStats>;

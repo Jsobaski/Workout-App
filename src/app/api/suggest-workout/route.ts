@@ -5,6 +5,7 @@ import {
   getAnthropicClient,
 } from "@/lib/anthropicServer";
 import { CoachingContext, WorkoutSuggestion } from "@/lib/types";
+import { ExerciseSettingsOverrides, RestrictionInfo, isExerciseRestricted } from "@/lib/exerciseSettings";
 
 export const runtime = "nodejs";
 
@@ -19,6 +20,11 @@ interface RecentWorkoutSummary {
 interface SuggestWorkoutBody {
   recentWorkouts: RecentWorkoutSummary[];
   coachingContext: CoachingContext;
+  /** Exercises the user's PT has ruled out — must never be suggested. */
+  restrictedExercises?: RestrictionInfo[];
+  /** Exercises still awaiting PT sign-off — suggest only with a caution. */
+  needsPtConfirmation?: string[];
+  exerciseSettings?: ExerciseSettingsOverrides;
 }
 
 const SYSTEM_PROMPT = `You are a strength & conditioning coach embedded in a personal fitness tracker for a golfer.
@@ -29,6 +35,8 @@ Rules:
 - Prioritize progressive overload: compare to the most recent logged weight for the same or similar exercise and suggest a reasonable increase when appropriate (e.g. +5-10 lb, or hold steady with a note if the last session showed strain/notes suggesting fatigue or pain).
 - Factor in the stated goals (e.g. rotational/hip power for golf, fixing early extension, body recomposition).
 - If an exercise you suggest could aggravate a known injury/pain note, include a brief caution string on that exercise.
+- NEVER suggest any exercise listed under "Restricted by physical therapy" (or a close variant of it). These are hard exclusions, not preferences.
+- Exercises listed under "Awaiting PT confirmation" may only be suggested with a caution string saying they still need PT confirmation.
 Respond with ONLY a JSON object, no markdown fences, no extra prose, in this exact shape:
 {"exercises": [{"name": string, "sets": number, "reps": number, "weight": number, "reasoning": string, "muscleGroups": string[], "caution": string | null}], "summary": string}
 The summary should be one sentence on the overall focus for today's session.`;
@@ -56,11 +64,34 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const restricted = body.restrictedExercises ?? [];
+  const awaiting = body.needsPtConfirmation ?? [];
   const userPrompt = `Recent workout history (most recent last):\n${JSON.stringify(
     body.recentWorkouts,
     null,
     2
-  )}\n\nCoaching context:\n${JSON.stringify(body.coachingContext, null, 2)}`;
+  )}\n\nCoaching context:\n${JSON.stringify(body.coachingContext, null, 2)}${
+    restricted.length > 0
+      ? `\n\nRestricted by physical therapy (never suggest):\n${restricted
+          .map((r) => `- ${r.name}${r.note ? ` (${r.note})` : ""}`)
+          .join("\n")}`
+      : ""
+  }${
+    awaiting.length > 0
+      ? `\n\nAwaiting PT confirmation (suggest only with a caution):\n${awaiting.map((n) => `- ${n}`).join("\n")}`
+      : ""
+  }`;
+
+  // Hard guarantee on top of the prompt rule: drop anything restricted from
+  // the model's answer, whatever it returned.
+  const dropRestricted = (suggestion: WorkoutSuggestion): WorkoutSuggestion => ({
+    ...suggestion,
+    exercises: (suggestion.exercises ?? []).filter(
+      (ex) =>
+        !isExerciseRestricted(ex.name, body.exerciseSettings) &&
+        !restricted.some((r) => r.name.trim().toLowerCase() === ex.name.trim().toLowerCase())
+    ),
+  });
 
   const attempt = async (): Promise<WorkoutSuggestion> => {
     const message = await client.messages.create({
@@ -73,7 +104,7 @@ export async function POST(req: NextRequest) {
     if (!textBlock || textBlock.type !== "text") {
       throw new Error("No text response from model");
     }
-    return extractJson<WorkoutSuggestion>(textBlock.text);
+    return dropRestricted(extractJson<WorkoutSuggestion>(textBlock.text));
   };
 
   try {

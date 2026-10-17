@@ -7,6 +7,7 @@ import {
   GolfActivityEntry,
   WorkoutEntry,
 } from "./types";
+import type { ExerciseSettingsOverrides, ExerciseSettingsRecord } from "./exerciseSettings";
 
 interface GolfTrackerDB extends DBSchema {
   foodEntries: {
@@ -31,7 +32,7 @@ interface GolfTrackerDB extends DBSchema {
   };
   settings: {
     key: string;
-    value: CoachingContext;
+    value: CoachingContext | ExerciseSettingsRecord;
   };
 }
 
@@ -282,7 +283,7 @@ export async function deleteMeasurementEntry(id: string): Promise<void> {
 
 export async function getCoachingContext(): Promise<CoachingContext> {
   const db = await getDB();
-  const existing = await db.get("settings", "coachingContext");
+  const existing = (await db.get("settings", "coachingContext")) as CoachingContext | undefined;
   return existing ?? DEFAULT_COACHING_CONTEXT;
 }
 
@@ -291,4 +292,19 @@ export async function saveCoachingContext(
 ): Promise<void> {
   const db = await getDB();
   await db.put("settings", context);
+}
+
+// ---- Per-exercise settings overrides (load multipliers, restrictions, ...) ----
+
+export async function getExerciseSettings(): Promise<ExerciseSettingsOverrides> {
+  const db = await getDB();
+  const existing = (await db.get("settings", "exerciseSettings")) as ExerciseSettingsRecord | undefined;
+  return existing?.overrides ?? {};
+}
+
+export async function saveExerciseSettings(
+  overrides: ExerciseSettingsOverrides
+): Promise<void> {
+  const db = await getDB();
+  await db.put("settings", { key: "exerciseSettings", overrides });
 }

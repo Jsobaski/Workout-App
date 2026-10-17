@@ -3,6 +3,7 @@
 import { useState } from "react";
 import CollapsibleSection from "./CollapsibleSection";
 import { SetEntry, WorkoutEntry } from "@/lib/types";
+import type { ExerciseSettingsOverrides } from "@/lib/exerciseSettings";
 import { workoutSummary } from "@/lib/aggregate";
 import { copyToClipboard, formatWorkoutText } from "@/lib/shareText";
 import { BAND_OPTIONS, BandColor, bandLabel } from "@/lib/bands";
@@ -13,6 +14,8 @@ export default function WorkoutSection({
   onAdd,
   onSuggest,
   canSuggest,
+  bodyweightLb,
+  exerciseOverrides,
   onChooseSplit,
   onUpdate,
   onDelete,
@@ -22,16 +25,18 @@ export default function WorkoutSection({
   onAdd: () => void;
   onSuggest: () => void;
   canSuggest: boolean;
+  bodyweightLb: number | null;
+  exerciseOverrides: ExerciseSettingsOverrides;
   onChooseSplit: () => void;
   onUpdate: (entry: WorkoutEntry) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
-  const summary = workoutSummary(entries);
+  const summary = workoutSummary(entries, { bodyweightLb, overrides: exerciseOverrides });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
-    await copyToClipboard(formatWorkoutText(dateKey, entries));
+    await copyToClipboard(formatWorkoutText(dateKey, entries, { bodyweightLb, overrides: exerciseOverrides }));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }

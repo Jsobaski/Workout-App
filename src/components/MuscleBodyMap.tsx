@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ANTERIOR_REGIONS, BODY_MAP_VIEWBOX, BodyMapRegion, POSTERIOR_REGIONS } from "@/lib/bodyMapGeometry";
 import { MuscleGroupId } from "@/lib/muscleTaxonomy";
 import { MuscleStats, colorForRegion, computeRegionStats, tierForScore } from "@/lib/muscleEngine";
-import { MUSCLE_TIERS, UNRATED_COLOR } from "@/lib/muscleScoreConfig";
+import { ELITE_GLOW_COLOR, MUSCLE_TIERS, PAUSED_OUTLINE_COLOR, UNRATED_COLOR } from "@/lib/muscleScoreConfig";
 
 interface TrackedTiers {
   view: "front" | "back";
@@ -64,7 +64,16 @@ export default function MuscleBodyMap({
         const stats = regionStats[geo.region];
         const color = stats ? colorForRegion(stats) : UNRATED_COLOR;
         const isStale = stats?.isStale ?? false;
+        const isPaused = stats?.isPaused ?? false;
         const isGlowing = glowing.has(geo.region);
+        const isElite = stats?.hasAnyData && stats.effective != null && tierForScore(stats.effective).id === "elite";
+        // Elite is near-white with a gold ring + glow so it reads as the brightest
+        // tier and can't be mistaken for unrated; stale dashes and the paused
+        // (restricted) ring take over the outline when they apply.
+        const stroke = isStale
+          ? isElite ? ELITE_GLOW_COLOR : "#a3a3a3"
+          : isPaused ? PAUSED_OUTLINE_COLOR : isElite ? ELITE_GLOW_COLOR : "none";
+        const dashed = isStale || isPaused;
         return geo.svgPoints.map((points, i) => (
           <polygon
             key={`${geo.region}-${i}`}
@@ -75,11 +84,15 @@ export default function MuscleBodyMap({
               cursor: "pointer",
               opacity: isStale ? 0.55 : 1,
               transition: "fill 0.5s ease, opacity 0.5s ease",
-              filter: isGlowing ? "drop-shadow(0 0 4px #34d399) drop-shadow(0 0 8px #34d399)" : undefined,
+              filter: isGlowing
+                ? "drop-shadow(0 0 4px #34d399) drop-shadow(0 0 8px #34d399)"
+                : isElite
+                  ? `drop-shadow(0 0 2px ${ELITE_GLOW_COLOR}) drop-shadow(0 0 5px ${ELITE_GLOW_COLOR}88)`
+                  : undefined,
             }}
-            stroke={isStale ? "#a3a3a3" : "none"}
-            strokeWidth={isStale ? 0.4 : 0}
-            strokeDasharray={isStale ? "1.5 1" : undefined}
+            stroke={stroke}
+            strokeWidth={stroke === "none" ? 0 : isElite && !dashed ? 0.7 : 0.5}
+            strokeDasharray={dashed ? "1.5 1" : undefined}
           >
             {isStale && (
               <animate attributeName="stroke-opacity" values="1;0.2;1" dur="2s" repeatCount="indefinite" />

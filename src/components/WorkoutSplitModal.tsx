@@ -12,7 +12,9 @@ import {
 import {
   findLastWorkoutEntryForExercise,
   findMostRecentWorkoutEntry,
+  getExerciseSettings,
 } from "@/lib/db";
+import { ResolvedExerciseConfig, resolveExerciseConfig } from "@/lib/exerciseSettings";
 import { formatShortDate } from "@/lib/date";
 
 interface RowState {
@@ -21,16 +23,22 @@ interface RowState {
   bodyweight: boolean;
 }
 
-function defaultRow(exercise: SplitExercise, lastEntry: WorkoutEntry | null): RowState {
+// PT-restricted exercises are shown (so nothing silently disappears from the
+// split) but are never pre-selected for logging.
+function defaultRow(
+  exercise: SplitExercise,
+  lastEntry: WorkoutEntry | null,
+  restricted: boolean
+): RowState {
   if (lastEntry) {
     return {
-      selected: true,
+      selected: !restricted,
       sets: lastEntry.sets.map((s) => ({ ...s })),
       bodyweight: lastEntry.bodyweight ?? exercise.bodyweight ?? false,
     };
   }
   return {
-    selected: true,
+    selected: !restricted,
     sets: [{ reps: 8, weight: exercise.suggestedWeight ?? 0 }],
     bodyweight: exercise.bodyweight ?? false,
   };
@@ -45,6 +53,7 @@ export default function WorkoutSplitModal({
 }) {
   const [dayId, setDayId] = useState(WORKOUT_SPLITS[0].id);
   const [lastEntries, setLastEntries] = useState<Record<string, WorkoutEntry | null>>({});
+  const [configs, setConfigs] = useState<Record<string, ResolvedExerciseConfig | null>>({});
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [loadingDay, setLoadingDay] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -69,16 +78,20 @@ export default function WorkoutSplitModal({
     let cancelled = false;
     (async () => {
       setLoadingDay(true);
-      const entries = await Promise.all(
-        day.exercises.map((ex) => findLastWorkoutEntryForExercise(ex.name))
-      );
+      const [entries, overrides] = await Promise.all([
+        Promise.all(day.exercises.map((ex) => findLastWorkoutEntryForExercise(ex.name))),
+        getExerciseSettings(),
+      ]);
       if (cancelled) return;
       const lastByName: Record<string, WorkoutEntry | null> = {};
+      const configByName: Record<string, ResolvedExerciseConfig | null> = {};
       const initialRows: Record<string, RowState> = {};
       day.exercises.forEach((ex, i) => {
         lastByName[ex.name] = entries[i];
-        initialRows[ex.name] = defaultRow(ex, entries[i]);
+        configByName[ex.name] = resolveExerciseConfig(ex.name, overrides);
+        initialRows[ex.name] = defaultRow(ex, entries[i], configByName[ex.name]?.restricted ?? false);
       });
+      setConfigs(configByName);
       setLastEntries(lastByName);
       setRows(initialRows);
       setLoadingDay(false);
@@ -200,6 +213,16 @@ export default function WorkoutSplitModal({
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium text-neutral-100">
                         {exercise.name}
+                        {configs[exercise.name]?.restricted && (
+                          <span className="ml-2 rounded-full bg-sky-950 px-2 py-0.5 text-[10px] font-medium text-sky-300">
+                            {configs[exercise.name]?.restrictionNote ?? "PT restricted"}
+                          </span>
+                        )}
+                        {!configs[exercise.name]?.restricted && configs[exercise.name]?.needsPtConfirmation && (
+                          <span className="ml-2 rounded-full bg-amber-950 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                            needs PT confirmation
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-neutral-500">
                         {lastEntry ? (
