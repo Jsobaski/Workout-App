@@ -1,0 +1,29 @@
+import { describe, expect, it } from "vitest";
+import { computeMuscleEngine } from "./muscleEngine";
+import { formatMuscleSummaryText } from "./muscleShareText";
+import { WorkoutEntry } from "./types";
+
+const entry = (id: string, dateKey: string, exerciseName: string, weight: number): WorkoutEntry => ({
+  id,
+  dateKey,
+  timestamp: Date.parse(dateKey),
+  exerciseName,
+  muscleGroups: [],
+  sets: [{ reps: 5, weight }],
+});
+
+describe("formatMuscleSummaryText", () => {
+  const entries = [entry("1", "2026-10-10", "Bench Press", 135), entry("2", "2026-10-12", "Mystery Machine", 50)];
+  const result = computeMuscleEngine(entries, 180, "2026-10-14");
+  const text = formatMuscleSummaryText({ asOfDateKey: "2026-10-14", bodyweightLb: 180, result, trendByGroup: {}, entries });
+
+  it("lists scored muscles with tier and score, and untrained ones as no data", () => {
+    expect(text).toMatch(/- Mid\/Lower Chest: \w[\w ]* \(\d+\)/);
+    expect(text).toContain("- Calves: no data logged");
+  });
+
+  it("calls out unmapped exercises and includes recent workouts", () => {
+    expect(text).toContain("unmapped exercises): Mystery Machine");
+    expect(text).toContain("Bench Press: 5×135lb");
+  });
+});

@@ -11,6 +11,8 @@ import { buildMuscleSeedData } from "@/lib/muscleSeedData";
 import { MuscleGroupId } from "@/lib/muscleTaxonomy";
 import { DEFAULT_STALE_THRESHOLD_DAYS, MUSCLE_TIERS, UNRATED_COLOR } from "@/lib/muscleScoreConfig";
 import { shiftDateKey, todayKey } from "@/lib/date";
+import { copyToClipboard } from "@/lib/shareText";
+import { formatMuscleSummaryText } from "@/lib/muscleShareText";
 
 export default function MusclesPage() {
   const { entries: realEntries, bodyweightLb: realBodyweight, loading } = useMuscleData();
@@ -19,6 +21,7 @@ export default function MusclesPage() {
   const [afterDateKey, setAfterDateKey] = useState(todayKey());
   const [beforeDateKey, setBeforeDateKey] = useState(shiftDateKey(todayKey(), -30));
   const [selectedGroups, setSelectedGroups] = useState<MuscleGroupId[] | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const sampleEntries = useMemo(() => buildMuscleSeedData(todayKey()), []);
   const entries = useSampleData ? sampleEntries : realEntries;
@@ -52,6 +55,23 @@ export default function MusclesPage() {
     return result;
   }, [currentResult, trend30Result]);
 
+  async function handleCopy() {
+    const text = formatMuscleSummaryText({
+      asOfDateKey: todayKey(),
+      bodyweightLb,
+      result: currentResult,
+      trendByGroup,
+      entries,
+    });
+    try {
+      await copyToClipboard(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -67,6 +87,14 @@ export default function MusclesPage() {
           {useSampleData ? "Previewing sample data" : "Preview with sample data"}
         </button>
       </div>
+
+      <button
+        onClick={handleCopy}
+        disabled={loading}
+        className="w-full rounded-lg border border-emerald-700 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950 disabled:opacity-40"
+      >
+        {copied ? "Copied ✓" : "Copy muscle data for Claude"}
+      </button>
 
       {loading && <p className="text-sm text-neutral-500">Loading…</p>}
 
