@@ -11,15 +11,21 @@ import {
   ExerciseSettingsOverrides,
   ResolvedExerciseConfig,
   effectiveLoadForSet,
+  groupHasAllowedExercise,
   resolveExerciseConfig,
 } from "./exerciseSettings";
 import {
   BODYWEIGHT_FALLBACK_LB,
+  CALIBRATION_MULTIPLIER_MAX,
+  CALIBRATION_MULTIPLIER_MIN,
+  CALIBRATION_TOLERANCE_POINTS,
   DEFAULT_STALE_THRESHOLD_DAYS,
   FRESHNESS_SET_THRESHOLD_RATIO,
   LIFT_FAMILY_STANDARDS,
   MUSCLE_TIERS,
   MuscleTier,
+  SECONDARY_CAP_FRACTION,
+  SECONDARY_ONLY_CAP,
   UNRATED_COLOR,
   VOLUME_BONUS_MAX_POINTS,
   VOLUME_BONUS_TARGET_SESSIONS,
@@ -30,6 +36,7 @@ import {
   daysBetween,
   decayFactor,
   epley1RM,
+  ratioForScore,
   ratioToUncappedScore,
   softCapScore,
   volumeConsistencyBonus,
@@ -47,7 +54,10 @@ export interface ExerciseScoreSnapshot {
   name: string;
   /** This exercise's contribution weight to the muscle (1.0 primary, 0.4 secondary, 0.15 minor). */
   weight: number;
+  /** e1RM used for scoring (after any machine calibration). */
   e1RM: number;
+  /** Auto-calibration multiplier applied to this machine lift (1 = none). */
+  calibrationMultiplier: number;
   /** Weighted, display-scale score at this exercise's lifetime best. */
   peakScore: number;
   /** peakScore decayed by this exercise's own time since last meaningful set. */
@@ -73,15 +83,32 @@ export interface MuscleStats {
   lastSecondaryDateKey: string | null;
   daysStale: number | null;
   isStale: boolean;
-  /** Decay/staleness is paused because the last primary work for this muscle was a PT-restricted exercise. */
+  /** Decay/staleness is paused: the last primary work was PT-restricted AND this muscle has no allowed exercise at all. */
   pausedRestricted: boolean;
+  /** The last primary work for this muscle was a PT-restricted exercise (it may still have allowed alternatives). */
+  lastPrimaryWasRestricted: boolean;
   bestLift: BestLift | null;
   contributingExercises: string[];
   exerciseScores: ExerciseScoreSnapshot[];
 }
 
+/** One machine lift's auto-calibration against its free-weight anchor. */
+export interface CalibrationEntry {
+  exercise: string;
+  anchor: string;
+  machineScore: number;
+  anchorScore: number;
+  /** Machine score after scaling (equals machineScore when already within tolerance). */
+  calibratedScore: number;
+  /** Multiplier applied to the machine lift's e1RM (1 = already within tolerance). */
+  multiplier: number;
+  adjusted: boolean;
+}
+
 export interface MuscleEngineResult {
   statsByGroup: Record<MuscleGroupId, MuscleStats>;
+  /** Machine-vs-anchor calibrations that were evaluated, with the multiplier used. */
+  calibrations: CalibrationEntry[];
   /** Distinct logged exercise names that couldn't be mapped to any muscle — surfaced in the UI, never silently dropped. */
   needsMapping: string[];
 }
@@ -179,6 +206,47 @@ export function computeMuscleEngine(
     }
   }
 
+  // Machine calibration: a machine/plate-loaded lift with a free-weight anchor
+  // (e.g. leverage chest press -> DB bench) is scaled so its score lands
+  // within CALIBRATION_TOLERANCE_POINTS of the anchor's. Anchor must have
+  // history; the multiplier used is logged.
+  const configByKey = new Map<string, ResolvedExerciseConfig>();
+  for (const { cfg } of resolvedEntries) configByKey.set(cfg.key, cfg);
+  const calibrationMultiplier = new Map<string, number>();
+  const calibrations: CalibrationEntry[] = [];
+  for (const [key, best] of bestByExercise) {
+    const cfg = configByKey.get(key)!;
+    const anchorKey = cfg.calibrationAnchor;
+    if (!anchorKey || best.bestE1RM <= 0) continue;
+    const anchorBest = bestByExercise.get(anchorKey);
+    const anchorCfg = configByKey.get(anchorKey);
+    const standards = standardsForMapping(cfg.mapping);
+    const anchorStandards = anchorCfg ? standardsForMapping(anchorCfg.mapping) : null;
+    if (!anchorBest || !anchorCfg || anchorBest.bestE1RM <= 0 || !standards || !anchorStandards) continue;
+
+    const machineScore = ratioToUncappedScore(best.bestE1RM / effectiveBodyweight, standards);
+    const anchorScore = ratioToUncappedScore(anchorBest.bestE1RM / effectiveBodyweight, anchorStandards);
+    const target = Math.min(
+      Math.max(machineScore, Math.max(0, anchorScore - CALIBRATION_TOLERANCE_POINTS)),
+      anchorScore + CALIBRATION_TOLERANCE_POINTS
+    );
+    let multiplier = 1;
+    if (target !== machineScore) {
+      const wanted = (ratioForScore(target, standards) * effectiveBodyweight) / best.bestE1RM;
+      multiplier = Math.min(CALIBRATION_MULTIPLIER_MAX, Math.max(CALIBRATION_MULTIPLIER_MIN, wanted));
+    }
+    calibrationMultiplier.set(key, multiplier);
+    calibrations.push({
+      exercise: cfg.displayName,
+      anchor: anchorCfg.displayName,
+      machineScore,
+      anchorScore,
+      calibratedScore: ratioToUncappedScore((best.bestE1RM * multiplier) / effectiveBodyweight, standards),
+      multiplier,
+      adjusted: multiplier !== 1,
+    });
+  }
+
   // Freshness: a session only counts as meaningful stimulus if one of its sets
   // is >= 60% of this specific exercise's own best — warm-ups don't count.
   const resolved: ResolvedEntry[] = resolvedEntries.map(({ entry, cfg }) => {
@@ -202,7 +270,8 @@ export function computeMuscleEngine(
   for (const groupDef of MUSCLE_GROUPS) {
     let hasAnyData = false;
     let hasLoadablePrimary = false;
-    let bestWeightedLiftScore = 0;
+    let bestPrimaryScore = 0;
+    let bestSecondaryScore = 0;
     let bestLift: BestLift | null = null;
     let lastPrimary: string | null = null;
     let lastPrimaryRestricted: string | null = null;
@@ -257,7 +326,8 @@ export function computeMuscleEngine(
       // Only a primary contributor may run past 100 (uncapped); incidental
       // credit is capped at 100 before weighting so a huge number on an
       // easy-to-max lift can't make a barely-trained muscle look strong.
-      const rawLiftScore = ratioToUncappedScore(best.bestE1RM / effectiveBodyweight, standards);
+      const scoredE1RM = best.bestE1RM * (calibrationMultiplier.get(cfg.key) ?? 1);
+      const rawLiftScore = ratioToUncappedScore(scoredE1RM / effectiveBodyweight, standards);
       const liftScore = isPrimary ? rawLiftScore : Math.min(rawLiftScore, 100);
       const weighted = liftScore * contribution.weight;
       const peakScore = softCapScore(weighted);
@@ -266,14 +336,19 @@ export function computeMuscleEngine(
         key: cfg.key,
         name: cfg.displayName,
         weight: contribution.weight,
-        e1RM: best.bestE1RM,
+        e1RM: scoredE1RM,
+        calibrationMultiplier: calibrationMultiplier.get(cfg.key) ?? 1,
         peakScore,
         effectiveScore: applyDecay(peakScore, lastDateKey ? daysBetween(lastDateKey, asOfDateKey) : Infinity),
         lastDateKey,
       });
-      if (weighted > bestWeightedLiftScore) {
-        bestWeightedLiftScore = weighted;
-        bestLift = { exerciseName: best.name, e1RM: best.bestE1RM, dateKey: best.bestE1RMDateKey };
+      if (isPrimary) {
+        if (bestLift == null || weighted > bestPrimaryScore) {
+          bestPrimaryScore = weighted;
+          bestLift = { exerciseName: best.name, e1RM: scoredE1RM, dateKey: best.bestE1RMDateKey };
+        }
+      } else if (weighted > bestSecondaryScore) {
+        bestSecondaryScore = weighted;
       }
     }
 
@@ -291,6 +366,7 @@ export function computeMuscleEngine(
         daysStale: null,
         isStale: false,
         pausedRestricted: false,
+        lastPrimaryWasRestricted: false,
         bestLift: null,
         contributingExercises: [],
         exerciseScores: [],
@@ -298,6 +374,11 @@ export function computeMuscleEngine(
       continue;
     }
 
+    // Secondary credit never exceeds a fraction of this muscle's own best
+    // primary lift (so triceps are scored from tricep lifts, not the chest
+    // press); with no primary lift it's capped at a small flat amount.
+    const secondaryCap = hasLoadablePrimary ? SECONDARY_CAP_FRACTION * bestPrimaryScore : SECONDARY_ONLY_CAP;
+    const bestWeightedLiftScore = Math.max(bestPrimaryScore, Math.min(bestSecondaryScore, secondaryCap));
     const weightedDays = Array.from(dayWeights.values()).reduce((a, b) => a + b, 0);
     // A muscle with no *primary* loadable driver (anti-rotation holds,
     // planks, bodyweight-only reps) has no load standard to meaningfully
@@ -313,12 +394,16 @@ export function computeMuscleEngine(
     // because today's sets aren't a new PR.
     const daysStale = lastPrimary != null ? daysBetween(lastPrimary, asOfDateKey) : null;
 
-    // PT pause: when the last primary work for this muscle was a restricted
-    // exercise (nothing allowed since), the clock is frozen instead of letting
-    // the score decay for work you've been told not to do.
+    // PT pause: only when the muscle has NO allowed exercise at all (every
+    // primary exercise for it is restricted) and its last primary work was
+    // restricted — then the clock is frozen instead of decaying for work
+    // you've been told not to do. If any allowed exercise exists (e.g. leg
+    // press for quads) the muscle decays normally and the UI suggests it.
+    const lastPrimaryWasRestricted =
+      lastPrimaryRestricted != null && (lastPrimaryAllowed == null || lastPrimaryRestricted >= lastPrimaryAllowed);
     const pausedRestricted =
-      lastPrimaryRestricted != null &&
-      (lastPrimaryAllowed == null || lastPrimaryRestricted > lastPrimaryAllowed) &&
+      lastPrimaryWasRestricted &&
+      !groupHasAllowedExercise(groupDef.id, overrides) &&
       daysStale != null &&
       daysStale >= staleThresholdDays;
 
@@ -338,13 +423,14 @@ export function computeMuscleEngine(
       daysStale,
       isStale: pausedRestricted ? false : daysStale == null ? true : daysStale >= staleThresholdDays,
       pausedRestricted,
+      lastPrimaryWasRestricted,
       bestLift,
       contributingExercises: Array.from(contributingExercises).sort(),
       exerciseScores: Array.from(exerciseScores.values()),
     };
   }
 
-  return { statsByGroup, needsMapping: Array.from(needsMapping).sort() };
+  return { statsByGroup, calibrations, needsMapping: Array.from(needsMapping).sort() };
 }
 
 export function tierForScore(score: number): MuscleTier {

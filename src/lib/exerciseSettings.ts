@@ -9,14 +9,20 @@ import {
   exerciseDisplayName,
 } from "./exerciseMuscleMap";
 import { DEFAULT_BODYWEIGHT_FRACTION } from "./muscleScoreConfig";
+import type { MuscleGroupId } from "./muscleTaxonomy";
 
 export interface ExerciseSettingOverride {
   loadMultiplier?: number;
   loadBasis?: LoadBasis;
   bodyweightFraction?: number;
+  /** PT restriction: never suggested; can pause decay when the muscle has no allowed exercise. */
   restricted?: boolean;
   restrictionNote?: string;
   needsPtConfirmation?: boolean;
+  /** The user's own call: never suggested, but not a PT restriction. */
+  selfRestricted?: boolean;
+  /** Auto-calibrate a machine lift against its free-weight anchor (default on). */
+  calibrate?: boolean;
 }
 
 export type ExerciseSettingsOverrides = Record<string, ExerciseSettingOverride>;
@@ -38,6 +44,11 @@ export interface ResolvedExerciseConfig {
   restricted: boolean;
   restrictionNote?: string;
   needsPtConfirmation: boolean;
+  selfRestricted: boolean;
+  /** Anchor canonical key, only when auto-calibration is on for this exercise. */
+  calibrationAnchor?: string;
+  /** The mapping defines an anchor (whether or not the user turned calibration off). */
+  hasCalibrationAnchor: boolean;
 }
 
 export function resolveConfigForKey(key: string, overrides?: ExerciseSettingsOverrides): ResolvedExerciseConfig | null {
@@ -54,6 +65,9 @@ export function resolveConfigForKey(key: string, overrides?: ExerciseSettingsOve
     restricted: o?.restricted ?? mapping.restricted ?? false,
     restrictionNote: o?.restrictionNote ?? mapping.restrictionNote,
     needsPtConfirmation: o?.needsPtConfirmation ?? mapping.needsPtConfirmation ?? false,
+    selfRestricted: o?.selfRestricted ?? mapping.selfRestricted ?? false,
+    calibrationAnchor: (o?.calibrate ?? true) ? mapping.calibrationAnchor : undefined,
+    hasCalibrationAnchor: mapping.calibrationAnchor != null,
   };
 }
 
@@ -79,21 +93,26 @@ export function effectiveLoadForSet(
   return opts.isBodyweight ? opts.bodyweightLb * opts.bodyweightFraction + added : added;
 }
 
+/** Excluded from every suggestion surface: PT-restricted or self-restricted. */
 export function isExerciseRestricted(exerciseName: string, overrides?: ExerciseSettingsOverrides): boolean {
-  return resolveExerciseConfig(exerciseName, overrides)?.restricted ?? false;
+  const cfg = resolveExerciseConfig(exerciseName, overrides);
+  return cfg ? cfg.restricted || cfg.selfRestricted : false;
 }
 
 export interface RestrictionInfo {
   name: string;
   note?: string;
+  kind: "pt" | "self";
 }
 
-/** Every canonical exercise currently restricted (defaults + overrides). */
+/** Every canonical exercise currently excluded from suggestions (PT-restricted or self-restricted). */
 export function listRestrictedExercises(overrides?: ExerciseSettingsOverrides): RestrictionInfo[] {
   const result: RestrictionInfo[] = [];
   for (const key of Object.keys(EXERCISE_MUSCLE_MAP)) {
     const cfg = resolveConfigForKey(key, overrides);
-    if (cfg?.restricted) result.push({ name: cfg.displayName, note: cfg.restrictionNote });
+    if (!cfg) continue;
+    if (cfg.restricted) result.push({ name: cfg.displayName, note: cfg.restrictionNote, kind: "pt" });
+    else if (cfg.selfRestricted) result.push({ name: cfg.displayName, note: cfg.restrictionNote ?? "Self-restricted", kind: "self" });
   }
   return result;
 }
@@ -103,7 +122,28 @@ export function listNeedsPtConfirmation(overrides?: ExerciseSettingsOverrides): 
   const result: string[] = [];
   for (const key of Object.keys(EXERCISE_MUSCLE_MAP)) {
     const cfg = resolveConfigForKey(key, overrides);
-    if (cfg && cfg.needsPtConfirmation && !cfg.restricted) result.push(cfg.displayName);
+    if (cfg && cfg.needsPtConfirmation && !cfg.restricted && !cfg.selfRestricted) result.push(cfg.displayName);
   }
   return result;
+}
+
+/**
+ * Non-hidden, non-restricted exercises that train `group` directly (primary
+ * credit). "Needs PT confirmation" exercises count as allowed.
+ */
+export function allowedPrimaryExercises(group: MuscleGroupId, overrides?: ExerciseSettingsOverrides): string[] {
+  const result: string[] = [];
+  for (const [key, mapping] of Object.entries(EXERCISE_MUSCLE_MAP)) {
+    if (mapping.hidden) continue;
+    const contribution = mapping.muscles.find((m) => m.group === group);
+    if (!contribution || contribution.weight < 1.0) continue;
+    const cfg = resolveConfigForKey(key, overrides);
+    if (cfg && !cfg.restricted && !cfg.selfRestricted) result.push(cfg.displayName);
+  }
+  return result;
+}
+
+/** A muscle's decay is "paused" only when it has no allowed exercise at all. */
+export function groupHasAllowedExercise(group: MuscleGroupId, overrides?: ExerciseSettingsOverrides): boolean {
+  return allowedPrimaryExercises(group, overrides).length > 0;
 }

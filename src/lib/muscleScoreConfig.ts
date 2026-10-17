@@ -34,10 +34,22 @@ export const UNRATED_COLOR = "#52525b"; // no logs yet for this muscle — gray,
 
 // ---- Scoring composition ----
 export const SECONDARY_MUSCLE_WEIGHT = 0.4; // a set's contribution to a secondary muscle, vs. 1.0 for primary
+/** Secondary credit can never exceed this fraction of the muscle's own best primary lift score. */
+export const SECONDARY_CAP_FRACTION = 0.5;
+/** A muscle with no load-scored primary lift can take at most this much strength score from secondary credit. */
+export const SECONDARY_ONLY_CAP = 20;
 export const MINOR_MUSCLE_WEIGHT = 0.15; // incidental credit (e.g. curls -> forearms); counts for score, never resets "last trained"
 export const VOLUME_BONUS_MAX_POINTS = 10; // max points the volume/consistency component can add on top of the load-standard score
 export const VOLUME_BONUS_WINDOW_DAYS = 28;
 export const VOLUME_BONUS_TARGET_SESSIONS = 8; // distinct training days hitting this muscle in the window for the full bonus
+
+// ---- Machine calibration ----
+// A machine/plate-loaded lift with a free-weight anchor (e.g. leverage chest
+// press -> DB bench) is scaled so its score lands within this many points of
+// the anchor's. The multiplier used is returned in the engine result's calibration log.
+export const CALIBRATION_TOLERANCE_POINTS = 15;
+export const CALIBRATION_MULTIPLIER_MIN = 0.05;
+export const CALIBRATION_MULTIPLIER_MAX = 4;
 
 // ---- Score display scale ----
 // Raw scores are uncapped internally (progress past "100" stays visible in the
@@ -72,7 +84,17 @@ export type LiftFamily =
   | "ohp"
   | "row"
   | "pullup"
-  | "hipThrust";
+  | "hipThrust"
+  // Isolation/machine families — calibrated to realistic e1RM bodyweight multiples
+  // (the old proxy-of-a-compound-lift factors were far too lenient: a few
+  // curls/raises read as Elite with raw scores of 130-270).
+  | "curl"
+  | "tricepExt"
+  | "lateralRaise"
+  | "facePull"
+  | "pulldown"
+  | "legPress"
+  | "legExtension";
 
 export const LIFT_FAMILY_STANDARDS: Record<LiftFamily, [number, number, number, number, number]> = {
   squat: [0.25, 0.75, 1.25, 1.75, 2.25],
@@ -82,6 +104,13 @@ export const LIFT_FAMILY_STANDARDS: Record<LiftFamily, [number, number, number, 
   row: [0.3, 0.55, 0.85, 1.15, 1.5],
   pullup: [0.7, 0.9, 1.15, 1.4, 1.65],
   hipThrust: [0.5, 1.0, 1.5, 2.0, 2.5],
+  curl: [0.1, 0.2, 0.35, 0.5, 0.65], // barbell/machine total; DB curls use a 0.55 factor (logged per hand)
+  tricepExt: [0.12, 0.25, 0.45, 0.65, 0.85], // cable pushdown / machine extension
+  lateralRaise: [0.04, 0.08, 0.14, 0.2, 0.28], // per hand
+  facePull: [0.1, 0.2, 0.35, 0.5, 0.65],
+  pulldown: [0.4, 0.7, 1.0, 1.35, 1.7],
+  legPress: [0.6, 1.25, 2.0, 2.75, 3.5],
+  legExtension: [0.25, 0.5, 0.9, 1.3, 1.7],
 };
 export const STANDARD_SCORE_BREAKPOINTS = [0, 25, 50, 75, 100] as const;
 

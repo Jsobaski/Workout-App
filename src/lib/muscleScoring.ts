@@ -55,6 +55,27 @@ export function ratioToUncappedScore(ratio: number, breakpoints: readonly [numbe
 }
 
 /**
+ * Inverse of ratioToUncappedScore: the bodyweight ratio that earns `score`
+ * (scores at/below 0 map to the lowest breakpoint).
+ */
+export function ratioForScore(score: number, breakpoints: readonly [number, number, number, number, number]): number {
+  const last = breakpoints.length - 1;
+  if (score <= 0) return breakpoints[0];
+  if (score >= 100) {
+    const slope = (STANDARD_SCORE_BREAKPOINTS[last] - STANDARD_SCORE_BREAKPOINTS[last - 1]) / (breakpoints[last] - breakpoints[last - 1]);
+    return breakpoints[last] + (score - 100) / slope;
+  }
+  for (let i = 0; i < last; i++) {
+    const lo = STANDARD_SCORE_BREAKPOINTS[i];
+    const hi = STANDARD_SCORE_BREAKPOINTS[i + 1];
+    if (score >= lo && score <= hi) {
+      return breakpoints[i] + ((score - lo) / (hi - lo)) * (breakpoints[i + 1] - breakpoints[i]);
+    }
+  }
+  return breakpoints[0];
+}
+
+/**
  * Maps an uncapped raw score onto the displayed 0-100 scale: identity up to
  * SOFT_CAP_START, then asymptotically approaching (never reaching) 100.
  */

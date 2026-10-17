@@ -63,8 +63,14 @@ export default function MuscleDetailPanel({
 
               {stats.pausedRestricted && (
                 <p className="rounded-md bg-sky-950/60 px-2 py-1 text-xs text-sky-300">
-                  Paused (restricted) — the last primary work for this muscle was a PT-restricted exercise, so decay
-                  and staleness are on hold rather than dropping.
+                  Paused (restricted) — every exercise for this muscle is restricted, so decay and staleness are on
+                  hold rather than dropping.
+                </p>
+              )}
+              {!stats.pausedRestricted && stats.lastPrimaryWasRestricted && (
+                <p className="rounded-md bg-amber-950/50 px-2 py-1 text-xs text-amber-300">
+                  Last direct work was a restricted exercise, but allowed alternatives exist — this muscle is decaying
+                  normally. Try one of the suggestions in Focus This Week.
                 </p>
               )}
               {stats.scoringBasis === "reps-time" && (

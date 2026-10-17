@@ -40,6 +40,10 @@ export interface ExerciseMapping {
   restricted?: boolean;
   restrictionNote?: string;
   needsPtConfirmation?: boolean;
+  /** The user's own call (not PT): never suggested, but not a PT restriction and doesn't pause decay. */
+  selfRestricted?: boolean;
+  /** Canonical key of a free-weight lift this machine lift is auto-calibrated against. */
+  calibrationAnchor?: string;
 }
 
 function primary(...groups: MuscleGroupId[]): MuscleContribution[] {
@@ -60,6 +64,7 @@ const volumeOnly: ScoringMethod = { method: "volumeOnly" };
 const PT_NO_HINGE = { restricted: true, restrictionNote: "PT: no hip hinge" } as const;
 const PT_RESTRICTED = { restricted: true, restrictionNote: "PT restricted" } as const;
 const PT_CONFIRM = { needsPtConfirmation: true } as const;
+const SELF_RESTRICTED = { selfRestricted: true, restrictionNote: "Self-restricted" } as const;
 
 // Keys are exact exercise names as logged (case-insensitive match applied at
 // lookup time). Same-movement name variants are NOT duplicated here: they live
@@ -68,12 +73,16 @@ const PT_CONFIRM = { needsPtConfirmation: true } as const;
 export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "trap bar deadlift": { muscles: [...primary("glutes", "lowerBack"), ...secondary("hamstrings", "traps", "forearms")], scoring: standard("deadlift"), ...PT_NO_HINGE },
   "barbell deadlift": { muscles: [...primary("glutes", "lowerBack", "hamstrings"), ...secondary("traps", "forearms")], scoring: standard("deadlift") },
-  "romanian deadlift": { muscles: [...primary("hamstrings", "glutes"), ...secondary("lowerBack")], scoring: standard("deadlift") },
+  // "RDL" is on the PT restricted list, so the barbell version (and its "straight bar" alias) is restricted like the DB one.
+  // Single-Leg RDL is deliberately NOT restricted — it's in the PT-prescribed glute-med routine.
+  "romanian deadlift": { muscles: [...primary("hamstrings", "glutes"), ...secondary("lowerBack")], scoring: standard("deadlift"), ...PT_NO_HINGE },
   "db romanian deadlift": { muscles: [...primary("hamstrings", "glutes"), ...secondary("lowerBack", "forearms")], scoring: standard("deadlift"), ...PT_NO_HINGE },
 
   "back squat": { muscles: [...primary("quads"), ...secondary("glutes", "lowerBack")], scoring: standard("squat") },
+  "leg press": { muscles: [...primary("quads"), ...secondary("glutes")], scoring: standard("legPress"), loadBasis: "plates", calibrationAnchor: "back squat" },
+  "leg extension": { muscles: primary("quads"), scoring: standard("legExtension"), loadBasis: "stack", calibrationAnchor: "back squat" },
   "front squat": { muscles: [...primary("quads"), ...secondary("glutes", "upperBack")], scoring: standard("squat") },
-  "goblet squat": { muscles: [...primary("quads"), ...secondary("glutes", "forearms")], scoring: standard("squat"), ...PT_CONFIRM },
+  "goblet squat": { muscles: [...primary("quads"), ...secondary("glutes", "forearms")], scoring: standard("squat"), ...SELF_RESTRICTED },
   "db reverse lunge": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6) },
   "db bulgarian split squat": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6), ...PT_RESTRICTED },
   "walking lunge": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6) },
@@ -81,29 +90,31 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "hip thrust": { muscles: [...primary("glutes"), ...secondary("hamstrings")], scoring: standard("hipThrust") },
   "glute bridge": { muscles: [...primary("glutes"), ...secondary("hamstrings")], scoring: proxy("hipThrust", 0.6), bodyweightFraction: 0.5 },
 
-  "bench press": { muscles: [...primary("midLowerChest", "triceps"), ...secondary("frontDelts")], scoring: standard("bench") },
-  "db bench press": { muscles: [...primary("midLowerChest", "triceps"), ...secondary("frontDelts")], scoring: standard("bench") },
+  "bench press": { muscles: [...primary("midLowerChest"), ...secondary("triceps", "frontDelts")], scoring: standard("bench") },
+  "db bench press": { muscles: [...primary("midLowerChest"), ...secondary("triceps", "frontDelts")], scoring: standard("bench") },
   "incline db press": { muscles: [...primary("upperChest", "frontDelts"), ...secondary("triceps")], scoring: standard("bench") },
-  "push up": { muscles: [...primary("midLowerChest", "triceps"), ...secondary("frontDelts", "abs")], scoring: standard("bench"), bodyweightFraction: 0.64 },
+  "push up": { muscles: [...primary("midLowerChest"), ...secondary("triceps", "frontDelts", "abs")], scoring: standard("bench"), bodyweightFraction: 0.64 },
   dip: { muscles: [...primary("triceps", "midLowerChest"), ...secondary("frontDelts")], scoring: standard("bench"), bodyweightFraction: 1.0 },
 
   "overhead press": { muscles: [...primary("frontDelts"), ...secondary("triceps", "traps")], scoring: standard("ohp") },
   "db shoulder press": { muscles: [...primary("frontDelts"), ...secondary("triceps", "sideRearDelts")], scoring: standard("ohp") },
-  "lateral raise": { muscles: [...primary("sideRearDelts"), ...secondary("frontDelts")], scoring: proxy("ohp", 0.1) },
-  "cable face pulls": { muscles: [...primary("sideRearDelts"), ...secondary("upperBack", "traps")], scoring: proxy("row", 0.15), loadBasis: "stack", loadMultiplier: 0.5 },
+  "lateral raise": { muscles: [...primary("sideRearDelts"), ...secondary("frontDelts")], scoring: standard("lateralRaise") },
+  "cable face pulls": { muscles: [...primary("sideRearDelts"), ...secondary("upperBack", "traps")], scoring: standard("facePull"), loadBasis: "stack" },
 
-  "lat pulldown": { muscles: [...primary("lats"), ...secondary("biceps", "upperBack")], scoring: standard("pullup"), loadBasis: "stack", loadMultiplier: 0.75 },
-  "pull up": { muscles: [...primary("lats"), ...secondary("biceps", "upperBack"), ...minor("forearms")], scoring: standard("pullup"), bodyweightFraction: 1.0 },
-  "chin up": { muscles: [...primary("lats", "biceps"), ...secondary("upperBack"), ...minor("forearms")], scoring: standard("pullup"), bodyweightFraction: 1.0 },
-  "cable row": { muscles: [...primary("upperBack", "lats"), ...secondary("biceps")], scoring: standard("row"), loadBasis: "stack", loadMultiplier: 0.5 },
-  "barbell row": { muscles: [...primary("upperBack", "lats"), ...secondary("biceps", "lowerBack")], scoring: standard("row") },
+  // Lat pulldown is THE primary lat lift; pull-ups/rows credit lats as secondary only.
+  "lat pulldown": { muscles: [...primary("lats"), ...secondary("biceps", "upperBack")], scoring: standard("pulldown"), loadBasis: "stack" },
+  "pull up": { muscles: [...secondary("lats", "biceps", "upperBack"), ...minor("forearms")], scoring: standard("pullup"), bodyweightFraction: 1.0 },
+  "chin up": { muscles: [...primary("biceps"), ...secondary("lats", "upperBack"), ...minor("forearms")], scoring: standard("pullup"), bodyweightFraction: 1.0 },
+  // Stack weight is taken at face value (no 2:1 pulley assumption) — edit the load multiplier in Settings if your cable differs.
+  "cable row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps")], scoring: standard("row"), loadBasis: "stack" },
+  "barbell row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps", "lowerBack")], scoring: standard("row") },
 
   // Curls only get a small (minor) forearm credit — forearms have their own sources below.
-  "bicep curl": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: proxy("bench", 0.2) },
-  "db bicep curl": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: proxy("bench", 0.2) },
-  "hammer curl": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: proxy("bench", 0.2) },
-  "tricep pushdown": { muscles: primary("triceps"), scoring: proxy("bench", 0.2), loadBasis: "stack" },
-  "skull crusher": { muscles: primary("triceps"), scoring: proxy("bench", 0.2) },
+  "bicep curl": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: proxy("curl", 0.55) },
+  "db bicep curl": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: proxy("curl", 0.55) },
+  "hammer curl": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: proxy("curl", 0.55) },
+  "tricep pushdown": { muscles: primary("triceps"), scoring: standard("tricepExt"), loadBasis: "stack" },
+  "skull crusher": { muscles: primary("triceps"), scoring: proxy("tricepExt", 0.7) },
 
   // Forearm / grip sources (credited as primary so they drive the forearm score and clock).
   "wrist curl": { muscles: primary("forearms"), scoring: proxy("deadlift", 0.2) },
@@ -115,7 +126,6 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   // Abs and obliques have separate exercise sets (no cross-credit) so their
   // scores and deltas move independently.
   "pallof press": { muscles: primary("obliques"), scoring: volumeOnly, bodyweightFraction: 0, ...PT_CONFIRM },
-  "half-kneeling pallof press": { muscles: [...primary("obliques"), ...secondary("glutes")], scoring: volumeOnly, bodyweightFraction: 0, ...PT_CONFIRM },
   "cable woodchop": { muscles: primary("obliques"), scoring: volumeOnly, bodyweightFraction: 0 },
   "standing cable woodchopper (high-to-low)": { muscles: [...primary("obliques"), ...secondary("lats")], scoring: volumeOnly, bodyweightFraction: 0, ...PT_RESTRICTED },
   "standing cable woodchopper (low-to-high)": { muscles: [...primary("obliques"), ...secondary("traps")], scoring: volumeOnly, bodyweightFraction: 0, ...PT_RESTRICTED },
@@ -132,24 +142,24 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   // rename already-logged history, so these still need to resolve — scored,
   // just never suggested as a "new" exercise to do (hidden: true).
   core: { muscles: [...primary("abs")], scoring: volumeOnly, bodyweightFraction: 0, hidden: true },
-  curls: { muscles: [...primary("biceps"), ...minor("forearms")], scoring: proxy("bench", 0.2), hidden: true },
+  curls: { muscles: [...primary("biceps"), ...minor("forearms")], scoring: proxy("curl", 0.55), hidden: true },
   woodchopper: { muscles: primary("obliques"), scoring: volumeOnly, bodyweightFraction: 0, hidden: true },
-  "cable tricep work": { muscles: primary("triceps"), scoring: proxy("bench", 0.2), hidden: true },
+  "cable tricep work": { muscles: primary("triceps"), scoring: standard("tricepExt"), hidden: true },
 
   // ---- Machine/equipment variants not in the common list or split ----
   // Load multipliers below are estimates (see LOAD_BASIS_LABELS) — editable in
   // Settings > Exercise settings.
-  "chest press - nautilus machine": { muscles: [...primary("midLowerChest", "triceps"), ...secondary("frontDelts")], scoring: standard("bench") },
-  "nautilus leverage chest press": { muscles: [...primary("midLowerChest", "triceps"), ...secondary("frontDelts")], scoring: standard("bench"), loadBasis: "plates", loadMultiplier: 1.5 },
-  "nautilus leverage incline chest press": { muscles: [...primary("upperChest", "frontDelts"), ...secondary("triceps")], scoring: standard("bench"), loadBasis: "plates", loadMultiplier: 1.5 },
-  "shoulder press machine": { muscles: [...primary("frontDelts"), ...secondary("triceps")], scoring: standard("ohp") },
-  "deltoid raise machine": { muscles: [...primary("sideRearDelts"), ...secondary("frontDelts")], scoring: proxy("ohp", 0.1) },
-  "nautilus impact rear deltoid machine": { muscles: [...primary("sideRearDelts"), ...secondary("upperBack")], scoring: proxy("row", 0.15) },
-  "nautilus impact bicep curl": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: proxy("bench", 0.2), loadBasis: "stack", loadMultiplier: 0.8 },
-  "hoist preacher curl machine": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: proxy("bench", 0.2), loadBasis: "stack", loadMultiplier: 0.8 },
-  "nautilus impact tricep extension": { muscles: primary("triceps"), scoring: proxy("bench", 0.2), loadBasis: "stack", loadMultiplier: 0.8 },
-  "db overhead tricep extension": { muscles: primary("triceps"), scoring: proxy("bench", 0.2) },
-  "single arm cable tricep extension": { muscles: primary("triceps"), scoring: proxy("bench", 0.2), loadBasis: "stack" },
+  "chest press - nautilus machine": { muscles: [...primary("midLowerChest"), ...secondary("triceps", "frontDelts")], scoring: standard("bench"), calibrationAnchor: "db bench press" },
+  "nautilus leverage chest press": { muscles: [...primary("midLowerChest"), ...secondary("triceps", "frontDelts")], scoring: standard("bench"), loadBasis: "plates", calibrationAnchor: "db bench press" },
+  "nautilus leverage incline chest press": { muscles: [...primary("upperChest", "frontDelts"), ...secondary("triceps")], scoring: standard("bench"), loadBasis: "plates", calibrationAnchor: "incline db press" },
+  "shoulder press machine": { muscles: [...primary("frontDelts"), ...secondary("triceps")], scoring: standard("ohp"), calibrationAnchor: "db shoulder press" },
+  "deltoid raise machine": { muscles: [...primary("sideRearDelts"), ...secondary("frontDelts")], scoring: standard("lateralRaise"), loadBasis: "stack", calibrationAnchor: "lateral raise" },
+  "nautilus impact rear deltoid machine": { muscles: [...primary("sideRearDelts"), ...secondary("upperBack")], scoring: standard("facePull"), loadBasis: "stack" },
+  "nautilus impact bicep curl": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: standard("curl"), loadBasis: "stack", loadMultiplier: 0.8, calibrationAnchor: "db bicep curl" },
+  "hoist preacher curl machine": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: standard("curl"), loadBasis: "stack", loadMultiplier: 0.8, calibrationAnchor: "db bicep curl" },
+  "nautilus impact tricep extension": { muscles: primary("triceps"), scoring: standard("tricepExt"), loadBasis: "stack", loadMultiplier: 0.8, calibrationAnchor: "db overhead tricep extension" },
+  "db overhead tricep extension": { muscles: primary("triceps"), scoring: proxy("tricepExt", 0.6) },
+  "single arm cable tricep extension": { muscles: primary("triceps"), scoring: proxy("tricepExt", 0.5), loadBasis: "stack" },
   "landmine rotational press": { muscles: [...primary("obliques"), ...secondary("frontDelts", "triceps")], scoring: volumeOnly, bodyweightFraction: 0, ...PT_RESTRICTED },
 
   // ---- Glute medius / hip stability (physical therapy) ----
@@ -199,6 +209,7 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "db bench press (flat)": "db bench press",
   "db bulgarian split squats": "db bulgarian split squat",
   "farmers carry": "farmer carry",
+  "half-kneeling pallof press": "pallof press",
   "farmer's carry": "farmer carry",
 };
 
@@ -258,6 +269,8 @@ function titleCaseKey(key: string): string {
 
 export interface MuscleExerciseSuggestions {
   suggestions: string[];
+  /** Subset of `suggestions` still awaiting PT confirmation — shown with a caution. */
+  needsConfirmation: string[];
   /** Exercises that would have been suggested but are PT-restricted. */
   skippedRestricted: { name: string; note?: string }[];
 }
@@ -279,17 +292,26 @@ export function suggestExercisesForMuscle(
     .sort((a, b) => b.contribution.weight - a.contribution.weight);
 
   const suggestions: string[] = [];
+  const needsConfirmation: string[] = [];
   const skippedRestricted: { name: string; note?: string }[] = [];
   for (const c of candidates) {
     const override = overrides?.[c.key];
     const restricted = override?.restricted ?? c.mapping.restricted ?? false;
-    if (restricted) {
-      skippedRestricted.push({ name: exerciseDisplayName(c.key), note: override?.restrictionNote ?? c.mapping.restrictionNote });
+    const selfRestricted = override?.selfRestricted ?? c.mapping.selfRestricted ?? false;
+    if (restricted || selfRestricted) {
+      skippedRestricted.push({
+        name: exerciseDisplayName(c.key),
+        note: override?.restrictionNote ?? c.mapping.restrictionNote ?? (selfRestricted ? "Self-restricted" : undefined),
+      });
       continue;
     }
-    if (suggestions.length < limit) suggestions.push(exerciseDisplayName(c.key));
+    if (suggestions.length < limit) {
+      const name = exerciseDisplayName(c.key);
+      suggestions.push(name);
+      if (override?.needsPtConfirmation ?? c.mapping.needsPtConfirmation) needsConfirmation.push(name);
+    }
   }
-  return { suggestions, skippedRestricted };
+  return { suggestions, needsConfirmation, skippedRestricted };
 }
 
 export function exercisesForMuscle(group: MuscleGroupId, limit = 3, overrides?: ExerciseSettingsOverrides): string[] {

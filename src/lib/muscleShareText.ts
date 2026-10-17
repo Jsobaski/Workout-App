@@ -22,9 +22,9 @@ export function formatMuscleSummaryText(opts: {
   const lines = [
     `Muscle strength summary — as of ${asOfDateKey}`,
     bodyweightLb ? `Bodyweight: ${bodyweightLb} lb` : "Bodyweight: not set",
-    "Scores are 0-100 (soft-capped, so 100 is hard to reach; 'raw' is the uncapped value). Tiers: Needs Work (<20), Developing (20-39), Solid (40-59), Strong (60-79), Elite (80+).",
+    "Scores are 0-100 (soft-capped, so 100 is hard to reach); 'raw' is the uncapped value, listed for every muscle for calibration review. Tiers: Needs Work (<20), Developing (20-39), Solid (40-59), Strong (60-79), Elite (80+).",
     `"Stale" = no meaningful primary-muscle training in ${DEFAULT_STALE_THRESHOLD_DAYS}+ days (score decays over time). Secondary credit never resets that clock.`,
-    `"Paused (restricted)" = last primary work was a PT-restricted exercise, so decay is on hold. Changes are ${TREND_WINDOW_DAYS}-day, like-for-like (same exercise); an equipment change is flagged instead of counted as strength.`,
+    `"Paused" = every exercise for that muscle is restricted, so decay is on hold; if an allowed alternative exists the muscle just decays and the summary says what to try. Changes are ${TREND_WINDOW_DAYS}-day, like-for-like (same exercise); an equipment change is flagged instead of counted as strength.`,
     "",
     "Muscles:",
   ];
@@ -37,7 +37,7 @@ export function formatMuscleSummaryText(opts: {
       continue;
     }
     const parts = [`${tierForScore(s.effective).label} (${Math.round(s.effective)})`];
-    if (s.effectiveRaw != null && s.effectiveRaw > 100) parts.push(`raw ${Math.round(s.effectiveRaw)}`);
+    if (s.effectiveRaw != null) parts.push(`raw ${Math.round(s.effectiveRaw)}`);
     const change = deltaByGroup[g.id].status === "paused" ? null : describeDeltaStatus(deltaByGroup[g.id]);
     if (change) parts.push(`${change}${deltaByGroup[g.id].delta != null ? ` vs ${TREND_WINDOW_DAYS}d ago` : ""}`);
     if (s.lastTrainedDateKey) {
@@ -45,8 +45,8 @@ export function formatMuscleSummaryText(opts: {
     } else {
       parts.push("no direct (primary) work logged");
     }
-    if (s.pausedRestricted) parts.push("PAUSED (restricted)");
-    else if (s.isStale) parts.push("STALE");
+    if (s.pausedRestricted) parts.push("PAUSED (all exercises restricted)");
+    else if (s.isStale) parts.push(s.lastPrimaryWasRestricted ? "STALE (last work was a restricted exercise — try an allowed one)" : "STALE");
     if (s.scoringBasis === "reps-time") {
       parts.push("scored by reps/time & consistency (no load standard)");
     } else if (s.bestLift) {
@@ -59,12 +59,30 @@ export function formatMuscleSummaryText(opts: {
     lines.push("", `Not scored yet (unmapped exercises): ${result.needsMapping.join(", ")}`);
   }
 
+  if (result.calibrations.length > 0) {
+    lines.push("", "Machine calibration (scaled to land within 15 points of the free-weight anchor):");
+    for (const c of result.calibrations) {
+      lines.push(
+        `- ${c.exercise} vs ${c.anchor}: machine ${Math.round(c.machineScore)}, anchor ${Math.round(c.anchorScore)} -> ${
+          c.adjusted
+            ? `scaled x${c.multiplier.toFixed(2)} (now ${Math.round(c.calibratedScore)})`
+            : "within tolerance, multiplier x1.00"
+        }`
+      );
+    }
+  }
+
   const restricted = listRestrictedExercises(overrides);
-  if (restricted.length > 0) {
+  const ptRestricted = restricted.filter((r) => r.kind === "pt");
+  const selfRestricted = restricted.filter((r) => r.kind === "self");
+  if (ptRestricted.length > 0) {
     lines.push(
       "",
-      `PT-restricted (do not recommend): ${restricted.map((r) => (r.note ? `${r.name} (${r.note})` : r.name)).join(", ")}`
+      `PT-restricted (do not recommend): ${ptRestricted.map((r) => (r.note ? `${r.name} (${r.note})` : r.name)).join(", ")}`
     );
+  }
+  if (selfRestricted.length > 0) {
+    lines.push(`Self-restricted (do not recommend): ${selfRestricted.map((r) => r.name).join(", ")}`);
   }
   const awaiting = listNeedsPtConfirmation(overrides);
   if (awaiting.length > 0) {

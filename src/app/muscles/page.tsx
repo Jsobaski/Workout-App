@@ -241,6 +241,31 @@ export default function MusclesPage() {
         )}
       </section>
 
+      {currentResult.calibrations.length > 0 && (
+        <details className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4 text-xs text-neutral-400">
+          <summary className="cursor-pointer text-sm font-semibold text-neutral-300">Machine calibration log</summary>
+          <p className="mt-2 text-neutral-500">
+            Machine lifts are scaled so their score lands within 15 points of their free-weight anchor. Multiplier
+            shown is what was applied to the machine&apos;s e1RM.
+          </p>
+          <ul className="mt-2 space-y-1">
+            {currentResult.calibrations.map((c) => (
+              <li key={c.exercise}>
+                <span className="text-neutral-200">{c.exercise}</span> vs {c.anchor}: machine {Math.round(c.machineScore)},
+                anchor {Math.round(c.anchorScore)} →{" "}
+                {c.adjusted ? (
+                  <span className="text-amber-300">
+                    ×{c.multiplier.toFixed(2)} (now {Math.round(c.calibratedScore)})
+                  </span>
+                ) : (
+                  <span className="text-emerald-400">within tolerance (×1.00)</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       <WeeklyFocusCard statsByGroup={currentResult.statsByGroup} deltas={trendDeltas} overrides={overrides} />
 
       {selectedGroups && (

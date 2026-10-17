@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useExerciseSettings } from "@/hooks/useExerciseSettings";
-import { EXERCISE_MUSCLE_MAP, LOAD_BASIS_LABELS, LoadBasis } from "@/lib/exerciseMuscleMap";
+import { EXERCISE_MUSCLE_MAP, LOAD_BASIS_LABELS, LoadBasis, exerciseDisplayName } from "@/lib/exerciseMuscleMap";
 import {
   ExerciseSettingOverride,
   ExerciseSettingsOverrides,
@@ -44,6 +44,8 @@ export default function ExerciseSettingsEditor() {
     if (merged.restricted != null && merged.restricted !== defaults.restricted) sparse.restricted = merged.restricted;
     if (merged.restrictionNote != null && merged.restrictionNote !== (defaults.restrictionNote ?? "")) sparse.restrictionNote = merged.restrictionNote;
     if (merged.needsPtConfirmation != null && merged.needsPtConfirmation !== defaults.needsPtConfirmation) sparse.needsPtConfirmation = merged.needsPtConfirmation;
+    if (merged.selfRestricted != null && merged.selfRestricted !== defaults.selfRestricted) sparse.selfRestricted = merged.selfRestricted;
+    if (merged.calibrate != null && merged.calibrate !== (defaults.calibrationAnchor != null)) sparse.calibrate = merged.calibrate;
     const next: ExerciseSettingsOverrides = { ...overrides };
     if (Object.keys(sparse).length === 0) delete next[key];
     else next[key] = sparse;
@@ -61,7 +63,8 @@ export default function ExerciseSettingsEditor() {
       <p className="text-xs text-neutral-500">
         Effective load = logged weight × multiplier. Use it when a machine&apos;s number isn&apos;t the real load (plates
         only, both sides combined, cable stacks). Defaults are estimates — adjust them to match your gym. Restricted
-        exercises are never suggested and pause decay for the muscles they last fed.
+        and self-restricted exercises are never suggested. A muscle&apos;s decay only pauses if every exercise for
+        it is restricted; otherwise you&apos;ll see an allowed alternative to try.
       </p>
       <input
         value={query}
@@ -84,7 +87,10 @@ export default function ExerciseSettingsEditor() {
                 <span className="min-w-0 flex-1 truncate text-sm text-neutral-200">{cfg.displayName}</span>
                 <span className="flex shrink-0 items-center gap-1.5 text-[10px]">
                   {cfg.restricted && <span className="rounded-full bg-sky-950 px-2 py-0.5 text-sky-300">restricted</span>}
-                  {!cfg.restricted && cfg.needsPtConfirmation && (
+                  {!cfg.restricted && cfg.selfRestricted && (
+                    <span className="rounded-full bg-violet-950 px-2 py-0.5 text-violet-300">self-restricted</span>
+                  )}
+                  {!cfg.restricted && !cfg.selfRestricted && cfg.needsPtConfirmation && (
                     <span className="rounded-full bg-amber-950 px-2 py-0.5 text-amber-300">PT?</span>
                   )}
                   {cfg.loadMultiplier !== 1 && <span className="text-neutral-500">×{cfg.loadMultiplier}</span>}
@@ -164,12 +170,34 @@ export default function ExerciseSettingsEditor() {
                   <label className="flex items-center gap-2 text-sm text-neutral-300">
                     <input
                       type="checkbox"
+                      checked={cfg.selfRestricted}
+                      onChange={(e) => update(key, { selfRestricted: e.target.checked })}
+                      className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-violet-500"
+                    />
+                    Self-restricted (my choice, not PT)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-neutral-300">
+                    <input
+                      type="checkbox"
                       checked={cfg.needsPtConfirmation}
                       onChange={(e) => update(key, { needsPtConfirmation: e.target.checked })}
                       className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-amber-500"
                     />
                     Needs PT confirmation
                   </label>
+
+                  {cfg.hasCalibrationAnchor && (
+                    <label className="flex items-center gap-2 text-sm text-neutral-300">
+                      <input
+                        type="checkbox"
+                        checked={cfg.calibrationAnchor != null}
+                        onChange={(e) => update(key, { calibrate: e.target.checked })}
+                        className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-emerald-600"
+                      />
+                      Auto-calibrate to {cfg.mapping.calibrationAnchor ? exerciseDisplayName(cfg.mapping.calibrationAnchor) : "anchor"} (keeps
+                      the score within ~15 points)
+                    </label>
+                  )}
 
                   {edited && (
                     <button type="button" onClick={() => reset(key)} className="text-xs text-neutral-500 hover:underline">

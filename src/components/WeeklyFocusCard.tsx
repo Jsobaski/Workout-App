@@ -34,6 +34,7 @@ export default function WeeklyFocusCard({
                   {item.suggestions.map((name) => (
                     <span key={name} className="rounded-full bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-400">
                       {name}
+                      {item.needsConfirmation.includes(name) && <span className="text-amber-400"> (confirm w/ PT)</span>}
                     </span>
                   ))}
                 </div>
@@ -44,7 +45,7 @@ export default function WeeklyFocusCard({
               )}
               {item.skippedRestricted.length > 0 && (
                 <p className="mt-1.5 text-[11px] text-sky-300/80">
-                  Skipped (PT restricted):{" "}
+                  Skipped (restricted):{" "}
                   {item.skippedRestricted.map((r) => r.name).join(", ")}
                 </p>
               )}

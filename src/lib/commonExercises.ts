@@ -4,6 +4,8 @@ export const COMMON_EXERCISES = [
   "Barbell Deadlift",
   "Romanian Deadlift",
   "Back Squat",
+  "Leg Press",
+  "Leg Extension",
   "Front Squat",
   "Goblet Squat",
   "DB Goblet Squat",

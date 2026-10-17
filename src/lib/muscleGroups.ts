@@ -3,7 +3,7 @@
 // "avoid repeating recently-hit muscle groups" workout suggestions).
 const RULES: { pattern: RegExp; groups: string[] }[] = [
   { pattern: /deadlift|good morning|hip hinge|rdl|back extension|hyperextension/i, groups: ["Posterior Chain", "Glutes"] },
-  { pattern: /squat|lunge|leg press|step.?up/i, groups: ["Quads", "Glutes"] },
+  { pattern: /squat|lunge|leg press|leg extension|step.?up/i, groups: ["Quads", "Glutes"] },
   { pattern: /bench|chest press|push.?up|fly|incline/i, groups: ["Chest", "Triceps"] },
   { pattern: /row|pulldown|pull.?up|chin.?up|\blats?\b/i, groups: ["Back", "Biceps"] },
   { pattern: /shoulder press|overhead press|ohp|lateral raise|delt|face pull/i, groups: ["Shoulders"] },

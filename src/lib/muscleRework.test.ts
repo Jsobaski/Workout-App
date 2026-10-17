@@ -3,7 +3,13 @@ import { computeMuscleEngine, tierForScore } from "./muscleEngine";
 import { compareSnapshots, describeDelta, pluralize } from "./muscleComparison";
 import { buildFocusList } from "./muscleFocus";
 import { EXERCISE_ALIASES, EXERCISE_MUSCLE_MAP, canonicalExerciseKey, exercisesForMuscle, suggestExercisesForMuscle } from "./exerciseMuscleMap";
-import { listNeedsPtConfirmation, listRestrictedExercises, resolveExerciseConfig } from "./exerciseSettings";
+import {
+  allowedPrimaryExercises,
+  groupHasAllowedExercise,
+  listNeedsPtConfirmation,
+  listRestrictedExercises,
+  resolveExerciseConfig,
+} from "./exerciseSettings";
 import { entryVolume, workoutSummary } from "./aggregate";
 import { ratioToUncappedScore, softCapScore } from "./muscleScoring";
 import { LIFT_FAMILY_STANDARDS } from "./muscleScoreConfig";
@@ -41,7 +47,7 @@ describe("scoring scale", () => {
   });
 
   it("a huge lift shows an uncapped raw value above the displayed score", () => {
-    const { statsByGroup } = computeMuscleEngine([make("1", "2026-10-15", "Lateral Raise", [{ reps: 12, weight: 40 }])], BW, TODAY);
+    const { statsByGroup } = computeMuscleEngine([make("1", "2026-10-15", "Lateral Raise", [{ reps: 12, weight: 60 }])], BW, TODAY);
     const s = statsByGroup.sideRearDelts;
     expect(s.effectiveRaw!).toBeGreaterThan(100);
     expect(s.effective!).toBeLessThan(100);
@@ -90,9 +96,9 @@ describe("load multiplier", () => {
   const press = [make("1", "2026-10-15", "Nautilus Leverage Chest Press", [{ reps: 8, weight: 100 }])];
 
   it("converts logged weight to an effective load before scoring", () => {
-    const base = computeMuscleEngine(press, BW, TODAY, undefined, { "nautilus leverage chest press": { loadMultiplier: 1 } });
-    const seeded = computeMuscleEngine(press, BW, TODAY);
-    expect(seeded.statsByGroup.midLowerChest.bestLift!.e1RM).toBeCloseTo(base.statsByGroup.midLowerChest.bestLift!.e1RM * 1.5, 5);
+    const base = computeMuscleEngine(press, BW, TODAY);
+    const scaled = computeMuscleEngine(press, BW, TODAY, undefined, { "nautilus leverage chest press": { loadMultiplier: 1.5 } });
+    expect(scaled.statsByGroup.midLowerChest.bestLift!.e1RM).toBeCloseTo(base.statsByGroup.midLowerChest.bestLift!.e1RM * 1.5, 5);
   });
 
   it("is editable via overrides and flows into total volume", () => {
@@ -101,22 +107,97 @@ describe("load multiplier", () => {
     expect(resolveExerciseConfig("Nautilus Leverage Chest Press", overrides)!.loadMultiplier).toBe(2);
   });
 
-  it("seeds the requested machines and cable exercises", () => {
-    for (const name of [
-      "Nautilus Leverage Chest Press",
-      "Nautilus Leverage Incline Chest Press",
-      "Hoist preacher curl machine",
-      "Nautilus Impact Tricep Extension",
-      "Nautilus Impact bicep curl",
-      "cable face pulls",
-      "cable rows",
-      "Lat Pulldown",
-    ]) {
-      const cfg = resolveExerciseConfig(name);
-      expect(cfg, name).not.toBeNull();
-      expect(cfg!.loadMultiplier, name).not.toBe(1);
-      expect(cfg!.loadBasis, name).not.toBe("total");
+  it("plate-loaded chest presses are back to 1.0; cable stacks assume no 2:1 pulley", () => {
+    for (const name of ["Nautilus Leverage Chest Press", "Nautilus Leverage Incline Chest Press"]) {
+      const cfg = resolveExerciseConfig(name)!;
+      expect(cfg.loadMultiplier, name).toBe(1);
+      expect(cfg.loadBasis, name).toBe("plates");
     }
+    for (const name of ["cable rows", "cable face pulls", "Lat Pulldown"]) {
+      const cfg = resolveExerciseConfig(name)!;
+      expect(cfg.loadMultiplier, name).toBe(1);
+      expect(cfg.loadBasis, name).toBe("stack");
+    }
+  });
+
+  it("the cable row multiplier is editable", () => {
+    const rows = [make("1", "2026-10-15", "Cable Rows", [{ reps: 10, weight: 120 }])];
+    const base = computeMuscleEngine(rows, BW, TODAY).statsByGroup.upperBack.bestLift!.e1RM;
+    const halved = computeMuscleEngine(rows, BW, TODAY, undefined, { "cable row": { loadMultiplier: 0.5 } }).statsByGroup.upperBack.bestLift!.e1RM;
+    expect(halved).toBeCloseTo(base / 2, 5);
+  });
+
+  it("still seeds the stack machines the user asked for", () => {
+    for (const name of ["Hoist preacher curl machine", "Nautilus Impact Tricep Extension", "Nautilus Impact bicep curl"]) {
+      const cfg = resolveExerciseConfig(name)!;
+      expect(cfg, name).not.toBeNull();
+      expect(cfg.loadBasis, name).toBe("stack");
+    }
+  });
+});
+
+describe("machine calibration", () => {
+  it("scales a machine lift that scores far above its free-weight anchor to within 15 points, and logs the multiplier", () => {
+    const entries = [
+      make("1", "2026-10-10", "DB Bench Press", [{ reps: 8, weight: 40 }]),
+      make("2", "2026-10-15", "Nautilus Leverage Chest Press", [{ reps: 8, weight: 200 }]),
+    ];
+    const result = computeMuscleEngine(entries, BW, TODAY);
+    const log = result.calibrations.find((c) => c.exercise === "Nautilus Leverage Chest Press")!;
+    expect(log.anchor).toBe("DB Bench Press");
+    expect(log.adjusted).toBe(true);
+    expect(log.multiplier).toBeLessThan(1);
+    expect(log.machineScore).toBeGreaterThan(log.anchorScore + 15);
+    expect(log.calibratedScore).toBeCloseTo(log.anchorScore + 15, 3);
+    const chest = result.statsByGroup.midLowerChest;
+    expect(chest.exerciseScores.find((e) => e.key === "nautilus leverage chest press")!.calibrationMultiplier).toBeCloseTo(log.multiplier, 8);
+  });
+
+  it("scales up a machine lift that scores far below its anchor", () => {
+    const entries = [
+      make("1", "2026-10-10", "DB Bench Press", [{ reps: 5, weight: 90 }]),
+      make("2", "2026-10-15", "Nautilus Leverage Chest Press", [{ reps: 8, weight: 20 }]),
+    ];
+    const log = computeMuscleEngine(entries, BW, TODAY).calibrations[0];
+    expect(log.multiplier).toBeGreaterThan(1);
+    expect(log.calibratedScore).toBeCloseTo(log.anchorScore - 15, 3);
+  });
+
+  it("leaves a machine lift alone when it's already within tolerance (multiplier 1.0)", () => {
+    const entries = [
+      make("1", "2026-10-10", "DB Bench Press", [{ reps: 8, weight: 60 }]),
+      make("2", "2026-10-15", "Nautilus Leverage Chest Press", [{ reps: 8, weight: 60 }]),
+    ];
+    const log = computeMuscleEngine(entries, BW, TODAY).calibrations[0];
+    expect(log.adjusted).toBe(false);
+    expect(log.multiplier).toBe(1);
+  });
+
+  it("does nothing without anchor history, or when auto-calibrate is switched off", () => {
+    const machineOnly = [make("1", "2026-10-15", "Nautilus Leverage Chest Press", [{ reps: 8, weight: 200 }])];
+    expect(computeMuscleEngine(machineOnly, BW, TODAY).calibrations).toHaveLength(0);
+    const both = [make("0", "2026-10-10", "DB Bench Press", [{ reps: 8, weight: 40 }]), ...machineOnly];
+    expect(computeMuscleEngine(both, BW, TODAY, undefined, { "nautilus leverage chest press": { calibrate: false } }).calibrations).toHaveLength(0);
+  });
+});
+
+describe("isolation/machine standards", () => {
+  it("no longer pin biceps, delts, triceps or rear delts at huge raw scores", () => {
+    const { statsByGroup } = computeMuscleEngine(
+      [
+        make("1", "2026-10-15", "Hoist preacher curl machine", [{ reps: 10, weight: 80 }]),
+        make("2", "2026-10-15", "Lateral Raise", [{ reps: 12, weight: 20 }]),
+        make("3", "2026-10-15", "Nautilus Impact Tricep Extension", [{ reps: 10, weight: 80 }]),
+        make("4", "2026-10-15", "Cable Face Pulls", [{ reps: 15, weight: 40 }]),
+      ],
+      BW,
+      TODAY
+    );
+    expect(statsByGroup.biceps.effectiveRaw!).toBeLessThan(100);
+    expect(statsByGroup.sideRearDelts.effectiveRaw!).toBeLessThan(100);
+    expect(statsByGroup.triceps.effectiveRaw!).toBeLessThan(100);
+    // a 20 lb x 12 lateral raise should land mid-pack, not Elite
+    expect(tierForScore(statsByGroup.sideRearDelts.effective!).id).not.toBe("elite");
   });
 });
 
@@ -197,6 +278,62 @@ describe("shared sources", () => {
     expect(statsByGroup.abs.contributingExercises).toEqual(["Dead Bug", "Plank"]);
     expect(statsByGroup.obliques.contributingExercises).toEqual(["Pallof Press"]);
     expect(statsByGroup.abs.effective).not.toBe(statsByGroup.obliques.effective);
+  });
+});
+
+describe("secondary credit is capped by the muscle's own primary lift", () => {
+  it("triceps are scored from tricep lifts, not the chest press", () => {
+    const benchOnly = computeMuscleEngine([make("1", "2026-10-15", "Bench Press", [{ reps: 5, weight: 225 }])], BW, TODAY).statsByGroup.triceps;
+    expect(benchOnly.scoringBasis).toBe("reps-time"); // no tricep lift logged
+    expect(benchOnly.bestLift).toBeNull();
+    expect(benchOnly.lastTrainedDateKey).toBeNull();
+    expect(benchOnly.peak!).toBeLessThanOrEqual(25);
+
+    const withPushdown = computeMuscleEngine(
+      [
+        make("1", "2026-10-15", "Bench Press", [{ reps: 5, weight: 225 }]),
+        make("2", "2026-10-15", "Tricep Pushdown", [{ reps: 10, weight: 50 }]),
+      ],
+      BW,
+      TODAY
+    ).statsByGroup.triceps;
+    const pushdownOnly = computeMuscleEngine([make("2", "2026-10-15", "Tricep Pushdown", [{ reps: 10, weight: 50 }])], BW, TODAY).statsByGroup.triceps;
+    expect(withPushdown.bestLift!.exerciseName).toBe("Tricep Pushdown");
+    expect(withPushdown.peak!).toBeCloseTo(pushdownOnly.peak!, 5);
+  });
+
+  it("secondary credit never exceeds half of the muscle's best primary lift", () => {
+    const { statsByGroup } = computeMuscleEngine(
+      [
+        make("1", "2026-10-15", "Wrist Curl", [{ reps: 10, weight: 10 }]), // weak primary forearm lift
+        make("2", "2026-10-15", "Barbell Deadlift", [{ reps: 5, weight: 405 }]), // huge secondary forearm credit
+      ],
+      BW,
+      TODAY
+    );
+    const forearms = statsByGroup.forearms;
+    const primary = forearms.exerciseScores.find((e) => e.key === "wrist curl")!;
+    expect(forearms.bestLift!.exerciseName).toBe("Wrist Curl");
+    // score is the primary lift's (+ consistency), not inflated by the deadlift
+    expect(forearms.peakRaw!).toBeLessThan(primary.peakScore + 11);
+  });
+});
+
+describe("lat pulldown is the primary lat lift", () => {
+  it("pull-ups only credit lats as secondary; pulldowns drive the lat score and clock", () => {
+    const pullUpOnly = computeMuscleEngine([make("1", "2026-10-15", "Pull Up", [{ reps: 8, weight: 0 }], { bodyweight: true })], BW, TODAY).statsByGroup.lats;
+    expect(pullUpOnly.lastTrainedDateKey).toBeNull();
+    expect(pullUpOnly.bestLift).toBeNull();
+    const withPulldown = computeMuscleEngine(
+      [
+        make("1", "2026-10-15", "Pull Up", [{ reps: 8, weight: 0 }], { bodyweight: true }),
+        make("2", "2026-10-14", "Lat Pulldown", [{ reps: 10, weight: 140 }]),
+      ],
+      BW,
+      TODAY
+    ).statsByGroup.lats;
+    expect(withPulldown.bestLift!.exerciseName).toBe("Lat Pulldown");
+    expect(withPulldown.lastTrainedDateKey).toBe("2026-10-14");
   });
 });
 
@@ -287,48 +424,112 @@ describe("PT restrictions", () => {
     "Landmine Rotational Press",
   ];
 
-  it("pre-marks the requested exercises restricted and the others as needing PT confirmation", () => {
+  it("restricts only the requested exercises; Goblet Squat is self-restricted; Back Extension/Pallof need PT confirmation", () => {
     for (const name of restrictedNames) expect(resolveExerciseConfig(name)!.restricted, name).toBe(true);
     expect(resolveExerciseConfig("Trap Bar Deadlift")!.restrictionNote).toBe("PT: no hip hinge");
-    for (const name of ["Pallof Press", "Goblet Squat", "Back Extensions"]) {
+    expect(listRestrictedExercises().filter((r) => r.kind === "pt").map((r) => r.name).sort()).toEqual(
+      [
+        "DB Bulgarian Split Squat",
+        "DB Romanian Deadlift",
+        "Romanian Deadlift",
+        "Landmine Rotational Press",
+        "Standing Cable Woodchopper (High-to-Low)",
+        "Standing Cable Woodchopper (Low-to-High)",
+        "Trap Bar Deadlift",
+      ].sort()
+    );
+    // the PT-prescribed single-leg RDL must stay available
+    expect(resolveExerciseConfig("Single-Leg Romanian Deadlift")!.restricted).toBe(false);
+    expect(canonicalExerciseKey("Romanian Deadlift straight bar")).toBe("romanian deadlift");
+    expect(resolveExerciseConfig("Romanian Deadlift straight bar")!.restricted).toBe(true);
+    const goblet = resolveExerciseConfig("Goblet Squat")!;
+    expect(goblet.selfRestricted).toBe(true);
+    expect(goblet.restricted).toBe(false);
+    expect(goblet.needsPtConfirmation).toBe(false);
+    expect(listRestrictedExercises().find((r) => r.name === "Goblet Squat")!.kind).toBe("self");
+    for (const name of ["Pallof Press", "Back Extensions"]) {
       const cfg = resolveExerciseConfig(name)!;
       expect(cfg.restricted, name).toBe(false);
       expect(cfg.needsPtConfirmation, name).toBe(true);
     }
-    expect(listRestrictedExercises().map((r) => r.name)).toEqual(expect.arrayContaining(["Trap Bar Deadlift", "Landmine Rotational Press"]));
-    expect(listNeedsPtConfirmation()).toEqual(expect.arrayContaining(["Pallof Press", "Goblet Squat", "Back Extension"]));
+    expect(listNeedsPtConfirmation().sort()).toEqual(["Back Extension", "Pallof Press"]);
   });
 
-  it("restricted exercises are never suggested and are reported as skipped", () => {
+  it("merges Half-Kneeling Pallof Press into Pallof Press", () => {
+    expect(canonicalExerciseKey("Half-Kneeling Pallof Press")).toBe("pallof press");
+    const { statsByGroup } = computeMuscleEngine(
+      [
+        make("1", "2026-10-10", "Pallof Press", [{ reps: 10, weight: 25 }]),
+        make("2", "2026-10-14", "Half-Kneeling Pallof Press", [{ reps: 10, weight: 25 }]),
+      ],
+      BW,
+      TODAY
+    );
+    expect(statsByGroup.obliques.contributingExercises).toEqual(["Pallof Press"]);
+  });
+
+  it("restricted and self-restricted exercises are never suggested and are reported as skipped", () => {
     const { suggestions, skippedRestricted } = suggestExercisesForMuscle("obliques", 10);
     for (const name of restrictedNames) expect(suggestions).not.toContain(name);
     expect(skippedRestricted.map((s) => s.name)).toEqual(
       expect.arrayContaining(["Standing Cable Woodchopper (High-to-Low)", "Landmine Rotational Press"])
     );
-    // un-restricting via an override makes it suggestable again
+    const quads = suggestExercisesForMuscle("quads", 10);
+    expect(quads.suggestions).not.toContain("Goblet Squat");
+    expect(quads.skippedRestricted.map((s) => s.name)).toEqual(expect.arrayContaining(["Goblet Squat", "DB Bulgarian Split Squat"]));
     const overridden = suggestExercisesForMuscle("obliques", 10, { "landmine rotational press": { restricted: false } });
     expect(overridden.suggestions).toContain("Landmine Rotational Press");
   });
 
-  it("pauses decay/staleness (instead of dropping) when the last primary work was restricted", () => {
+  it("Leg Press and Leg Extension are allowed quad exercises", () => {
+    for (const name of ["Leg Press", "Leg Extension"]) {
+      const cfg = resolveExerciseConfig(name)!;
+      expect(cfg, name).not.toBeNull();
+      expect(cfg.restricted || cfg.selfRestricted, name).toBe(false);
+    }
+    expect(allowedPrimaryExercises("quads")).toEqual(expect.arrayContaining(["Leg Press", "Leg Extension"]));
+    expect(exercisesForMuscle("quads", 3)).toEqual(expect.arrayContaining(["Leg Press", "Leg Extension"]));
+  });
+
+  it("a muscle with allowed exercises is NOT paused: it decays and Focus says 'needs work, try: leg press'", () => {
+    // Quads' only recent direct work was the restricted Bulgarian split squat.
+    const entries = [make("1", "2026-09-10", "DB Bulgarian Split Squat", [{ reps: 8, weight: 40 }])];
+    const { statsByGroup } = computeMuscleEngine(entries, BW, TODAY);
+    const quads = statsByGroup.quads;
+    expect(quads.pausedRestricted).toBe(false);
+    expect(quads.lastPrimaryWasRestricted).toBe(true);
+    expect(quads.isStale).toBe(true);
+    expect(quads.effective!).toBeLessThan(quads.peak!);
+    const item = buildFocusList(statsByGroup, undefined, undefined, 17).find((f) => f.group === "quads")!;
+    expect(item.reason).toMatch(/Needs work.*try:.*Leg Press/);
+    expect(item.suggestions).toEqual(expect.arrayContaining(["Leg Press"]));
+    expect(item.paused).toBe(false);
+  });
+
+  it("lower back isn't paused either (Back Extension / Barbell Deadlift are allowed) — rule is consistent", () => {
     const entries = [make("1", "2026-09-01", "Trap Bar Deadlift", [{ reps: 5, weight: 225 }])];
-    const paused = computeMuscleEngine(entries, BW, TODAY).statsByGroup.lowerBack;
+    const lowerBack = computeMuscleEngine(entries, BW, TODAY).statsByGroup.lowerBack;
+    expect(lowerBack.pausedRestricted).toBe(false);
+    expect(lowerBack.lastPrimaryWasRestricted).toBe(true);
+    expect(lowerBack.isStale).toBe(true);
+  });
+
+  it("pauses decay only when the muscle has NO allowed exercise", () => {
+    // Restrict every exercise that trains obliques directly.
+    const overrides = {
+      "pallof press": { restricted: true },
+      "cable woodchop": { restricted: true },
+      "side plank with leg raise": { restricted: true },
+    };
+    expect(groupHasAllowedExercise("obliques", overrides)).toBe(false);
+    const entries = [make("1", "2026-09-01", "Pallof Press", [{ reps: 10, weight: 25 }])];
+    const paused = computeMuscleEngine(entries, BW, TODAY, undefined, overrides).statsByGroup.obliques;
     expect(paused.pausedRestricted).toBe(true);
     expect(paused.isStale).toBe(false);
     expect(paused.effective).toBe(paused.peak);
-
-    const unrestricted = computeMuscleEngine(entries, BW, TODAY, undefined, { "trap bar deadlift": { restricted: false } }).statsByGroup.lowerBack;
-    expect(unrestricted.pausedRestricted).toBe(false);
-    expect(unrestricted.isStale).toBe(true);
-    expect(unrestricted.effective!).toBeLessThan(unrestricted.peak!);
-  });
-
-  it("does not pause when allowed work for the muscle came after the restricted work", () => {
-    const entries = [
-      make("1", "2026-09-01", "Trap Bar Deadlift", [{ reps: 5, weight: 225 }]),
-      make("2", "2026-09-05", "Back Extension", [{ reps: 12, weight: 0 }], { bodyweight: true }),
-    ];
-    expect(computeMuscleEngine(entries, BW, TODAY).statsByGroup.lowerBack.pausedRestricted).toBe(false);
+    const normal = computeMuscleEngine(entries, BW, TODAY).statsByGroup.obliques;
+    expect(normal.pausedRestricted).toBe(false);
+    expect(normal.isStale).toBe(true);
   });
 
   it("Focus This Week skips restricted exercises and says which were skipped", () => {
@@ -360,8 +561,8 @@ describe("Focus This Week", () => {
     const entries = [
       // quads: low score, fresh
       make("1", "2026-10-15", "Back Squat", [{ reps: 3, weight: 60 }]),
-      // lats: strong but stale 20 days
-      make("2", "2026-09-27", "Pull Up", [{ reps: 10, weight: 25 }], { bodyweight: true }),
+      // lats: decent but stale 20 days
+      make("2", "2026-09-27", "Lat Pulldown", [{ reps: 10, weight: 160 }]),
     ];
     const { statsByGroup } = computeMuscleEngine(entries, BW, TODAY);
     const order = buildFocusList(statsByGroup, undefined, undefined, 17).map((f) => f.group);

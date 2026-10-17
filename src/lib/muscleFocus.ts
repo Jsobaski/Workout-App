@@ -28,6 +28,8 @@ export interface FocusItem {
   priority: number;
   reason: string;
   suggestions: string[];
+  /** Suggestions that still need PT confirmation (shown with a caution). */
+  needsConfirmation: string[];
   skippedRestricted: { name: string; note?: string }[];
   paused: boolean;
 }
@@ -48,36 +50,40 @@ export function buildFocusList(
         : Math.min((stats.daysStale ?? FOCUS_STALENESS_BOOST_CAP / FOCUS_STALENESS_BOOST_PER_DAY) * FOCUS_STALENESS_BOOST_PER_DAY, FOCUS_STALENESS_BOOST_CAP);
     const golfBonus = def.golfRelevant ? FOCUS_GOLF_BOOST : 0;
     const priority = 100 - effective + stalenessBonus + golfBonus;
-
-    let reason: string;
-    if (!stats.hasAnyData) {
-      reason = "Never trained yet";
-    } else if (stats.pausedRestricted) {
-      reason = "Paused (restricted) — last primary work was a PT-restricted exercise";
-    } else if (stats.daysStale == null) {
-      reason = "No direct (primary) work logged — only incidental credit";
-    } else if (stats.isStale) {
-      reason = `Not trained in ${stats.daysStale} ${stats.daysStale === 1 ? "day" : "days"}`;
-    } else {
-      reason = `Currently ${tierForScore(stats.effective!).label} — keep building`;
-    }
-    // One window everywhere (TREND_WINDOW_DAYS), always labeled, and the same
-    // like-for-like figure the detail panel and copied summary show.
-    const delta = deltas?.[def.id];
-    const deltaText = delta ? describeDeltaStatus(delta) : null;
-    if (deltaText && delta && delta.status !== "paused") {
-      const numeric = delta.delta != null;
-      reason += numeric ? ` · ${deltaText} vs ${TREND_WINDOW_DAYS} days ago` : ` · ${deltaText}`;
-    }
-
-    return { group: def.id, priority, reason, paused: stats.pausedRestricted };
+    return { group: def.id, stats, priority };
   });
 
   return ranked
     .sort((a, b) => b.priority - a.priority)
     .slice(0, topN)
-    .map((r) => {
-      const { suggestions, skippedRestricted } = suggestExercisesForMuscle(r.group, 3, overrides);
-      return { ...r, suggestions, skippedRestricted };
+    .map(({ group, stats, priority }) => {
+      const { suggestions, needsConfirmation, skippedRestricted } = suggestExercisesForMuscle(group, 3, overrides);
+
+      let reason: string;
+      if (!stats.hasAnyData) {
+        reason = "Never trained yet";
+      } else if (stats.pausedRestricted) {
+        reason = "Paused (restricted) — every exercise for this muscle is restricted";
+      } else if (stats.lastPrimaryWasRestricted && suggestions.length > 0) {
+        // Last direct work was a restricted exercise but allowed ones exist:
+        // not paused — say what to do instead.
+        reason = `Needs work — last trained via a restricted exercise; try: ${suggestions.join(", ")}`;
+      } else if (stats.daysStale == null) {
+        reason = "No direct (primary) work logged — only incidental credit";
+      } else if (stats.isStale) {
+        reason = `Not trained in ${stats.daysStale} ${stats.daysStale === 1 ? "day" : "days"}`;
+      } else {
+        reason = `Currently ${tierForScore(stats.effective!).label} — keep building`;
+      }
+
+      // One window everywhere (TREND_WINDOW_DAYS), always labeled, and the same
+      // like-for-like figure the detail panel and copied summary show.
+      const delta = deltas?.[group];
+      const deltaText = delta ? describeDeltaStatus(delta) : null;
+      if (deltaText && delta && delta.status !== "paused" && delta.status !== "incidental") {
+        reason += delta.delta != null ? ` · ${deltaText} vs ${TREND_WINDOW_DAYS} days ago` : ` · ${deltaText}`;
+      }
+
+      return { group, priority, reason, suggestions, needsConfirmation, skippedRestricted, paused: stats.pausedRestricted };
     });
 }
