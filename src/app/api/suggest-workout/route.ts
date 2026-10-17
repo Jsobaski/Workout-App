@@ -34,6 +34,11 @@ Respond with ONLY a JSON object, no markdown fences, no extra prose, in this exa
 The summary should be one sentence on the overall focus for today's session.`;
 
 export async function POST(req: NextRequest) {
+  const pin = req.headers.get("x-app-pin");
+  if (!pin || pin !== process.env.ESTIMATE_PIN) {
+    return NextResponse.json({ error: "Locked" }, { status: 401 });
+  }
+
   let body: SuggestWorkoutBody;
   try {
     body = await req.json();

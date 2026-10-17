@@ -12,6 +12,7 @@ export default function WorkoutSection({
   entries,
   onAdd,
   onSuggest,
+  canSuggest,
   onChooseSplit,
   onUpdate,
   onDelete,
@@ -20,6 +21,7 @@ export default function WorkoutSection({
   entries: WorkoutEntry[];
   onAdd: () => void;
   onSuggest: () => void;
+  canSuggest: boolean;
   onChooseSplit: () => void;
   onUpdate: (entry: WorkoutEntry) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -147,12 +149,14 @@ export default function WorkoutSection({
           >
             Choose Split
           </button>
-          <button
-            onClick={onSuggest}
-            className="rounded-lg border border-emerald-700 px-3 py-1.5 text-sm font-medium text-emerald-400 hover:bg-emerald-950"
-          >
-            Suggest Today&apos;s Workout
-          </button>
+          {canSuggest && (
+            <button
+              onClick={onSuggest}
+              className="rounded-lg border border-emerald-700 px-3 py-1.5 text-sm font-medium text-emerald-400 hover:bg-emerald-950"
+            >
+              Suggest Today&apos;s Workout
+            </button>
+          )}
           <button
             onClick={onAdd}
             className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"

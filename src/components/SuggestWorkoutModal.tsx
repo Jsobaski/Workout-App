@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Modal from "./Modal";
+import { clearSavedPin, getSavedPin } from "@/lib/appPin";
 import { CoachingContext, SuggestedExercise, WorkoutSuggestion } from "@/lib/types";
 import { dateKeysInRange, todayKey } from "@/lib/date";
 import { listWorkoutEntriesInRange } from "@/lib/db";
@@ -13,6 +14,7 @@ export default function SuggestWorkoutModal({
   onClose,
   onLoaded,
   onAdd,
+  onLocked,
 }: {
   coachingContext: CoachingContext;
   cached: WorkoutSuggestion | null;
@@ -20,6 +22,7 @@ export default function SuggestWorkoutModal({
   onClose: () => void;
   onLoaded: (suggestion: WorkoutSuggestion) => void;
   onAdd: (exercise: SuggestedExercise) => Promise<void>;
+  onLocked: () => void;
 }) {
   const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
@@ -43,11 +46,20 @@ export default function SuggestWorkoutModal({
           notes: e.notes,
         }));
 
+      const pin = getSavedPin();
       const res = await fetch("/api/suggest-workout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(pin ? { "x-app-pin": pin } : {}),
+        },
         body: JSON.stringify({ recentWorkouts, coachingContext }),
       });
+      if (res.status === 401) {
+        clearSavedPin();
+        onLocked();
+        throw new Error("Locked — unlock AI features with your PIN in Settings.");
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Suggestion failed");
       const suggestion: WorkoutSuggestion = {

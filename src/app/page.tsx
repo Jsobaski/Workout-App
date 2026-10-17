@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DayNav from "@/components/DayNav";
 import NutritionSection from "@/components/NutritionSection";
 import WorkoutSection from "@/components/WorkoutSection";
 import GolfActivitySection from "@/components/GolfActivitySection";
 import AddFoodModal from "@/components/AddFoodModal";
 import LogWorkoutModal from "@/components/LogWorkoutModal";
+import { getSavedPin } from "@/lib/appPin";
 import SuggestWorkoutModal from "@/components/SuggestWorkoutModal";
 import WorkoutSplitModal from "@/components/WorkoutSplitModal";
 import LogGolfActivityModal from "@/components/LogGolfActivityModal";
@@ -42,6 +43,13 @@ export default function DayViewPage() {
   const [showAddFood, setShowAddFood] = useState(false);
   const [showLogWorkout, setShowLogWorkout] = useState(false);
   const [showSuggest, setShowSuggest] = useState(false);
+  const [aiUnlocked, setAiUnlocked] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setAiUnlocked(getSavedPin() !== null);
+    })();
+  }, []);
   const [showChooseSplit, setShowChooseSplit] = useState(false);
   const [showLogGolfActivity, setShowLogGolfActivity] = useState(false);
   const [workoutSuggestion, setWorkoutSuggestion] = useState<WorkoutSuggestion | null>(null);
@@ -77,6 +85,7 @@ export default function DayViewPage() {
         entries={workoutEntries}
         onAdd={() => setShowLogWorkout(true)}
         onSuggest={() => setShowSuggest(true)}
+        canSuggest={aiUnlocked}
         onChooseSplit={() => setShowChooseSplit(true)}
         onUpdate={updateWorkoutEntry}
         onDelete={removeWorkoutEntry}
@@ -139,6 +148,7 @@ export default function DayViewPage() {
           onClose={() => setShowSuggest(false)}
           onLoaded={handleSuggestionLoaded}
           onAdd={handleAddSuggested}
+          onLocked={() => setAiUnlocked(false)}
         />
       )}
     </div>
