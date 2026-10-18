@@ -19,6 +19,7 @@ const REFERENCE: Record<string, { category: Category; ratios: Profile }> = {
   // machines & cable stacks
   "leg press": { category: "machine", ratios: [1.0, 2.0, 3.2] },
   "leg extension": { category: "machine", ratios: [0.4, 0.9, 1.5] },
+  "lying leg curl": { category: "machine", ratios: [0.3, 0.55, 0.9] },
   "lat pulldown": { category: "machine", ratios: [0.6, 1.0, 1.5] },
   "cable row": { category: "machine", ratios: [0.5, 0.9, 1.4] },
   "cable face pulls": { category: "machine", ratios: [0.25, 0.45, 0.75] },

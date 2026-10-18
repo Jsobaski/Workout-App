@@ -6,6 +6,7 @@ export const COMMON_EXERCISES = [
   "Back Squat",
   "Leg Press",
   "Leg Extension",
+  "Lying Leg Curl",
   "Front Squat",
   "Goblet Squat",
   "DB Goblet Squat",

@@ -86,7 +86,8 @@ export type LiftFamily =
   | "facePull"
   | "pulldown"
   | "legPress"
-  | "legExtension";
+  | "legExtension"
+  | "legCurl";
 
 export const LIFT_FAMILY_STANDARDS: Record<LiftFamily, [number, number, number, number, number]> = {
   squat: [0.25, 0.75, 1.25, 1.75, 2.25],
@@ -103,6 +104,7 @@ export const LIFT_FAMILY_STANDARDS: Record<LiftFamily, [number, number, number, 
   pulldown: [0.4, 0.7, 1.0, 1.35, 1.7],
   legPress: [0.6, 1.25, 2.0, 2.75, 3.5],
   legExtension: [0.25, 0.5, 0.9, 1.3, 1.7],
+  legCurl: [0.2, 0.4, 0.65, 0.9, 1.2],
 };
 export const STANDARD_SCORE_BREAKPOINTS = [0, 25, 50, 75, 100] as const;
 

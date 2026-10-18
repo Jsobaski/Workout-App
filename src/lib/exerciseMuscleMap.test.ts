@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lookupExerciseMapping } from "./exerciseMuscleMap";
+import { canonicalExerciseKey, lookupExerciseMapping } from "./exerciseMuscleMap";
 import { exercisesForMuscle } from "./exerciseSuggestions";
 
 // Exact exercise names from a real user bug report: these showed up in the
@@ -18,6 +18,8 @@ const userLoggedNames = [
   "Deltoid raise machine",
   "Face Pulls",
   "Hoist preacher curl machine",
+  "Lying Leg Curl",
+  "Nautilus Angled Leg Press Plate Loaded",
   "Landmine Rotational Press",
   "Nautilus Impact Tricep Extension",
   "Nautilus Leverage Chest press",
@@ -90,4 +92,14 @@ describe("back extensions", () => {
       expect(mapping!.muscles.find((m) => m.group === "lowerBack")?.weight).toBe(1.0);
     });
   }
+});
+
+describe("leg curl and angled leg press", () => {
+  it("Lying Leg Curl trains hamstrings (primary), and the plate-loaded angled leg press is a Leg Press", () => {
+    const curl = lookupExerciseMapping("Lying Leg Curl")!;
+    expect(curl.muscles.find((m) => m.group === "hamstrings")!.weight).toBe(1);
+    expect(canonicalExerciseKey("Nautilus Angled Leg Press Plate Loaded")).toBe("leg press");
+    expect(lookupExerciseMapping("Nautilus Angled Leg Press Plate Loaded")!.muscles.find((m) => m.group === "quads")!.weight).toBe(1);
+    expect(exercisesForMuscle("hamstrings", 20)).toContain("Lying Leg Curl");
+  });
 });
