@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { EXERCISE_MUSCLE_MAP } from "./exerciseMuscleMap";
 import { computeMuscleEngine, tierForScore } from "./muscleEngine";
 import { LIFT_FAMILY_STANDARDS } from "./muscleScoreConfig";
-import { ratioForScore } from "./muscleScoring";
+import { ratioForScore, ratioToUncappedScore, softCapScore } from "./muscleScoring";
 import { WorkoutEntry } from "./types";
 
 type Category = "isolation" | "machine" | "compound";
@@ -20,6 +20,16 @@ const REFERENCE: Record<string, { category: Category; ratios: Profile }> = {
   "leg press": { category: "machine", ratios: [1.0, 2.0, 3.2] },
   "leg extension": { category: "machine", ratios: [0.4, 0.9, 1.5] },
   "lying leg curl": { category: "machine", ratios: [0.3, 0.55, 0.9] },
+  "seated leg curl": { category: "machine", ratios: [0.3, 0.55, 0.9] },
+  "standing leg curl": { category: "machine", ratios: [0.15, 0.3, 0.5] },
+  "hack squat": { category: "machine", ratios: [0.6, 1.2, 2.0] },
+  "hip abduction machine": { category: "machine", ratios: [0.35, 0.8, 1.3] },
+  "hip adduction machine": { category: "machine", ratios: [0.35, 0.8, 1.3] },
+  "cable glute kickback": { category: "machine", ratios: [0.1, 0.25, 0.5] },
+  "pec deck": { category: "machine", ratios: [0.25, 0.5, 0.8] },
+  "cable fly": { category: "machine", ratios: [0.1, 0.2, 0.35] },
+  "cable curl": { category: "machine", ratios: [0.15, 0.3, 0.55] },
+  "rope overhead tricep extension": { category: "machine", ratios: [0.25, 0.5, 0.85] },
   "lat pulldown": { category: "machine", ratios: [0.6, 1.0, 1.5] },
   "cable row": { category: "machine", ratios: [0.5, 0.9, 1.4] },
   "cable face pulls": { category: "machine", ratios: [0.25, 0.45, 0.75] },
@@ -45,6 +55,15 @@ const REFERENCE: Record<string, { category: Category; ratios: Profile }> = {
   "reverse wrist curl": { category: "isolation", ratios: [0.08, 0.18, 0.3] },
   "reverse curl": { category: "isolation", ratios: [0.2, 0.4, 0.65] },
   "calf raise": { category: "isolation", ratios: [0.8, 1.5, 2.2] },
+  "seated calf raise": { category: "isolation", ratios: [0.6, 1.1, 1.7] },
+  "dumbbell fly": { category: "isolation", ratios: [0.1, 0.2, 0.35] },
+  "shrugs": { category: "isolation", ratios: [0.5, 1.0, 1.7] },
+  "rear delt fly": { category: "isolation", ratios: [0.05, 0.12, 0.22] },
+  "ez-bar curl": { category: "isolation", ratios: [0.2, 0.45, 0.75] },
+  "barbell curl": { category: "isolation", ratios: [0.2, 0.45, 0.75] },
+  "concentration curl": { category: "isolation", ratios: [0.08, 0.18, 0.3] },
+  "tricep kickback": { category: "isolation", ratios: [0.06, 0.14, 0.25] },
+  "pullover": { category: "isolation", ratios: [0.15, 0.3, 0.5] },
   // compounds (strict checks limited to "never Elite before advanced")
   "trap bar deadlift": { category: "compound", ratios: [0.9, 1.5, 2.2] },
   "barbell deadlift": { category: "compound", ratios: [0.85, 1.4, 2.1] },
@@ -62,6 +81,16 @@ const REFERENCE: Record<string, { category: Category; ratios: Profile }> = {
   "barbell row": { category: "compound", ratios: [0.45, 0.8, 1.2] },
   "farmer carry": { category: "compound", ratios: [0.3, 0.5, 0.8] },
   "step-ups": { category: "compound", ratios: [0.15, 0.35, 0.6] },
+  "good morning": { category: "compound", ratios: [0.35, 0.65, 1.0] },
+  "forward lunge": { category: "compound", ratios: [0.15, 0.3, 0.5] },
+  "incline barbell bench": { category: "compound", ratios: [0.4, 0.75, 1.15] },
+  "decline bench": { category: "compound", ratios: [0.55, 1.0, 1.5] },
+  "close-grip bench": { category: "compound", ratios: [0.45, 0.8, 1.25] },
+  "t-bar row": { category: "compound", ratios: [0.4, 0.75, 1.15] },
+  "one-arm dumbbell row": { category: "compound", ratios: [0.25, 0.45, 0.75] },
+  "chest-supported row": { category: "compound", ratios: [0.35, 0.65, 1.0] },
+  "arnold press": { category: "compound", ratios: [0.15, 0.3, 0.5] },
+  "kettlebell swing": { category: "compound", ratios: [0.12, 0.25, 0.45] },
   "walking lunge": { category: "compound", ratios: [0.15, 0.3, 0.5] },
   "db reverse lunge": { category: "compound", ratios: [0.15, 0.3, 0.5] },
   "db bulgarian split squat": { category: "compound", ratios: [0.15, 0.3, 0.5] },
@@ -77,6 +106,8 @@ const BODYWEIGHT_REPS: Record<string, Profile> = {
   "glute bridge": [15, 30, 50],
   "single leg bridge": [8, 15, 25],
   "back extension": [10, 20, 30],
+  "bench dips": [5, 15, 30],
+  "close-grip push-up": [8, 25, 40],
 };
 
 const BODYWEIGHTS = [130, 165, 200, 250];
@@ -110,6 +141,10 @@ function entryFor(key: string, bodyweightLb: number, level: number): WorkoutEntr
 /** Score of the exercise at a profile level, through the real engine, for its primary (or best) muscle. */
 function engineScore(key: string, bodyweightLb: number, level: number): number {
   const mapping = EXERCISE_MUSCLE_MAP[key];
+  // Exercises that only give secondary credit (e.g. hip adduction machine) are scored on the table itself.
+  if (!mapping.muscles.some((m) => m.weight >= 1) && REFERENCE[key]) {
+    return softCapScore(ratioToUncappedScore(REFERENCE[key].ratios[level], standardsFor(key)));
+  }
   const group = (mapping.muscles.find((m) => m.weight >= 1) ?? mapping.muscles[0]).group;
   const { statsByGroup } = computeMuscleEngine([entryFor(key, bodyweightLb, level)], bodyweightLb, TODAY);
   return statsByGroup[group].exerciseScores.find((e) => e.key === key)!.peakScore;

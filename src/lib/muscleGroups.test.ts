@@ -40,3 +40,26 @@ describe("inferMuscleGroups", () => {
     expect(inferMuscleGroups("Back Extensions")).toContain("Posterior Chain");
   });
 });
+
+describe("keywords for the newly added exercises", () => {
+  it("leg curls are hamstring work, not biceps", () => {
+    for (const name of ["Lying Leg Curl", "Seated Leg Curl", "Nordic Curl"]) {
+      expect(inferMuscleGroups(name), name).not.toContain("Biceps");
+      expect(inferMuscleGroups(name), name).toContain("Posterior Chain");
+    }
+    expect(inferMuscleGroups("EZ-Bar Curl")).toContain("Biceps");
+  });
+
+  it("classifies the other additions", () => {
+    expect(inferMuscleGroups("Shrugs")).toContain("Back");
+    expect(inferMuscleGroups("Crunch")).toContain("Core");
+    expect(inferMuscleGroups("Russian Twist")).toContain("Rotational Core");
+    expect(inferMuscleGroups("Kettlebell Swing")).toContain("Posterior Chain");
+    expect(inferMuscleGroups("Kettlebell Swing")).not.toContain("Rotational Core");
+    expect(inferMuscleGroups("Cable Glute Kickback")).toContain("Glutes");
+    expect(inferMuscleGroups("Cable Glute Kickback")).not.toContain("Triceps");
+    expect(inferMuscleGroups("Tricep Kickback")).toContain("Triceps");
+    expect(inferMuscleGroups("Pec Deck")).toContain("Chest");
+    expect(inferMuscleGroups("Arnold Press")).toContain("Shoulders");
+  });
+});

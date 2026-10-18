@@ -352,7 +352,7 @@ describe("alias merging", () => {
 
   it("suggestion chips show one name per movement", () => {
     const names = exercisesForMuscle("calves", 10);
-    expect(names).toEqual(["Calf Raise"]);
+    expect(names.filter((n) => /calf/i.test(n))).toEqual(["Calf Raise", "Seated Calf Raise"]); // "Standing Calf" etc. don't appear separately
   });
 
   it("every alias points at a real, non-hidden canonical entry", () => {

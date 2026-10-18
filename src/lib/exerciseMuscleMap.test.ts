@@ -103,3 +103,48 @@ describe("leg curl and angled leg press", () => {
     expect(exercisesForMuscle("hamstrings", 20)).toContain("Lying Leg Curl");
   });
 });
+
+describe("exercises added from the user's checklist", () => {
+  const primaryOf = (name: string) => lookupExerciseMapping(name)!.muscles.filter((m) => m.weight >= 1).map((m) => m.group).sort();
+  const cases: [string, string[]][] = [
+    ["Seated Leg Curl", ["hamstrings"]], ["Standing Leg Curl", ["hamstrings"]], ["Hack Squat", ["quads"]],
+    ["Good Morning", ["hamstrings", "lowerBack"]], ["Forward Lunge", ["glutes", "quads"]], ["Hip Abduction Machine", ["glutes"]],
+    ["Cable Glute Kickback", ["glutes"]], ["Frog Pump", ["glutes"]], ["Seated Calf Raise", ["calves"]], ["Sled Push", ["glutes", "quads"]],
+    ["Nordic Curl", ["hamstrings"]], ["Incline Barbell Bench", ["frontDelts", "upperChest"]], ["Decline Bench", ["midLowerChest"]],
+    ["Close-Grip Bench", ["triceps"]], ["Dumbbell Fly", ["midLowerChest"]], ["Cable Fly", ["midLowerChest"]],
+    ["Pec Deck (Machine Fly)", ["midLowerChest"]], ["Shrugs", ["traps"]], ["T-Bar Row", ["upperBack"]],
+    ["One-Arm Dumbbell Row", ["upperBack"]], ["Chest-Supported Row", ["upperBack"]], ["Rear Delt Fly (Reverse Fly)", ["sideRearDelts"]],
+    ["Arnold Press", ["frontDelts"]], ["EZ-Bar Curl", ["biceps"]], ["Barbell Curl", ["biceps"]], ["Cable Curl", ["biceps"]],
+    ["Concentration Curl", ["biceps"]], ["Rope Overhead Tricep Extension", ["triceps"]], ["Tricep Kickback", ["triceps"]],
+    ["Bench Dips", ["triceps"]], ["Close-Grip Push-Up", ["triceps"]], ["Crunch", ["abs"]], ["Cable Crunch", ["abs"]],
+    ["Sit-Up", ["abs"]], ["Bicycle Crunch", ["abs"]], ["Ab Wheel Rollout", ["abs"]], ["Russian Twist", ["obliques"]],
+    ["Side Plank", ["obliques"]], ["Bird Dog", ["lowerBack"]], ["Kettlebell Swing", ["glutes", "hamstrings"]],
+    ["Battle Ropes", ["forearms", "frontDelts"]], ["Wide-Grip Pulldown", ["lats"]],
+  ];
+  for (const [name, primary] of cases) {
+    it(`maps "${name}" to ${primary.join(" + ")}`, () => {
+      expect(lookupExerciseMapping(name), name).not.toBeNull();
+      expect(primaryOf(name)).toEqual(primary);
+    });
+  }
+
+  it("Hip Adduction Machine and Pullover only give incidental credit (adductors aren't tracked; pulldown owns lats)", () => {
+    expect(primaryOf("Hip Adduction Machine")).toEqual([]);
+    expect(primaryOf("Pullover")).toEqual([]);
+  });
+
+  it("variants resolve to the same exercise", () => {
+    for (const [alias, canon] of [["Wide-Grip Pulldown", "lat pulldown"], ["Pec Deck (Machine Fly)", "pec deck"], ["Reverse Fly", "rear delt fly"], ["lunges", "forward lunge"], ["EZ Curl", "ez-bar curl"], ["Sit-ups", "sit-up"]]) {
+      expect(canonicalExerciseKey(alias), alias).toBe(canon);
+    }
+  });
+
+  it("movement-pattern tags are on the new hinge, rotation, split-stance and squat exercises", () => {
+    const tags = (n: string) => lookupExerciseMapping(n)!.patterns ?? [];
+    expect(tags("Good Morning")).toContain("hip_hinge");
+    expect(tags("Kettlebell Swing")).toContain("hip_hinge");
+    expect(tags("Russian Twist")).toContain("rotation");
+    expect(tags("Forward Lunge")).toContain("split_stance");
+    expect(tags("Hack Squat")).toContain("squat");
+  });
+});

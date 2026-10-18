@@ -2,17 +2,17 @@
 // roll up into a muscle-group summary (used for day totals and to steer
 // "avoid repeating recently-hit muscle groups" workout suggestions).
 const RULES: { pattern: RegExp; groups: string[] }[] = [
-  { pattern: /deadlift|good morning|hip hinge|rdl|back extension|hyperextension/i, groups: ["Posterior Chain", "Glutes"] },
+  { pattern: /deadlift|good morning|hip hinge|rdl|back extension|hyperextension|kettlebell swing|kb swing|nordic|leg curl|hamstring/i, groups: ["Posterior Chain", "Glutes"] },
   { pattern: /squat|lunge|leg press|leg extension|step.?up/i, groups: ["Quads", "Glutes"] },
-  { pattern: /bench|chest press|push.?up|fly|incline/i, groups: ["Chest", "Triceps"] },
-  { pattern: /row|pulldown|pull.?up|chin.?up|\blats?\b/i, groups: ["Back", "Biceps"] },
-  { pattern: /shoulder press|overhead press|ohp|lateral raise|delt|face pull/i, groups: ["Shoulders"] },
-  { pattern: /curl/i, groups: ["Biceps"] },
-  { pattern: /tricep|dip|skull.?crusher|pushdown/i, groups: ["Triceps"] },
-  { pattern: /pallof|anti.?rotation|core|plank|dead.?bug|ab |knee raise|captain.?s chair|leg raise/i, groups: ["Core"] },
-  { pattern: /rotation|swing|cable chop|wood.?chop/i, groups: ["Rotational Core"] },
+  { pattern: /bench|chest press|push.?up|fly|incline|pec deck|decline/i, groups: ["Chest", "Triceps"] },
+  { pattern: /row|pulldown|pull.?up|chin.?up|\blats?\b|shrug|pullover/i, groups: ["Back", "Biceps"] },
+  { pattern: /shoulder press|overhead press|ohp|lateral raise|front raise|arnold|upright row|delt|face pull|reverse fly/i, groups: ["Shoulders"] },
+  { pattern: /(?<!leg )(?<!nordic )curl/i, groups: ["Biceps"] },
+  { pattern: /tricep|dip|skull.?crusher|pushdown|(?<!glute )kickback|close.?grip/i, groups: ["Triceps"] },
+  { pattern: /pallof|anti.?rotation|core|plank|dead.?bug|ab |knee raise|captain.?s chair|leg raise|crunch|sit.?up|rollout|bird dog/i, groups: ["Core"] },
+  { pattern: /rotation|russian twist|cable chop|wood.?chop/i, groups: ["Rotational Core"] },
   { pattern: /calf/i, groups: ["Calves"] },
-  { pattern: /hip thrust|glute bridge|leg bridge|clamshell|hip abduction|lateral walk|glute/i, groups: ["Glutes"] },
+  { pattern: /hip thrust|glute bridge|leg bridge|clamshell|hip abduction|hip adduction|lateral walk|glute|frog pump/i, groups: ["Glutes"] },
 ];
 
 export function inferMuscleGroups(exerciseName: string): string[] {

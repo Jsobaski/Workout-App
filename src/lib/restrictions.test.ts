@@ -133,7 +133,7 @@ describe("restrictions and the muscle score", () => {
     const allRestricted: ExerciseSettingsData = {
       ...emptyExerciseSettings(),
       patterns: { rotation: {} },
-      overrides: { "pallof press": { restricted: true }, "side plank with leg raise": { restricted: true } },
+      overrides: { "pallof press": { restricted: true }, "side plank with leg raise": { restricted: true }, "side plank": { restricted: true } },
     };
     expect(allowedPrimaryExercises("obliques", allRestricted)).toEqual([]);
     const paused = computeMuscleEngine(entries, BW, TODAY, undefined, allRestricted).statsByGroup.obliques;

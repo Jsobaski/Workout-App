@@ -143,7 +143,7 @@ describe("empty database", () => {
 describe("shared code is neutral (nothing about one person, gym, injury or sport)", () => {
   const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
   // "PT" is matched case-sensitively so Tailwind classes like pt-3 don't trip it.
-  const personalWords = /golf|\bswing\b|early extension|physical therap|neck sensitiv|nautilus|hoist/i;
+  const personalWords = /golf|golf swing|early extension|physical therap|neck sensitiv|nautilus|hoist/i;
   const personal = { test: (text: string) => personalWords.test(text) || /\bPT\b/.test(text) };
 
   it("the AI suggestion prompt and route", () => {

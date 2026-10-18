@@ -181,6 +181,66 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "step-ups": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6) },
   "cable hip abduction": { muscles: primary("glutes"), scoring: proxy("squat", 0.3), bodyweightFraction: 0, loadBasis: "stack" },
 
+  // ---- Added from the user's picks: legs, glutes, calves ----
+  "seated leg curl": { muscles: [...primary("hamstrings"), ...minor("calves")], scoring: standard("legCurl"), loadBasis: "stack" },
+  // Single-leg machine: logged weight is per leg, hence the 0.5 factor.
+  "standing leg curl": { muscles: [...primary("hamstrings"), ...minor("calves")], scoring: proxy("legCurl", 0.5), loadBasis: "stack" },
+  "hack squat": { muscles: [...primary("quads"), ...secondary("glutes")], scoring: proxy("legPress", 0.6), ...SQUAT },
+  "good morning": { muscles: [...primary("hamstrings", "lowerBack"), ...secondary("glutes")], scoring: proxy("deadlift", 0.55), ...HINGE },
+  "forward lunge": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6), ...SPLIT },
+  "hip abduction machine": { muscles: primary("glutes"), scoring: proxy("squat", 0.6), bodyweightFraction: 0, loadBasis: "stack" },
+  // Adductors aren't a tracked muscle, so this only earns incidental credit.
+  "hip adduction machine": { muscles: [...secondary("quads", "glutes")], scoring: proxy("squat", 0.6), bodyweightFraction: 0, loadBasis: "stack" },
+  "cable glute kickback": { muscles: primary("glutes"), scoring: proxy("squat", 0.3), bodyweightFraction: 0, loadBasis: "stack" },
+  "frog pump": { muscles: primary("glutes"), scoring: volumeOnly, bodyweightFraction: 0 },
+  "seated calf raise": { muscles: primary("calves"), scoring: proxy("squat", 1.0) },
+  "sled push": { muscles: [...primary("quads", "glutes"), ...secondary("calves", "hamstrings")], scoring: volumeOnly, bodyweightFraction: 0 },
+  "nordic curl": { muscles: [...primary("hamstrings"), ...minor("calves")], scoring: volumeOnly, bodyweightFraction: 0 },
+
+  // ---- Chest ----
+  "incline barbell bench": { muscles: [...primary("upperChest", "frontDelts"), ...secondary("triceps")], scoring: proxy("bench", 0.85) },
+  "decline bench": { muscles: [...primary("midLowerChest"), ...secondary("triceps", "frontDelts")], scoring: standard("bench") },
+  "close-grip bench": { muscles: [...primary("triceps"), ...secondary("midLowerChest", "frontDelts")], scoring: proxy("bench", 0.9) },
+  "dumbbell fly": { muscles: [...primary("midLowerChest"), ...secondary("upperChest", "frontDelts")], scoring: proxy("bench", 0.25) },
+  "cable fly": { muscles: [...primary("midLowerChest"), ...secondary("upperChest", "frontDelts")], scoring: proxy("bench", 0.25), loadBasis: "stack" },
+  "pec deck": { muscles: [...primary("midLowerChest"), ...secondary("upperChest", "frontDelts")], scoring: proxy("bench", 0.6) },
+
+  // ---- Back, traps, rear delts ----
+  "shrugs": { muscles: [...primary("traps"), ...minor("forearms")], scoring: proxy("deadlift", 0.9) },
+  "t-bar row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps", "lowerBack")], scoring: proxy("row", 0.9) },
+  "one-arm dumbbell row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps")], scoring: proxy("row", 0.5) },
+  "chest-supported row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps")], scoring: proxy("row", 0.85) },
+  // Lat pulldown stays the primary lat lift, so a pullover only gives lats secondary credit.
+  "pullover": { muscles: [...secondary("lats", "midLowerChest"), ...minor("triceps")], scoring: proxy("pulldown", 0.4) },
+  "rear delt fly": { muscles: [...primary("sideRearDelts"), ...secondary("upperBack", "traps")], scoring: standard("lateralRaise") },
+
+  // ---- Shoulders ----
+  "arnold press": { muscles: [...primary("frontDelts"), ...secondary("sideRearDelts", "triceps")], scoring: standard("ohp") },
+
+  // ---- Arms ----
+  "ez-bar curl": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: standard("curl") },
+  "barbell curl": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: standard("curl") },
+  "cable curl": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: proxy("curl", 0.8), loadBasis: "stack" },
+  "concentration curl": { muscles: primary("biceps"), scoring: proxy("curl", 0.45) },
+  "rope overhead tricep extension": { muscles: primary("triceps"), scoring: proxy("tricepExt", 0.85), loadBasis: "stack" },
+  "tricep kickback": { muscles: primary("triceps"), scoring: proxy("tricepExt", 0.3) },
+  "bench dips": { muscles: [...primary("triceps"), ...secondary("midLowerChest", "frontDelts")], scoring: standard("bench"), bodyweightFraction: 0.5 },
+  "close-grip push-up": { muscles: [...primary("triceps"), ...secondary("midLowerChest", "frontDelts")], scoring: standard("bench"), bodyweightFraction: 0.64 },
+
+  // ---- Core (abs and obliques stay on separate exercise sets) ----
+  crunch: { muscles: primary("abs"), scoring: volumeOnly, bodyweightFraction: 0 },
+  "cable crunch": { muscles: primary("abs"), scoring: volumeOnly, bodyweightFraction: 0, loadBasis: "stack" },
+  "sit-up": { muscles: primary("abs"), scoring: volumeOnly, bodyweightFraction: 0 },
+  "bicycle crunch": { muscles: [...primary("abs"), ...minor("obliques")], scoring: volumeOnly, bodyweightFraction: 0 },
+  "ab wheel rollout": { muscles: [...primary("abs"), ...minor("lats")], scoring: volumeOnly, bodyweightFraction: 0 },
+  "russian twist": { muscles: primary("obliques"), scoring: volumeOnly, bodyweightFraction: 0, ...ROTATION },
+  "side plank": { muscles: [...primary("obliques"), ...secondary("glutes")], scoring: volumeOnly, bodyweightFraction: 0 },
+  "bird dog": { muscles: [...primary("lowerBack"), ...secondary("glutes")], scoring: volumeOnly, bodyweightFraction: 0 },
+
+  // ---- Full body / conditioning ----
+  "kettlebell swing": { muscles: [...primary("glutes", "hamstrings"), ...secondary("lowerBack", "forearms")], scoring: proxy("deadlift", 0.4), ...HINGE },
+  "battle ropes": { muscles: [...primary("frontDelts", "forearms"), ...secondary("abs", "lats")], scoring: volumeOnly, bodyweightFraction: 0 },
+
   "back extension": { muscles: [...primary("lowerBack"), ...secondary("glutes", "hamstrings")], scoring: standard("deadlift"), bodyweightFraction: 0.5, ...HINGE },
 };
 
@@ -215,6 +275,45 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "farmers carry": "farmer carry",
   "farmer's carry": "farmer carry",
   "half-kneeling pallof press": "pallof press",
+  "wide-grip pulldown": "lat pulldown",
+  "wide grip pulldown": "lat pulldown",
+  "wide-grip lat pulldown": "lat pulldown",
+  "pec deck (machine fly)": "pec deck",
+  "machine fly": "pec deck",
+  "chest fly machine": "pec deck",
+  "rear delt fly (reverse fly)": "rear delt fly",
+  "reverse fly": "rear delt fly",
+  "ez curl": "ez-bar curl",
+  "ez bar curl": "ez-bar curl",
+  "bb curl": "barbell curl",
+  "triceps kickback": "tricep kickback",
+  "bench dip": "bench dips",
+  "kettlebell swings": "kettlebell swing",
+  "kb swing": "kettlebell swing",
+  "crunches": "crunch",
+  "sit up": "sit-up",
+  "sit-ups": "sit-up",
+  "situp": "sit-up",
+  "nordic hamstring curl": "nordic curl",
+  "good mornings": "good morning",
+  "lunge": "forward lunge",
+  "lunges": "forward lunge",
+  "decline bench press": "decline bench",
+  "incline bench press": "incline barbell bench",
+  "incline barbell bench press": "incline barbell bench",
+  "close grip bench": "close-grip bench",
+  "close-grip bench press": "close-grip bench",
+  "close grip bench press": "close-grip bench",
+  "db fly": "dumbbell fly",
+  "cable crossover": "cable fly",
+  "shrug": "shrugs",
+  "dumbbell shrugs": "shrugs",
+  "barbell shrugs": "shrugs",
+  "db row": "one-arm dumbbell row",
+  "one arm dumbbell row": "one-arm dumbbell row",
+  "single arm dumbbell row": "one-arm dumbbell row",
+  "close grip push-up": "close-grip push-up",
+  "close-grip pushup": "close-grip push-up",
   "nautilus angled leg press plate loaded": "leg press",
   "angled leg press": "leg press",
   "plate loaded leg press": "leg press",
@@ -277,6 +376,7 @@ function titleCaseKey(key: string): string {
     const lower = word.toLowerCase();
     if (str[offset - 1] === "'") return lower;
     if (lower === "db") return "DB";
+    if (lower === "ez") return "EZ";
     if (lower === "w" && str[offset + 1] === "/") return "w";
     return lower.charAt(0).toUpperCase() + lower.slice(1);
   });
