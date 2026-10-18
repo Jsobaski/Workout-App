@@ -88,7 +88,12 @@ describe("empty database", () => {
   });
 
   it("the muscle engine reports no restriction state and no pausing", () => {
-    const entries = [entry("1", "2026-09-01", "Trap Bar Deadlift", 5, 225), entry("2", "2026-09-02", "Pallof Press", 10, 25)];
+    const entries = [
+      entry("1", "2026-08-20", "Trap Bar Deadlift", 5, 225),
+      entry("2", "2026-08-27", "Trap Bar Deadlift", 5, 225),
+      entry("3", "2026-09-01", "Trap Bar Deadlift", 5, 225),
+      entry("4", "2026-09-02", "Pallof Press", 10, 25),
+    ];
     const { statsByGroup } = computeMuscleEngine(entries, BW, TODAY);
     for (const g of MUSCLE_GROUPS) {
       expect(statsByGroup[g.id].pausedRestricted, g.id).toBe(false);

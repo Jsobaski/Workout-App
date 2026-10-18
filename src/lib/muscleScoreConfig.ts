@@ -121,6 +121,13 @@ export const FOCUS_PRIORITY_BOOST = 10;
 /** Window (days) for every "change vs. N days ago" figure shown in the UI and summary. */
 export const TREND_WINDOW_DAYS = 30;
 
+// ---- Provisional scores ----
+// A muscle scored solely from one lift group logged on fewer than this many
+// distinct days is "provisional": its tier is held one level below the computed one.
+export const PROVISIONAL_MIN_SESSIONS = 3;
+/** How far below the computed tier's lower bound a provisional score is held. */
+export const PROVISIONAL_CAP_EPSILON = 0.01;
+
 // ---- Score display ----
 /** A score within this many points of a tier boundary is shown with one decimal so the tier never looks wrong. */
 export const TIER_BOUNDARY_DECIMAL_WINDOW = 0.5;

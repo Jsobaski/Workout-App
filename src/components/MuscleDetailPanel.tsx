@@ -6,7 +6,7 @@ import { MuscleStats, tierForScore } from "@/lib/muscleEngine";
 import { formatShortDate } from "@/lib/date";
 import { MuscleDelta, describeDeltaStatus } from "@/lib/muscleComparison";
 import { formatScore } from "@/lib/muscleScoreFormat";
-import { TREND_WINDOW_DAYS } from "@/lib/muscleScoreConfig";
+import { PROVISIONAL_MIN_SESSIONS, TREND_WINDOW_DAYS } from "@/lib/muscleScoreConfig";
 
 export default function MuscleDetailPanel({
   groupIds,
@@ -50,7 +50,10 @@ export default function MuscleDetailPanel({
                   className="inline-block h-3 w-3 rounded-full"
                   style={{ background: tier.color, border: tier.outline ? `1.5px solid ${tier.outline}` : undefined }}
                 />
-                <span className="text-sm font-medium text-neutral-100">{tier.label}</span>
+                <span className="text-sm font-medium text-neutral-100">
+                  {tier.label}
+                  {stats.provisional && <span className="ml-1.5 rounded-full bg-violet-900 px-2 py-0.5 text-[10px] font-medium text-violet-200">provisional</span>}
+                </span>
                 <span className="text-xs text-neutral-500">
                   {formatScore(stats.effective!)} / 100 effective
                   {stats.peak != null && formatScore(stats.peak) !== formatScore(stats.effective!) && (
@@ -62,6 +65,14 @@ export default function MuscleDetailPanel({
                 </span>
               </div>
 
+              {stats.provisional && (
+                <p className="rounded-md bg-violet-950/60 px-2 py-1 text-xs text-violet-200">
+                  Provisional — this score comes from a lift logged on {stats.provisionalSessions ?? 0} of{" "}
+                  {PROVISIONAL_MIN_SESSIONS} sessions, so the tier is held one level below the computed one
+                  {stats.uncappedEffective != null && <> ({formatScore(stats.uncappedEffective)})</>} until the third
+                  session. Similar lifts on the same equipment count toward those sessions.
+                </p>
+              )}
               {stats.pausedRestricted && (
                 <p className="rounded-md bg-sky-950/60 px-2 py-1 text-xs text-sky-300">
                   Paused (restricted) — every exercise for this muscle is restricted, so decay and staleness are on

@@ -1,33 +1,38 @@
 // Like-for-like comparison between two engine snapshots (e.g. Before vs
-// After, or 30 days ago vs today). A muscle's change is measured on the SAME
-// exercise in both snapshots, so switching to a different exercise or machine
-// (40 lb DB bench -> plate-loaded press) shows up as "equipment changed"
-// instead of as strength gained. Pure — no React, DB or I/O.
+// After, or 30 days ago vs today). Exercises that are automatically grouped as
+// the same lift (liftGroups.ts: same primary muscles, similar name or pattern,
+// same load basis) count as one lift, so switching between them is not a
+// change. A number is only shown when it IS the muscle's real score change and
+// the same lift group leads in both snapshots; when the leading lift has no
+// comparable baseline (brand new, or a different load basis) the result says so
+// instead of printing a number that could contradict the real change. Pure.
 import { MuscleStats } from "./muscleEngine";
 import { MUSCLE_GROUPS, MuscleGroupId } from "./muscleTaxonomy";
 
 export type DeltaStatus =
-  | "like-for-like" // change on a shared exercise
+  | "like-for-like" // the same lift group leads both snapshots; delta is the muscle's real score change
   | "consistency" // reps/time-scored muscle: change in the consistency-driven score
-  | "equipment-changed" // scored by different exercises in each snapshot — not comparable
+  | "new" // the leading lift has no comparable baseline (new exercise, or a different load basis)
+  | "lead-changed" // a different (already-logged) lift group leads now — no single like-for-like figure
   | "paused" // decay paused because every exercise for the muscle is restricted — not a drop
   | "incidental" // only secondary/minor credit, no direct (primary) work — nothing meaningful to compare
-  | "new" // no data in the Before snapshot
   | "no-data";
 
 export interface MuscleDelta {
   group: MuscleGroupId;
-  /** Points on the displayed 0-100 scale; null when the change isn't comparable. */
+  /** Points on the displayed 0-100 scale, always equal to the muscle's real score change; null when no comparable baseline exists. */
   delta: number | null;
   status: DeltaStatus;
-  /** The shared exercise the change was measured on (like-for-like only). */
+  /** The lift the change was measured on (like-for-like only). */
   anchorExercise?: string;
-  /**
-   * The exercise now driving the muscle's score isn't the one that drove it in
-   * the Before snapshot (switched exercise/machine), so the headline score
-   * change is NOT purely strength. `delta` still only reflects the shared exercise.
-   */
-  equipmentChanged?: boolean;
+}
+
+/** The lift group leading a muscle's strength score: highest-scoring primary lift (any lift if none is primary). */
+function leadingExercise(stats: MuscleStats) {
+  const primary = stats.exerciseScores.filter((e) => e.weight >= 1);
+  const pool = primary.length > 0 ? primary : stats.exerciseScores;
+  if (pool.length === 0) return null;
+  return pool.reduce((best, e) => (e.peakScore > best.peakScore ? e : best));
 }
 
 export function compareSnapshots(
@@ -57,31 +62,32 @@ export function compareSnapshots(
       continue;
     }
 
+    const realChange = a.effective! - b.effective!;
+
     if (a.scoringBasis !== "load" && b.scoringBasis !== "load") {
-      result[id] = { group: id, delta: a.effective! - b.effective!, status: "consistency" };
+      result[id] = { group: id, delta: realChange, status: "consistency" };
+      continue;
+    }
+    // Strength-scored now but reps/time-scored before (or vice versa): nothing comparable.
+    if (a.scoringBasis !== b.scoringBasis) {
+      result[id] = { group: id, delta: null, status: "new" };
       continue;
     }
 
-    const beforeByKey = new Map(b.exerciseScores.map((e) => [e.key, e]));
-    const shared = a.exerciseScores.filter((e) => beforeByKey.has(e.key));
-    // Prefer primary-contribution exercises as the anchor; fall back to any shared one.
-    const primaryShared = shared.filter((e) => e.weight >= 1.0);
-    const candidates = primaryShared.length > 0 ? primaryShared : shared;
-    if (candidates.length === 0) {
-      result[id] = { group: id, delta: null, status: "equipment-changed" };
+    const leadAfter = leadingExercise(a);
+    const leadBefore = leadingExercise(b);
+    if (!leadAfter || !leadBefore) {
+      result[id] = { group: id, delta: null, status: "new" };
       continue;
     }
-    const anchor = candidates.reduce((best, e) => (e.effectiveScore > best.effectiveScore ? e : best));
-    const topKey = (scores: typeof a.exerciseScores) =>
-      scores.length === 0 ? null : scores.reduce((best, e) => (e.effectiveScore > best.effectiveScore ? e : best)).key;
-    const equipmentChanged = topKey(a.exerciseScores) !== topKey(b.exerciseScores);
-    result[id] = {
-      group: id,
-      delta: anchor.effectiveScore - beforeByKey.get(anchor.key)!.effectiveScore,
-      status: "like-for-like",
-      anchorExercise: anchor.name,
-      equipmentChanged,
-    };
+    if (leadAfter.groupKey === leadBefore.groupKey) {
+      result[id] = { group: id, delta: realChange, status: "like-for-like", anchorExercise: leadAfter.name };
+      continue;
+    }
+    // A different lift leads now. If the new leader has no baseline at all (it's new, or a
+    // different load basis so it was never grouped with anything logged before), say so.
+    const hadBaseline = b.exerciseScores.some((e) => e.groupKey === leadAfter.groupKey);
+    result[id] = { group: id, delta: null, status: hadBaseline ? "lead-changed" : "new" };
   }
   return result;
 }
@@ -100,15 +106,14 @@ export function describeDelta(delta: number): string {
 export function describeDeltaStatus(d: MuscleDelta): string | null {
   switch (d.status) {
     case "like-for-like":
-      return d.delta == null ? null : `${describeDelta(d.delta)}${d.equipmentChanged ? " (equipment changed)" : ""}`;
     case "consistency":
       return d.delta == null ? null : describeDelta(d.delta);
-    case "equipment-changed":
-      return "equipment changed — not comparable";
+    case "new":
+      return "new exercise, no comparison";
+    case "lead-changed":
+      return "lead lift changed, no comparison";
     case "paused":
       return "paused (restricted)";
-    case "new":
-      return "new — no earlier data";
     case "incidental":
       return "incidental credit only";
     default:

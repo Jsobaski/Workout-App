@@ -90,7 +90,12 @@ describe("computeMuscleEngine", () => {
   });
 
   it("decays effective below peak once past the grace period", () => {
-    const entries = [makeEntry("1", "2026-08-01", "DB Bench Press", [{ reps: 5, weight: 100 }])]; // well past grace
+    // three sessions so the score isn't provisional; the last one is well past the grace period
+    const entries = [
+      makeEntry("1", "2026-07-20", "DB Bench Press", [{ reps: 5, weight: 100 }]),
+      makeEntry("2", "2026-07-27", "DB Bench Press", [{ reps: 5, weight: 100 }]),
+      makeEntry("3", "2026-08-01", "DB Bench Press", [{ reps: 5, weight: 100 }]),
+    ];
     const { statsByGroup } = computeMuscleEngine(entries, 180, "2026-10-14");
     expect(statsByGroup.midLowerChest.effective!).toBeLessThan(statsByGroup.midLowerChest.peak!);
   });

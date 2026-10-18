@@ -151,26 +151,16 @@ describe("isolation/machine standards", () => {
 });
 
 describe("like-for-like deltas", () => {
-  it("flags an equipment change instead of counting it as strength gained", () => {
+  it("a lead lift on a different load basis is 'new exercise, no comparison' — never a number", () => {
     const entries = [
       make("1", "2026-09-17", "DB Bench Press", [{ reps: 8, weight: 40 }]),
-      make("2", "2026-10-15", "Nautilus Leverage Chest Press", [{ reps: 8, weight: 110 }]),
+      make("2", "2026-10-15", "Chest Press Machine", [{ reps: 8, weight: 110 }]), // plates, not free weight
     ];
     const before = computeMuscleEngine(entries, BW, "2026-09-18");
     const after = computeMuscleEngine(entries, BW, TODAY);
     expect(after.statsByGroup.midLowerChest.effective!).toBeGreaterThan(before.statsByGroup.midLowerChest.effective! + 10);
     const delta = compareSnapshots(before.statsByGroup, after.statsByGroup).midLowerChest;
-    // The headline jump is flagged as an equipment change; the number only reflects the shared DB bench.
-    expect(delta.equipmentChanged).toBe(true);
-    expect(delta.anchorExercise).toBe("DB Bench Press");
-    expect(delta.delta!).toBeLessThanOrEqual(0);
-  });
-
-  it("calls a muscle not comparable when the two snapshots share no exercise", () => {
-    const before = computeMuscleEngine([make("1", "2026-09-17", "DB Bench Press", [{ reps: 8, weight: 40 }])], BW, "2026-09-18");
-    const after = computeMuscleEngine([make("2", "2026-10-15", "Nautilus Leverage Chest Press", [{ reps: 8, weight: 110 }])], BW, TODAY);
-    const delta = compareSnapshots(before.statsByGroup, after.statsByGroup).midLowerChest;
-    expect(delta.status).toBe("equipment-changed");
+    expect(delta.status).toBe("new");
     expect(delta.delta).toBeNull();
   });
 

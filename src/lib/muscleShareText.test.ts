@@ -26,7 +26,7 @@ describe("formatMuscleSummaryText", () => {
   });
 
   it("lists scored muscles with tier and score, and untrained ones as no data", () => {
-    expect(text).toMatch(/- Mid\/Lower Chest: \w[\w ]* \(\d+\)/);
+    expect(text).toMatch(/- Mid\/Lower Chest: \w[\w ]* \(\d+(\.\d)?\)/);
     expect(text).toContain("- Calves: no data logged");
   });
 

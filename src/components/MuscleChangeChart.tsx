@@ -4,9 +4,10 @@ import { MUSCLE_GROUPS, MuscleGroupId } from "@/lib/muscleTaxonomy";
 import { MuscleDelta, describeDeltaStatus } from "@/lib/muscleComparison";
 
 // Horizontal diverging bar chart of After minus Before per muscle, sorted by
-// change. Muscles whose change isn't a like-for-like comparison (different
-// exercise/equipment, new, paused) are listed below the bars with a plain label
-// instead of a bar, so equipment swaps never read as strength gained.
+// change. Muscles with no comparable baseline (a new exercise or a different
+// load basis leads, paused) are listed below the bars with a plain label instead
+// of a bar, so a switch never reads as strength gained. Every bar is the
+// muscle's real score change.
 export default function MuscleChangeChart({ deltas }: { deltas: Record<MuscleGroupId, MuscleDelta> }) {
   const rows = MUSCLE_GROUPS.map((g) => ({ id: g.id, label: g.label, d: deltas[g.id] }));
   const comparable = rows
@@ -37,14 +38,6 @@ export default function MuscleChangeChart({ deltas }: { deltas: Record<MuscleGro
               {value > 0 ? "+" : ""}
               {Math.round(value)}
             </span>
-            {d.equipmentChanged && (
-              <span
-                className="shrink-0 rounded-full bg-amber-950 px-1.5 py-0.5 text-[10px] text-amber-300"
-                title="The exercise driving this muscle's score changed — the bar only reflects the shared exercise."
-              >
-                equip. changed
-              </span>
-            )}
           </div>
         );
       })}
@@ -62,7 +55,7 @@ export default function MuscleChangeChart({ deltas }: { deltas: Record<MuscleGro
         </div>
       )}
       <p className="pt-1 text-[11px] text-neutral-600">
-        Points on the 0-100 scale, measured on the same exercise in both snapshots.
+        Points on the 0-100 scale: the change in the muscle\u2019s score, shown only when the same lift leads both snapshots.
       </p>
     </div>
   );

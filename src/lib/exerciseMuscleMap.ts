@@ -45,7 +45,7 @@ export interface ExerciseMapping {
   /** Fraction of bodyweight credited as load when a set is logged as bodyweight.
    * Unset -> DEFAULT_BODYWEIGHT_FRACTION. 0 = no load credit (consistency/reps-time only). */
   bodyweightFraction?: number;
-  /** Informational label for what the logged weight represents. Never affects scoring. */
+  /** What the logged weight represents. Never changes a score, but it is what keeps machines and free weights from being auto-grouped as one lift (see liftGroups.ts). */
   loadBasis?: LoadBasis;
   /** Movement-pattern tags (shared metadata; used only when the user restricts a pattern). */
   patterns?: MovementPattern[];
@@ -83,9 +83,9 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "db romanian deadlift": { muscles: [...primary("hamstrings", "glutes"), ...secondary("lowerBack", "forearms")], scoring: standard("deadlift"), ...HINGE },
 
   "back squat": { muscles: [...primary("quads"), ...secondary("glutes", "lowerBack")], scoring: standard("squat"), ...SQUAT },
-  "leg press": { muscles: [...primary("quads"), ...secondary("glutes")], scoring: standard("legPress") },
-  "leg extension": { muscles: primary("quads"), scoring: standard("legExtension") },
-  "lying leg curl": { muscles: [...primary("hamstrings"), ...minor("calves")], scoring: standard("legCurl") },
+  "leg press": { muscles: [...primary("quads"), ...secondary("glutes")], scoring: standard("legPress"), loadBasis: "plates" },
+  "leg extension": { muscles: primary("quads"), scoring: standard("legExtension"), loadBasis: "stack" },
+  "lying leg curl": { muscles: [...primary("hamstrings"), ...minor("calves")], scoring: standard("legCurl"), loadBasis: "stack" },
   "front squat": { muscles: [...primary("quads"), ...secondary("glutes", "upperBack")], scoring: standard("squat"), ...SQUAT },
   "goblet squat": { muscles: [...primary("quads"), ...secondary("glutes", "forearms")], scoring: standard("squat"), ...SQUAT },
   "db reverse lunge": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6), ...SPLIT },
@@ -151,15 +151,15 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "cable tricep work": { muscles: primary("triceps"), scoring: standard("tricepExt"), hidden: true },
 
   // ---- Machine variants (generic). Branded machine names resolve to these via EXERCISE_ALIASES. ----
-  "chest press machine": { muscles: [...primary("midLowerChest"), ...secondary("triceps", "frontDelts")], scoring: standard("bench") },
-  "incline chest press machine": { muscles: [...primary("upperChest", "frontDelts"), ...secondary("triceps")], scoring: standard("bench") },
-  "shoulder press machine": { muscles: [...primary("frontDelts"), ...secondary("triceps")], scoring: standard("ohp") },
+  "chest press machine": { muscles: [...primary("midLowerChest"), ...secondary("triceps", "frontDelts")], scoring: standard("bench"), loadBasis: "plates" },
+  "incline chest press machine": { muscles: [...primary("upperChest", "frontDelts"), ...secondary("triceps")], scoring: standard("bench"), loadBasis: "plates" },
+  "shoulder press machine": { muscles: [...primary("frontDelts"), ...secondary("triceps")], scoring: standard("ohp"), loadBasis: "stack" },
   // Machine stack numbers run about double a per-hand dumbbell raise, hence the 2x factor.
-  "lateral raise machine": { muscles: [...primary("sideRearDelts"), ...secondary("frontDelts")], scoring: proxy("lateralRaise", 2) },
-  "rear delt machine": { muscles: [...primary("sideRearDelts"), ...secondary("upperBack")], scoring: standard("facePull") },
-  "bicep curl machine": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: standard("curl") },
-  "preacher curl machine": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: standard("curl") },
-  "tricep extension machine": { muscles: primary("triceps"), scoring: standard("tricepExt") },
+  "lateral raise machine": { muscles: [...primary("sideRearDelts"), ...secondary("frontDelts")], scoring: proxy("lateralRaise", 2), loadBasis: "stack" },
+  "rear delt machine": { muscles: [...primary("sideRearDelts"), ...secondary("upperBack")], scoring: standard("facePull"), loadBasis: "stack" },
+  "bicep curl machine": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: standard("curl"), loadBasis: "stack" },
+  "preacher curl machine": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: standard("curl"), loadBasis: "stack" },
+  "tricep extension machine": { muscles: primary("triceps"), scoring: standard("tricepExt"), loadBasis: "stack" },
   "db overhead tricep extension": { muscles: primary("triceps"), scoring: proxy("tricepExt", 0.6) },
   "single arm cable tricep extension": { muscles: primary("triceps"), scoring: proxy("tricepExt", 0.5), loadBasis: "stack" },
   "landmine rotational press": { muscles: [...primary("obliques"), ...secondary("frontDelts", "triceps")], scoring: volumeOnly, bodyweightFraction: 0, ...ROTATION },
@@ -185,7 +185,7 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "seated leg curl": { muscles: [...primary("hamstrings"), ...minor("calves")], scoring: standard("legCurl"), loadBasis: "stack" },
   // Single-leg machine: logged weight is per leg, hence the 0.5 factor.
   "standing leg curl": { muscles: [...primary("hamstrings"), ...minor("calves")], scoring: proxy("legCurl", 0.5), loadBasis: "stack" },
-  "hack squat": { muscles: [...primary("quads"), ...secondary("glutes")], scoring: proxy("legPress", 0.6), ...SQUAT },
+  "hack squat": { muscles: [...primary("quads"), ...secondary("glutes")], scoring: proxy("legPress", 0.6), ...SQUAT, loadBasis: "plates" },
   "good morning": { muscles: [...primary("hamstrings", "lowerBack"), ...secondary("glutes")], scoring: proxy("deadlift", 0.55), ...HINGE },
   "forward lunge": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6), ...SPLIT },
   "hip abduction machine": { muscles: primary("glutes"), scoring: proxy("squat", 0.6), bodyweightFraction: 0, loadBasis: "stack" },
@@ -203,11 +203,11 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "close-grip bench": { muscles: [...primary("triceps"), ...secondary("midLowerChest", "frontDelts")], scoring: proxy("bench", 0.9) },
   "dumbbell fly": { muscles: [...primary("midLowerChest"), ...secondary("upperChest", "frontDelts")], scoring: proxy("bench", 0.25) },
   "cable fly": { muscles: [...primary("midLowerChest"), ...secondary("upperChest", "frontDelts")], scoring: proxy("bench", 0.25), loadBasis: "stack" },
-  "pec deck": { muscles: [...primary("midLowerChest"), ...secondary("upperChest", "frontDelts")], scoring: proxy("bench", 0.6) },
+  "pec deck": { muscles: [...primary("midLowerChest"), ...secondary("upperChest", "frontDelts")], scoring: proxy("bench", 0.6), loadBasis: "stack" },
 
   // ---- Back, traps, rear delts ----
   "shrugs": { muscles: [...primary("traps"), ...minor("forearms")], scoring: proxy("deadlift", 0.9) },
-  "t-bar row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps", "lowerBack")], scoring: proxy("row", 0.9) },
+  "t-bar row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps", "lowerBack")], scoring: proxy("row", 0.9), loadBasis: "plates" },
   "one-arm dumbbell row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps")], scoring: proxy("row", 0.5) },
   "chest-supported row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps")], scoring: proxy("row", 0.85) },
   // Lat pulldown stays the primary lat lift, so a pullover only gives lats secondary credit.

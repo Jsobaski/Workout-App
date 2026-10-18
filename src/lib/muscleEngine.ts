@@ -7,6 +7,7 @@ import { shiftDateKey } from "./date";
 import { BodyMapRegion } from "./bodyMapGeometry";
 import { MUSCLE_GROUPS, MuscleGroupId } from "./muscleTaxonomy";
 import { ExerciseMapping } from "./exerciseMuscleMap";
+import { liftGroupMap } from "./liftGroups";
 import {
   ExerciseSettingsData,
   ResolvedExerciseConfig,
@@ -21,6 +22,8 @@ import {
   LIFT_FAMILY_STANDARDS,
   MUSCLE_TIERS,
   MuscleTier,
+  PROVISIONAL_CAP_EPSILON,
+  PROVISIONAL_MIN_SESSIONS,
   SECONDARY_CAP_FRACTION,
   SECONDARY_ONLY_CAP,
   UNRATED_COLOR,
@@ -47,6 +50,8 @@ export interface BestLift {
 /** One load-scored exercise's standing for one muscle — the unit used for like-for-like comparisons. */
 export interface ExerciseScoreSnapshot {
   key: string;
+  /** Lift group (see liftGroups.ts): exercises that are automatically treated as the same lift share it. */
+  groupKey: string;
   name: string;
   /** This exercise's contribution weight to the muscle (1.0 primary, 0.4 secondary, 0.15 minor). */
   weight: number;
@@ -63,8 +68,14 @@ export interface MuscleStats {
   hasAnyData: boolean;
   /** Lifetime-best composite score on the displayed 0-100 scale (soft-capped, so 100 is effectively unreachable). Null when hasAnyData is false. */
   peak: number | null;
-  /** Peak decayed for recency — what actually drives the tier/color. */
+  /** Peak decayed for recency — what actually drives the tier/color. Held below the computed tier while provisional. */
   effective: number | null;
+  /** True when the score comes solely from one lift group logged on fewer than PROVISIONAL_MIN_SESSIONS days. */
+  provisional: boolean;
+  /** Distinct days the leading lift group has been logged (including grouped exercises); null when not applicable. */
+  provisionalSessions: number | null;
+  /** The effective score before any provisional cap. */
+  uncappedEffective: number | null;
   /** Uncapped versions of peak/effective: keep climbing past 100 so progress stays visible. */
   peakRaw: number | null;
   effectiveRaw: number | null;
@@ -201,6 +212,18 @@ export function computeMuscleEngine(
     if (!current || r.entry.dateKey > current) lastMeaningfulByExercise.set(r.cfg.key, r.entry.dateKey);
   }
 
+  // Automatic lift grouping: grouped exercises share history (distinct days
+  // logged), so a lift you switch to inherits the group's track record.
+  const groupOf = liftGroupMap(settings);
+  const groupKeyOf = (key: string) => groupOf.get(key) ?? key;
+  const groupDates = new Map<string, Set<string>>();
+  for (const { entry, cfg } of resolved) {
+    const g = groupKeyOf(cfg.key);
+    if (!groupDates.has(g)) groupDates.set(g, new Set());
+    groupDates.get(g)!.add(entry.dateKey);
+  }
+  const sessionsOf = (group: string) => groupDates.get(group)?.size ?? 0;
+
   const windowStart = shiftDateKey(asOfDateKey, -VOLUME_BONUS_WINDOW_DAYS);
   const statsByGroup = {} as Record<MuscleGroupId, MuscleStats>;
 
@@ -210,6 +233,7 @@ export function computeMuscleEngine(
     let bestPrimaryScore = 0;
     let bestSecondaryScore = 0;
     let bestLift: BestLift | null = null;
+    let bestLiftKey: string | null = null;
     let lastPrimary: string | null = null;
     let lastPrimaryRestricted: string | null = null;
     let lastPrimaryAllowed: string | null = null;
@@ -271,6 +295,7 @@ export function computeMuscleEngine(
       const lastDateKey = lastMeaningfulByExercise.get(cfg.key) ?? null;
       exerciseScores.set(cfg.key, {
         key: cfg.key,
+        groupKey: groupKeyOf(cfg.key),
         name: cfg.displayName,
         weight: contribution.weight,
         e1RM: scoredE1RM,
@@ -281,6 +306,7 @@ export function computeMuscleEngine(
       if (isPrimary) {
         if (bestLift == null || weighted > bestPrimaryScore) {
           bestPrimaryScore = weighted;
+          bestLiftKey = cfg.key;
           bestLift = { exerciseName: best.name, e1RM: scoredE1RM, dateKey: best.bestE1RMDateKey };
         }
       } else if (weighted > bestSecondaryScore) {
@@ -294,6 +320,9 @@ export function computeMuscleEngine(
         hasAnyData: false,
         peak: null,
         effective: null,
+        provisional: false,
+        provisionalSessions: null,
+        uncappedEffective: null,
         peakRaw: null,
         effectiveRaw: null,
         scoringBasis: null,
@@ -322,7 +351,7 @@ export function computeMuscleEngine(
     // of a small top-up.
     const bonusMax = hasLoadablePrimary ? VOLUME_BONUS_MAX_POINTS : 70;
     const peakRaw = bestWeightedLiftScore + volumeConsistencyBonus(weightedDays, VOLUME_BONUS_TARGET_SESSIONS, bonusMax);
-    const peak = softCapScore(peakRaw);
+    let peak = softCapScore(peakRaw);
 
     // Decay clock runs off "days since last meaningful *primary* stimulus"
     // rather than a separate "days since the single best-ever lift" concept,
@@ -343,7 +372,31 @@ export function computeMuscleEngine(
       daysStale != null &&
       daysStale >= staleThresholdDays;
 
-    const effective = pausedRestricted ? peak : applyDecay(peak, daysStale ?? Infinity);
+    let effective = pausedRestricted ? peak : applyDecay(peak, daysStale ?? Infinity);
+    const uncappedEffective = effective;
+
+    // Provisional: the strength score comes solely from one lift group that has
+    // been logged on fewer than PROVISIONAL_MIN_SESSIONS days (grouped exercises
+    // count together, and another established primary lift means it isn't "solely").
+    // The tier is held one level below the computed one until the third session.
+    let provisional = false;
+    let provisionalSessions: number | null = null;
+    if (hasLoadablePrimary && bestLiftKey != null) {
+      const topGroup = groupKeyOf(bestLiftKey);
+      provisionalSessions = sessionsOf(topGroup);
+      const establishedElsewhere = Array.from(exerciseScores.values()).some(
+        (e) => e.weight >= 1 && e.groupKey !== topGroup && sessionsOf(e.groupKey) >= PROVISIONAL_MIN_SESSIONS
+      );
+      provisional = provisionalSessions < PROVISIONAL_MIN_SESSIONS && !establishedElsewhere;
+    }
+    if (provisional) {
+      const computedTier = tierForScore(effective);
+      if (computedTier.minScore > 0) {
+        const cap = computedTier.minScore - PROVISIONAL_CAP_EPSILON;
+        effective = Math.min(effective, cap);
+        peak = Math.min(peak, cap);
+      }
+    }
     const effectiveRaw = pausedRestricted ? peakRaw : peakRaw * decayFactor(daysStale ?? Infinity);
 
     statsByGroup[groupDef.id] = {
@@ -351,6 +404,9 @@ export function computeMuscleEngine(
       hasAnyData: true,
       peak,
       effective,
+      provisional,
+      provisionalSessions,
+      uncappedEffective,
       peakRaw,
       effectiveRaw,
       scoringBasis: hasLoadablePrimary ? "load" : "reps-time",

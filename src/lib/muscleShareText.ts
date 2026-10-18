@@ -11,7 +11,7 @@ import {
   listRestrictedExercises,
 } from "./exerciseSettings";
 import { MOVEMENT_PATTERNS } from "./exerciseMuscleMap";
-import { DEFAULT_STALE_THRESHOLD_DAYS, TREND_WINDOW_DAYS } from "./muscleScoreConfig";
+import { DEFAULT_STALE_THRESHOLD_DAYS, PROVISIONAL_MIN_SESSIONS, TREND_WINDOW_DAYS } from "./muscleScoreConfig";
 import { formatScore } from "./muscleScoreFormat";
 
 const RECENT_DAYS = 14;
@@ -31,7 +31,7 @@ export function formatMuscleSummaryText(opts: {
     bodyweightLb ? `Bodyweight: ${bodyweightLb} lb` : "Bodyweight: not set",
     "Scores are 0-100 (soft-capped, so 100 is hard to reach); 'raw' is the uncapped value. Tiers are decided on the unrounded score (shown with a decimal near a boundary): Needs Work (<20), Developing (20-39), Solid (40-59), Strong (60-79), Elite (80+).",
     `"Stale" = no meaningful primary-muscle training in ${DEFAULT_STALE_THRESHOLD_DAYS}+ days (score decays over time). Secondary credit never resets that clock.`,
-    `Changes are ${TREND_WINDOW_DAYS}-day and like-for-like (same exercise); an equipment change is flagged instead of counted as strength.`,
+    `Changes are ${TREND_WINDOW_DAYS}-day and only shown when the same lift (similar exercises on the same kind of equipment count as one lift) leads both snapshots; otherwise it says "new exercise, no comparison". A score from a lift logged on fewer than ${PROVISIONAL_MIN_SESSIONS} sessions is marked PROVISIONAL and its tier is held one level below the computed one.`,
     "",
     "Muscles:",
   ];
@@ -45,6 +45,7 @@ export function formatMuscleSummaryText(opts: {
       continue;
     }
     const parts = [`${tierForScore(s.effective).label} (${formatScore(s.effective)})`];
+    if (s.provisional) parts.push(`PROVISIONAL: ${s.provisionalSessions ?? 0} of ${PROVISIONAL_MIN_SESSIONS} sessions, tier held one level below computed${s.uncappedEffective != null ? ` (${formatScore(s.uncappedEffective)})` : ""}`);
     if (s.effectiveRaw != null) parts.push(`raw ${Math.round(s.effectiveRaw)}`);
     const change = deltaByGroup[g.id].status === "paused" ? null : describeDeltaStatus(deltaByGroup[g.id]);
     if (change) parts.push(`${change}${deltaByGroup[g.id].delta != null ? ` vs ${TREND_WINDOW_DAYS}d ago` : ""}`);
