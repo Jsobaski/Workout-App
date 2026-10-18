@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import NavBar from "@/components/NavBar";
+import NeutralDefaultsNotice from "@/components/NeutralDefaultsNotice";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -50,7 +51,10 @@ export default function RootLayout({
       <body className="min-h-full bg-neutral-950 text-neutral-100">
         <NavBar />
         <main className="pb-20 sm:pb-6">
-          <div className="mx-auto max-w-2xl px-4 py-4">{children}</div>
+          <div className="mx-auto max-w-2xl px-4 py-4">
+            <NeutralDefaultsNotice />
+            {children}
+          </div>
         </main>
       </body>
     </html>

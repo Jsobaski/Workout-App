@@ -1,5 +1,5 @@
 import { FoodEntry, WorkoutEntry } from "./types";
-import { ExerciseSettingsOverrides, effectiveLoadForSet, resolveExerciseConfig } from "./exerciseSettings";
+import { ExerciseSettingsData, effectiveLoadForSet, resolveExerciseConfig } from "./exerciseSettings";
 import { BODYWEIGHT_FALLBACK_LB, DEFAULT_BODYWEIGHT_FRACTION } from "./muscleScoreConfig";
 
 export interface DayNutritionTotals {
@@ -26,7 +26,7 @@ export interface DayWorkoutSummary {
 
 export interface VolumeOptions {
   bodyweightLb?: number | null;
-  overrides?: ExerciseSettingsOverrides;
+  settings?: ExerciseSettingsData;
 }
 
 /**
@@ -37,7 +37,7 @@ export interface VolumeOptions {
  */
 export function entryVolume(entry: WorkoutEntry, opts: VolumeOptions = {}): number {
   if (entry.timed) return 0;
-  const cfg = resolveExerciseConfig(entry.exerciseName, opts.overrides);
+  const cfg = resolveExerciseConfig(entry.exerciseName, opts.settings);
   const bodyweightLb = opts.bodyweightLb && opts.bodyweightLb > 0 ? opts.bodyweightLb : BODYWEIGHT_FALLBACK_LB;
   return entry.sets.reduce(
     (sum, set) =>

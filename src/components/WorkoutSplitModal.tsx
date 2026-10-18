@@ -23,7 +23,7 @@ interface RowState {
   bodyweight: boolean;
 }
 
-// PT-restricted exercises are shown (so nothing silently disappears from the
+// Restricted exercises are shown (so nothing silently disappears from the
 // split) but are never pre-selected for logging.
 function defaultRow(
   exercise: SplitExercise,
@@ -78,7 +78,7 @@ export default function WorkoutSplitModal({
     let cancelled = false;
     (async () => {
       setLoadingDay(true);
-      const [entries, overrides] = await Promise.all([
+      const [entries, settings] = await Promise.all([
         Promise.all(day.exercises.map((ex) => findLastWorkoutEntryForExercise(ex.name))),
         getExerciseSettings(),
       ]);
@@ -88,7 +88,7 @@ export default function WorkoutSplitModal({
       const initialRows: Record<string, RowState> = {};
       day.exercises.forEach((ex, i) => {
         lastByName[ex.name] = entries[i];
-        configByName[ex.name] = resolveExerciseConfig(ex.name, overrides);
+        configByName[ex.name] = resolveExerciseConfig(ex.name, settings);
         initialRows[ex.name] = defaultRow(ex, entries[i], configByName[ex.name]?.restricted ?? false);
       });
       setConfigs(configByName);
@@ -215,12 +215,12 @@ export default function WorkoutSplitModal({
                         {exercise.name}
                         {configs[exercise.name]?.restricted && (
                           <span className="ml-2 rounded-full bg-sky-950 px-2 py-0.5 text-[10px] font-medium text-sky-300">
-                            {configs[exercise.name]?.restrictionNote ?? "PT restricted"}
+                            {configs[exercise.name]?.restrictionNote ?? "restricted"}
                           </span>
                         )}
-                        {!configs[exercise.name]?.restricted && configs[exercise.name]?.needsPtConfirmation && (
+                        {!configs[exercise.name]?.restricted && configs[exercise.name]?.needsConfirmation && (
                           <span className="ml-2 rounded-full bg-amber-950 px-2 py-0.5 text-[10px] font-medium text-amber-300">
-                            needs PT confirmation
+                            confirm first
                           </span>
                         )}
                       </div>

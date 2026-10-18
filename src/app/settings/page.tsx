@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useCoachingContext } from "@/hooks/useCoachingContext";
 import { buildBackup, downloadBackup, restoreBackup } from "@/lib/backup";
-import ExerciseSettingsEditor from "@/components/ExerciseSettingsEditor";
+import ExerciseMergeTool from "@/components/ExerciseMergeTool";
+import ExercisePreferences from "@/components/ExercisePreferences";
 import { clearSavedPin, getSavedPin, setSavedPin, verifyPin } from "@/lib/appPin";
 
 const ACTIVITY_LEVELS = [
@@ -125,7 +126,7 @@ export default function SettingsPage() {
           onChange={(e) => field("goals", e.target.value)}
           rows={3}
           className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
-          placeholder="e.g. body recomposition, rotational/hip power for golf, fix early extension"
+          placeholder="e.g. build strength, improve mobility, train for an upcoming event"
         />
       </FormSection>
 
@@ -187,7 +188,7 @@ export default function SettingsPage() {
           onChange={(e) => field("injuryNotes", e.target.value)}
           rows={3}
           className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
-          placeholder="e.g. neck sensitivity during Pallof press"
+          placeholder="e.g. shoulder pain overhead, knee sensitivity on deep squats"
         />
       </FormSection>
 
@@ -239,10 +240,14 @@ export default function SettingsPage() {
       </FormSection>
 
       <div id="exercise-settings">
-        <FormSection title="Exercise settings">
-          <ExerciseSettingsEditor />
+        <FormSection title="Exercise preferences">
+          <ExercisePreferences />
         </FormSection>
       </div>
+
+      <FormSection title="Merge duplicate exercises">
+        <ExerciseMergeTool />
+      </FormSection>
 
       <FormSection title="AI Features">
         <p className="mb-3 text-xs text-neutral-500">

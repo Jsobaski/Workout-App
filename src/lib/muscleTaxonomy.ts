@@ -27,28 +27,26 @@ export interface MuscleGroupDef {
    * render into "upper-back" (no distinct lats region) — both views and
    * front/back */
   visualRegions: { front?: BodyMapRegion; back?: BodyMapRegion };
-  /** Golf-relevant areas get a small boost in the weekly focus ranking. */
-  golfRelevant: boolean;
 }
 
 export const MUSCLE_GROUPS: MuscleGroupDef[] = [
-  { id: "frontDelts", label: "Front Delts", visualRegions: { front: "front-deltoids" }, golfRelevant: false },
-  { id: "sideRearDelts", label: "Side/Rear Delts", visualRegions: { back: "back-deltoids" }, golfRelevant: false },
-  { id: "upperChest", label: "Upper Chest", visualRegions: { front: "chest" }, golfRelevant: false },
-  { id: "midLowerChest", label: "Mid/Lower Chest", visualRegions: { front: "chest" }, golfRelevant: false },
-  { id: "biceps", label: "Biceps", visualRegions: { front: "biceps" }, golfRelevant: false },
-  { id: "triceps", label: "Triceps", visualRegions: { front: "triceps", back: "triceps" }, golfRelevant: false },
-  { id: "forearms", label: "Forearms", visualRegions: { front: "forearm", back: "forearm" }, golfRelevant: true },
-  { id: "abs", label: "Abs", visualRegions: { front: "abs" }, golfRelevant: true },
-  { id: "obliques", label: "Obliques", visualRegions: { front: "obliques" }, golfRelevant: true },
-  { id: "quads", label: "Quads", visualRegions: { front: "quadriceps" }, golfRelevant: false },
-  { id: "hamstrings", label: "Hamstrings", visualRegions: { back: "hamstring" }, golfRelevant: false },
-  { id: "glutes", label: "Glutes", visualRegions: { back: "gluteal" }, golfRelevant: true },
-  { id: "calves", label: "Calves", visualRegions: { front: "calves", back: "calves" }, golfRelevant: false },
-  { id: "lats", label: "Lats", visualRegions: { back: "upper-back" }, golfRelevant: true },
-  { id: "traps", label: "Traps", visualRegions: { back: "trapezius" }, golfRelevant: false },
-  { id: "upperBack", label: "Upper Back", visualRegions: { back: "upper-back" }, golfRelevant: false },
-  { id: "lowerBack", label: "Lower Back", visualRegions: { back: "lower-back" }, golfRelevant: false },
+  { id: "frontDelts", label: "Front Delts", visualRegions: { front: "front-deltoids" } },
+  { id: "sideRearDelts", label: "Side/Rear Delts", visualRegions: { back: "back-deltoids" } },
+  { id: "upperChest", label: "Upper Chest", visualRegions: { front: "chest" } },
+  { id: "midLowerChest", label: "Mid/Lower Chest", visualRegions: { front: "chest" } },
+  { id: "biceps", label: "Biceps", visualRegions: { front: "biceps" } },
+  { id: "triceps", label: "Triceps", visualRegions: { front: "triceps", back: "triceps" } },
+  { id: "forearms", label: "Forearms", visualRegions: { front: "forearm", back: "forearm" } },
+  { id: "abs", label: "Abs", visualRegions: { front: "abs" } },
+  { id: "obliques", label: "Obliques", visualRegions: { front: "obliques" } },
+  { id: "quads", label: "Quads", visualRegions: { front: "quadriceps" } },
+  { id: "hamstrings", label: "Hamstrings", visualRegions: { back: "hamstring" } },
+  { id: "glutes", label: "Glutes", visualRegions: { back: "gluteal" } },
+  { id: "calves", label: "Calves", visualRegions: { front: "calves", back: "calves" } },
+  { id: "lats", label: "Lats", visualRegions: { back: "upper-back" } },
+  { id: "traps", label: "Traps", visualRegions: { back: "trapezius" } },
+  { id: "upperBack", label: "Upper Back", visualRegions: { back: "upper-back" } },
+  { id: "lowerBack", label: "Lower Back", visualRegions: { back: "lower-back" } },
 ];
 
 export function muscleGroup(id: MuscleGroupId): MuscleGroupDef {

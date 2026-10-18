@@ -20,7 +20,7 @@ import {
   GolfActivityEntry,
   WorkoutEntry,
 } from "./types";
-import type { ExerciseSettingsOverrides } from "./exerciseSettings";
+import { ExerciseSettingsData, normalizeExerciseSettings } from "./exerciseSettings";
 
 interface BackupFoodEntry extends Omit<FoodEntry, "photoThumbnail"> {
   photoThumbnail?: { dataUrl: string; type: string };
@@ -34,8 +34,8 @@ export interface BackupData {
   golfActivityEntries?: GolfActivityEntry[];
   measurementEntries?: BodyMeasurementEntry[];
   coachingContext: CoachingContext;
-  /** Per-exercise load multipliers / PT restrictions. Absent in older exports. */
-  exerciseSettings?: ExerciseSettingsOverrides;
+  /** Local exercise settings (overrides, restricted patterns, priority muscles). Older exports used a bare overrides map. */
+  exerciseSettings?: ExerciseSettingsData | Record<string, unknown>;
 }
 
 export async function buildBackup(): Promise<BackupData> {
@@ -136,7 +136,7 @@ export async function restoreBackup(
   }
 
   if (data.exerciseSettings) {
-    await saveExerciseSettings(data.exerciseSettings);
+    await saveExerciseSettings(normalizeExerciseSettings(data.exerciseSettings));
   }
 
   return {

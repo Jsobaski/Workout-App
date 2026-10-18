@@ -1,36 +1,107 @@
-// Per-exercise scoring/safety settings: built-in defaults live on each
-// ExerciseMapping; the user's edits are stored as sparse overrides (keyed by
-// canonical exercise key) and merged on top here. Pure — no DB or React.
+// Per-device exercise settings. The shared exercise library (exerciseMuscleMap.ts)
+// is neutral: nothing is restricted, flagged, load-adjusted or tagged as a
+// priority. Everything personal lives here as local overrides stored in this
+// device's IndexedDB: per-exercise overrides, movement-pattern restrictions and
+// priority muscles. Pure — no DB or React.
 import {
   EXERCISE_MUSCLE_MAP,
   ExerciseMapping,
   LoadBasis,
+  MOVEMENT_PATTERNS,
+  MovementPattern,
   canonicalExerciseKey,
   exerciseDisplayName,
 } from "./exerciseMuscleMap";
 import { DEFAULT_BODYWEIGHT_FRACTION } from "./muscleScoreConfig";
-import type { MuscleGroupId } from "./muscleTaxonomy";
+import { MUSCLE_GROUPS, MuscleGroupId } from "./muscleTaxonomy";
 
 export interface ExerciseSettingOverride {
+  /** logged weight x this = effective load. Unset -> 1.0. Manual only — nothing adjusts it automatically. */
   loadMultiplier?: number;
   loadBasis?: LoadBasis;
   bodyweightFraction?: number;
-  /** PT restriction: never suggested; can pause decay when the muscle has no allowed exercise. */
+  /** true = restricted, false = explicitly allowed (wins over a restricted pattern), unset = follow the pattern. */
   restricted?: boolean;
   restrictionNote?: string;
-  needsPtConfirmation?: boolean;
-  /** The user's own call: never suggested, but not a PT restriction. */
-  selfRestricted?: boolean;
-  /** Auto-calibrate a machine lift against its free-weight anchor (default on). */
-  calibrate?: boolean;
+  /** Per-exercise limit like "2x10": shown on suggestion chips, and suggestions never go beyond it. */
+  limit?: string;
+  /** Show a "confirm first" flag on suggestions of this exercise. */
+  needsConfirmation?: boolean;
 }
 
 export type ExerciseSettingsOverrides = Record<string, ExerciseSettingOverride>;
 
+/** A restricted movement pattern (presence = restricted); applies to every tagged exercise and its aliases. */
+export type PatternRestrictions = Partial<Record<MovementPattern, { note?: string }>>;
+
+/** Everything this device knows about the user's exercise preferences. */
+export interface ExerciseSettingsData {
+  overrides: ExerciseSettingsOverrides;
+  patterns: PatternRestrictions;
+  /** Muscles the user has tagged as priorities (e.g. relevant to their sport). Default: none. */
+  focusMuscles: MuscleGroupId[];
+}
+
 /** Shape persisted in the IndexedDB `settings` store. */
 export interface ExerciseSettingsRecord {
   key: "exerciseSettings";
-  overrides: ExerciseSettingsOverrides;
+  overrides?: ExerciseSettingsOverrides;
+  patterns?: PatternRestrictions;
+  focusMuscles?: MuscleGroupId[];
+}
+
+export function emptyExerciseSettings(): ExerciseSettingsData {
+  return { overrides: {}, patterns: {}, focusMuscles: [] };
+}
+
+const MUSCLE_IDS = new Set<string>(MUSCLE_GROUPS.map((g) => g.id));
+const PATTERN_IDS = new Set<string>(MOVEMENT_PATTERNS.map((p) => p.id));
+
+/**
+ * Reads whatever was stored (including older shapes) into the current shape:
+ * keys are moved onto canonical exercise keys (brand/variant names -> generic
+ * entries), the retired "selfRestricted"/"needsPtConfirmation"/"calibrate"
+ * fields are mapped or dropped, and unknown patterns/muscles are ignored.
+ */
+export function normalizeExerciseSettings(raw: unknown): ExerciseSettingsData {
+  const result = emptyExerciseSettings();
+  if (!raw || typeof raw !== "object") return result;
+  const record = raw as Record<string, unknown>;
+  // Older backups stored the bare overrides map.
+  const looksLegacyBare = !("overrides" in record) && !("patterns" in record) && !("focusMuscles" in record) && !("key" in record);
+  const rawOverrides = (looksLegacyBare ? record : record.overrides) as Record<string, Record<string, unknown>> | undefined;
+
+  for (const [rawKey, value] of Object.entries(rawOverrides ?? {})) {
+    if (!value || typeof value !== "object") continue;
+    const key = canonicalExerciseKey(rawKey) ?? rawKey.trim().toLowerCase();
+    const next: ExerciseSettingOverride = { ...result.overrides[key] };
+    const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+    if (num(value.loadMultiplier) != null) next.loadMultiplier = num(value.loadMultiplier);
+    if (num(value.bodyweightFraction) != null) next.bodyweightFraction = num(value.bodyweightFraction);
+    if (typeof value.loadBasis === "string") next.loadBasis = value.loadBasis as LoadBasis;
+    if (typeof value.restricted === "boolean") next.restricted = value.restricted;
+    if (typeof value.restrictionNote === "string" && value.restrictionNote.trim()) next.restrictionNote = value.restrictionNote.trim();
+    if (typeof value.limit === "string" && value.limit.trim()) next.limit = value.limit.trim();
+    const confirm = value.needsConfirmation ?? value.needsPtConfirmation;
+    if (typeof confirm === "boolean") next.needsConfirmation = confirm;
+    if (value.selfRestricted === true && next.restricted === undefined) {
+      next.restricted = true;
+      next.restrictionNote = next.restrictionNote ?? "Self-restricted";
+    }
+    if (Object.keys(next).length > 0) result.overrides[key] = next;
+  }
+
+  const rawPatterns = record.patterns as Record<string, { note?: unknown }> | undefined;
+  for (const [id, value] of Object.entries(rawPatterns ?? {})) {
+    if (!PATTERN_IDS.has(id) || !value) continue;
+    const note = typeof value.note === "string" && value.note.trim() ? value.note.trim() : undefined;
+    result.patterns[id as MovementPattern] = note ? { note } : {};
+  }
+
+  if (Array.isArray(record.focusMuscles)) {
+    result.focusMuscles = record.focusMuscles.filter((m): m is MuscleGroupId => typeof m === "string" && MUSCLE_IDS.has(m));
+  }
+  return result;
 }
 
 export interface ResolvedExerciseConfig {
@@ -42,42 +113,70 @@ export interface ResolvedExerciseConfig {
   loadBasis: LoadBasis;
   bodyweightFraction: number;
   restricted: boolean;
+  /** Where the restriction comes from: this exercise's own override, or a restricted movement pattern. */
+  restrictionSource: "exercise" | "pattern" | null;
   restrictionNote?: string;
-  needsPtConfirmation: boolean;
-  selfRestricted: boolean;
-  /** Anchor canonical key, only when auto-calibration is on for this exercise. */
-  calibrationAnchor?: string;
-  /** The mapping defines an anchor (whether or not the user turned calibration off). */
-  hasCalibrationAnchor: boolean;
+  limit?: string;
+  needsConfirmation: boolean;
 }
 
-export function resolveConfigForKey(key: string, overrides?: ExerciseSettingsOverrides): ResolvedExerciseConfig | null {
+function patternRestriction(
+  mapping: ExerciseMapping,
+  patterns: PatternRestrictions | undefined
+): { note: string } | null {
+  for (const id of mapping.patterns ?? []) {
+    const hit = patterns?.[id];
+    if (hit) {
+      const def = MOVEMENT_PATTERNS.find((p) => p.id === id)!;
+      return { note: hit.note ?? `${def.label} restricted` };
+    }
+  }
+  return null;
+}
+
+export function resolveConfigForKey(key: string, settings?: ExerciseSettingsData): ResolvedExerciseConfig | null {
   const mapping = EXERCISE_MUSCLE_MAP[key];
   if (!mapping) return null;
-  const o = overrides?.[key];
+  const o = settings?.overrides[key];
+
+  // Per-exercise overrides win over the pattern (restricted: false = "allowed anyway").
+  let restricted = false;
+  let restrictionSource: ResolvedExerciseConfig["restrictionSource"] = null;
+  let restrictionNote: string | undefined;
+  if (o?.restricted !== undefined) {
+    restricted = o.restricted;
+    if (restricted) {
+      restrictionSource = "exercise";
+      restrictionNote = o.restrictionNote;
+    }
+  } else {
+    const hit = patternRestriction(mapping, settings?.patterns);
+    if (hit) {
+      restricted = true;
+      restrictionSource = "pattern";
+      restrictionNote = o?.restrictionNote ?? hit.note;
+    }
+  }
+
   return {
     key,
     displayName: exerciseDisplayName(key),
     mapping,
-    loadMultiplier: o?.loadMultiplier ?? mapping.loadMultiplier ?? 1,
+    loadMultiplier: o?.loadMultiplier ?? 1,
     loadBasis: o?.loadBasis ?? mapping.loadBasis ?? "total",
     bodyweightFraction: o?.bodyweightFraction ?? mapping.bodyweightFraction ?? DEFAULT_BODYWEIGHT_FRACTION,
-    restricted: o?.restricted ?? mapping.restricted ?? false,
-    restrictionNote: o?.restrictionNote ?? mapping.restrictionNote,
-    needsPtConfirmation: o?.needsPtConfirmation ?? mapping.needsPtConfirmation ?? false,
-    selfRestricted: o?.selfRestricted ?? mapping.selfRestricted ?? false,
-    calibrationAnchor: (o?.calibrate ?? true) ? mapping.calibrationAnchor : undefined,
-    hasCalibrationAnchor: mapping.calibrationAnchor != null,
+    restricted,
+    restrictionSource,
+    restrictionNote,
+    limit: o?.limit,
+    needsConfirmation: o?.needsConfirmation ?? false,
   };
 }
 
 /** Resolved settings for a logged exercise name, or null when it isn't mapped. */
-export function resolveExerciseConfig(
-  exerciseName: string,
-  overrides?: ExerciseSettingsOverrides
-): ResolvedExerciseConfig | null {
+export function resolveExerciseConfig(exerciseName: string, settings?: ExerciseSettingsData): ResolvedExerciseConfig | null {
   const key = canonicalExerciseKey(exerciseName);
-  return key ? resolveConfigForKey(key, overrides) : null;
+  return key ? resolveConfigForKey(key, settings) : null;
 }
 
 /**
@@ -93,57 +192,75 @@ export function effectiveLoadForSet(
   return opts.isBodyweight ? opts.bodyweightLb * opts.bodyweightFraction + added : added;
 }
 
-/** Excluded from every suggestion surface: PT-restricted or self-restricted. */
-export function isExerciseRestricted(exerciseName: string, overrides?: ExerciseSettingsOverrides): boolean {
-  const cfg = resolveExerciseConfig(exerciseName, overrides);
-  return cfg ? cfg.restricted || cfg.selfRestricted : false;
+/** True when the user has restricted anything at all (an exercise or a pattern). With none, nothing is filtered or flagged. */
+export function hasAnyRestrictions(settings?: ExerciseSettingsData): boolean {
+  if (!settings) return false;
+  if (Object.keys(settings.patterns).length > 0) return true;
+  return Object.values(settings.overrides).some((o) => o.restricted === true);
+}
+
+/** Excluded from suggestions: restricted by this exercise's override or by a restricted pattern. */
+export function isExerciseRestricted(exerciseName: string, settings?: ExerciseSettingsData): boolean {
+  return resolveExerciseConfig(exerciseName, settings)?.restricted ?? false;
 }
 
 export interface RestrictionInfo {
   name: string;
   note?: string;
-  kind: "pt" | "self";
+  source: "exercise" | "pattern";
 }
 
-/** Every canonical exercise currently excluded from suggestions (PT-restricted or self-restricted). */
-export function listRestrictedExercises(overrides?: ExerciseSettingsOverrides): RestrictionInfo[] {
+/** Every canonical exercise currently excluded from suggestions. Empty when the user restricted nothing. */
+export function listRestrictedExercises(settings?: ExerciseSettingsData): RestrictionInfo[] {
   const result: RestrictionInfo[] = [];
   for (const key of Object.keys(EXERCISE_MUSCLE_MAP)) {
-    const cfg = resolveConfigForKey(key, overrides);
-    if (!cfg) continue;
-    if (cfg.restricted) result.push({ name: cfg.displayName, note: cfg.restrictionNote, kind: "pt" });
-    else if (cfg.selfRestricted) result.push({ name: cfg.displayName, note: cfg.restrictionNote ?? "Self-restricted", kind: "self" });
+    const cfg = resolveConfigForKey(key, settings);
+    if (cfg?.restricted && cfg.restrictionSource) {
+      result.push({ name: cfg.displayName, note: cfg.restrictionNote, source: cfg.restrictionSource });
+    }
   }
   return result;
 }
 
-/** Every canonical exercise flagged "needs PT confirmation" (and not restricted). */
-export function listNeedsPtConfirmation(overrides?: ExerciseSettingsOverrides): string[] {
+export interface LimitInfo {
+  name: string;
+  limit: string;
+}
+
+/** Allowed exercises the user capped (e.g. "2x10"). */
+export function listLimitedExercises(settings?: ExerciseSettingsData): LimitInfo[] {
+  const result: LimitInfo[] = [];
+  for (const key of Object.keys(EXERCISE_MUSCLE_MAP)) {
+    const cfg = resolveConfigForKey(key, settings);
+    if (cfg && !cfg.restricted && cfg.limit) result.push({ name: cfg.displayName, limit: cfg.limit });
+  }
+  return result;
+}
+
+/** Exercises the user flagged "confirm first" (and that aren't restricted). */
+export function listNeedsConfirmation(settings?: ExerciseSettingsData): string[] {
   const result: string[] = [];
   for (const key of Object.keys(EXERCISE_MUSCLE_MAP)) {
-    const cfg = resolveConfigForKey(key, overrides);
-    if (cfg && cfg.needsPtConfirmation && !cfg.restricted && !cfg.selfRestricted) result.push(cfg.displayName);
+    const cfg = resolveConfigForKey(key, settings);
+    if (cfg && cfg.needsConfirmation && !cfg.restricted) result.push(cfg.displayName);
   }
   return result;
 }
 
-/**
- * Non-hidden, non-restricted exercises that train `group` directly (primary
- * credit). "Needs PT confirmation" exercises count as allowed.
- */
-export function allowedPrimaryExercises(group: MuscleGroupId, overrides?: ExerciseSettingsOverrides): string[] {
+/** Non-hidden, non-restricted exercises that train `group` directly (primary credit). */
+export function allowedPrimaryExercises(group: MuscleGroupId, settings?: ExerciseSettingsData): string[] {
   const result: string[] = [];
   for (const [key, mapping] of Object.entries(EXERCISE_MUSCLE_MAP)) {
     if (mapping.hidden) continue;
     const contribution = mapping.muscles.find((m) => m.group === group);
     if (!contribution || contribution.weight < 1.0) continue;
-    const cfg = resolveConfigForKey(key, overrides);
-    if (cfg && !cfg.restricted && !cfg.selfRestricted) result.push(cfg.displayName);
+    const cfg = resolveConfigForKey(key, settings);
+    if (cfg && !cfg.restricted) result.push(cfg.displayName);
   }
   return result;
 }
 
 /** A muscle's decay is "paused" only when it has no allowed exercise at all. */
-export function groupHasAllowedExercise(group: MuscleGroupId, overrides?: ExerciseSettingsOverrides): boolean {
-  return allowedPrimaryExercises(group, overrides).length > 0;
+export function groupHasAllowedExercise(group: MuscleGroupId, settings?: ExerciseSettingsData): boolean {
+  return allowedPrimaryExercises(group, settings).length > 0;
 }

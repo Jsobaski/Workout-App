@@ -5,6 +5,7 @@ import { MuscleGroupId, muscleGroup } from "@/lib/muscleTaxonomy";
 import { MuscleStats, tierForScore } from "@/lib/muscleEngine";
 import { formatShortDate } from "@/lib/date";
 import { MuscleDelta, describeDeltaStatus } from "@/lib/muscleComparison";
+import { formatScore } from "@/lib/muscleScoreFormat";
 import { TREND_WINDOW_DAYS } from "@/lib/muscleScoreConfig";
 
 export default function MuscleDetailPanel({
@@ -51,9 +52,9 @@ export default function MuscleDetailPanel({
                 />
                 <span className="text-sm font-medium text-neutral-100">{tier.label}</span>
                 <span className="text-xs text-neutral-500">
-                  {Math.round(stats.effective!)} / 100 effective
-                  {stats.peak != null && Math.round(stats.peak) !== Math.round(stats.effective!) && (
-                    <> &middot; peak {Math.round(stats.peak)}</>
+                  {formatScore(stats.effective!)} / 100 effective
+                  {stats.peak != null && formatScore(stats.peak) !== formatScore(stats.effective!) && (
+                    <> &middot; peak {formatScore(stats.peak)}</>
                   )}
                   {stats.effectiveRaw != null && stats.effectiveRaw > 100 && (
                     <> &middot; raw {Math.round(stats.effectiveRaw)} (uncapped)</>

@@ -2,14 +2,9 @@ import { describe, expect, it } from "vitest";
 import { computeMuscleEngine, tierForScore } from "./muscleEngine";
 import { compareSnapshots, describeDelta, pluralize } from "./muscleComparison";
 import { buildFocusList } from "./muscleFocus";
-import { EXERCISE_ALIASES, EXERCISE_MUSCLE_MAP, canonicalExerciseKey, exercisesForMuscle, suggestExercisesForMuscle } from "./exerciseMuscleMap";
-import {
-  allowedPrimaryExercises,
-  groupHasAllowedExercise,
-  listNeedsPtConfirmation,
-  listRestrictedExercises,
-  resolveExerciseConfig,
-} from "./exerciseSettings";
+import { EXERCISE_ALIASES, EXERCISE_MUSCLE_MAP, canonicalExerciseKey } from "./exerciseMuscleMap";
+import { exercisesForMuscle } from "./exerciseSuggestions";
+import { emptyExerciseSettings, resolveExerciseConfig } from "./exerciseSettings";
 import { entryVolume, workoutSummary } from "./aggregate";
 import { ratioToUncappedScore, softCapScore } from "./muscleScoring";
 import { LIFT_FAMILY_STANDARDS } from "./muscleScoreConfig";
@@ -92,92 +87,46 @@ describe("bodyweight credit", () => {
   });
 });
 
-describe("load multiplier", () => {
-  const press = [make("1", "2026-10-15", "Nautilus Leverage Chest Press", [{ reps: 8, weight: 100 }])];
+const withOverrides = (overrides: Record<string, object>) => ({ ...emptyExerciseSettings(), overrides });
 
-  it("converts logged weight to an effective load before scoring", () => {
+describe("load multiplier (manual only)", () => {
+  const press = [make("1", "2026-10-15", "Chest Press Machine", [{ reps: 8, weight: 100 }])];
+
+  it("defaults to 1.0 for every exercise in the shared library", () => {
+    for (const key of Object.keys(EXERCISE_MUSCLE_MAP)) {
+      expect(resolveExerciseConfig(key)!.loadMultiplier, key).toBe(1);
+    }
+  });
+
+  it("a manual multiplier converts logged weight to an effective load before scoring", () => {
     const base = computeMuscleEngine(press, BW, TODAY);
-    const scaled = computeMuscleEngine(press, BW, TODAY, undefined, { "nautilus leverage chest press": { loadMultiplier: 1.5 } });
+    const scaled = computeMuscleEngine(press, BW, TODAY, undefined, withOverrides({ "chest press machine": { loadMultiplier: 1.5 } }));
     expect(scaled.statsByGroup.midLowerChest.bestLift!.e1RM).toBeCloseTo(base.statsByGroup.midLowerChest.bestLift!.e1RM * 1.5, 5);
   });
 
-  it("is editable via overrides and flows into total volume", () => {
-    const overrides = { "nautilus leverage chest press": { loadMultiplier: 2 } };
-    expect(entryVolume(press[0], { bodyweightLb: BW, overrides })).toBe(8 * 100 * 2);
-    expect(resolveExerciseConfig("Nautilus Leverage Chest Press", overrides)!.loadMultiplier).toBe(2);
+  it("flows into total volume", () => {
+    const settings = withOverrides({ "chest press machine": { loadMultiplier: 2 } });
+    expect(entryVolume(press[0], { bodyweightLb: BW, settings })).toBe(8 * 100 * 2);
+    expect(entryVolume(press[0], { bodyweightLb: BW })).toBe(8 * 100);
   });
 
-  it("plate-loaded chest presses are back to 1.0; cable stacks assume no 2:1 pulley", () => {
-    for (const name of ["Nautilus Leverage Chest Press", "Nautilus Leverage Incline Chest Press"]) {
-      const cfg = resolveExerciseConfig(name)!;
-      expect(cfg.loadMultiplier, name).toBe(1);
-      expect(cfg.loadBasis, name).toBe("plates");
+  it("branded machine names resolve to generic exercises, with no brand-specific adjustment", () => {
+    for (const [brand, generic] of [
+      ["Nautilus Leverage Chest Press", "chest press machine"],
+      ["Hoist preacher curl machine", "preacher curl machine"],
+      ["Nautilus Impact Tricep Extension", "tricep extension machine"],
+      ["Deltoid raise machine", "lateral raise machine"],
+    ]) {
+      expect(canonicalExerciseKey(brand), brand).toBe(generic);
+      expect(resolveExerciseConfig(brand)!.loadMultiplier, brand).toBe(1);
     }
-    for (const name of ["cable rows", "cable face pulls", "Lat Pulldown"]) {
-      const cfg = resolveExerciseConfig(name)!;
-      expect(cfg.loadMultiplier, name).toBe(1);
-      expect(cfg.loadBasis, name).toBe("stack");
-    }
+    expect(Object.keys(EXERCISE_MUSCLE_MAP).filter((k) => /nautilus|hoist/.test(k))).toEqual([]);
   });
 
-  it("the cable row multiplier is editable", () => {
-    const rows = [make("1", "2026-10-15", "Cable Rows", [{ reps: 10, weight: 120 }])];
-    const base = computeMuscleEngine(rows, BW, TODAY).statsByGroup.upperBack.bestLift!.e1RM;
-    const halved = computeMuscleEngine(rows, BW, TODAY, undefined, { "cable row": { loadMultiplier: 0.5 } }).statsByGroup.upperBack.bestLift!.e1RM;
-    expect(halved).toBeCloseTo(base / 2, 5);
-  });
-
-  it("still seeds the stack machines the user asked for", () => {
-    for (const name of ["Hoist preacher curl machine", "Nautilus Impact Tricep Extension", "Nautilus Impact bicep curl"]) {
-      const cfg = resolveExerciseConfig(name)!;
-      expect(cfg, name).not.toBeNull();
-      expect(cfg.loadBasis, name).toBe("stack");
-    }
-  });
-});
-
-describe("machine calibration", () => {
-  it("scales a machine lift that scores far above its free-weight anchor to within 15 points, and logs the multiplier", () => {
-    const entries = [
-      make("1", "2026-10-10", "DB Bench Press", [{ reps: 8, weight: 40 }]),
-      make("2", "2026-10-15", "Nautilus Leverage Chest Press", [{ reps: 8, weight: 200 }]),
-    ];
-    const result = computeMuscleEngine(entries, BW, TODAY);
-    const log = result.calibrations.find((c) => c.exercise === "Nautilus Leverage Chest Press")!;
-    expect(log.anchor).toBe("DB Bench Press");
-    expect(log.adjusted).toBe(true);
-    expect(log.multiplier).toBeLessThan(1);
-    expect(log.machineScore).toBeGreaterThan(log.anchorScore + 15);
-    expect(log.calibratedScore).toBeCloseTo(log.anchorScore + 15, 3);
-    const chest = result.statsByGroup.midLowerChest;
-    expect(chest.exerciseScores.find((e) => e.key === "nautilus leverage chest press")!.calibrationMultiplier).toBeCloseTo(log.multiplier, 8);
-  });
-
-  it("scales up a machine lift that scores far below its anchor", () => {
-    const entries = [
-      make("1", "2026-10-10", "DB Bench Press", [{ reps: 5, weight: 90 }]),
-      make("2", "2026-10-15", "Nautilus Leverage Chest Press", [{ reps: 8, weight: 20 }]),
-    ];
-    const log = computeMuscleEngine(entries, BW, TODAY).calibrations[0];
-    expect(log.multiplier).toBeGreaterThan(1);
-    expect(log.calibratedScore).toBeCloseTo(log.anchorScore - 15, 3);
-  });
-
-  it("leaves a machine lift alone when it's already within tolerance (multiplier 1.0)", () => {
-    const entries = [
-      make("1", "2026-10-10", "DB Bench Press", [{ reps: 8, weight: 60 }]),
-      make("2", "2026-10-15", "Nautilus Leverage Chest Press", [{ reps: 8, weight: 60 }]),
-    ];
-    const log = computeMuscleEngine(entries, BW, TODAY).calibrations[0];
-    expect(log.adjusted).toBe(false);
-    expect(log.multiplier).toBe(1);
-  });
-
-  it("does nothing without anchor history, or when auto-calibrate is switched off", () => {
-    const machineOnly = [make("1", "2026-10-15", "Nautilus Leverage Chest Press", [{ reps: 8, weight: 200 }])];
-    expect(computeMuscleEngine(machineOnly, BW, TODAY).calibrations).toHaveLength(0);
-    const both = [make("0", "2026-10-10", "DB Bench Press", [{ reps: 8, weight: 40 }]), ...machineOnly];
-    expect(computeMuscleEngine(both, BW, TODAY, undefined, { "nautilus leverage chest press": { calibrate: false } }).calibrations).toHaveLength(0);
+  it("stored overrides keep applying after a brand name became an alias", async () => {
+    const { normalizeExerciseSettings } = await import("./exerciseSettings");
+    const normalized = normalizeExerciseSettings({ key: "exerciseSettings", overrides: { "nautilus leverage chest press": { loadMultiplier: 1.3 } } });
+    expect(normalized.overrides["chest press machine"]?.loadMultiplier).toBe(1.3);
   });
 });
 
@@ -411,134 +360,6 @@ describe("alias merging", () => {
       expect(EXERCISE_MUSCLE_MAP[target], `${alias} -> ${target}`).toBeDefined();
       expect(EXERCISE_MUSCLE_MAP[alias], `${alias} must not also be a map key`).toBeUndefined();
     }
-  });
-});
-
-describe("PT restrictions", () => {
-  const restrictedNames = [
-    "DB Romanian Deadlift",
-    "Trap Bar Deadlift",
-    "DB Bulgarian Split Squat",
-    "Standing Cable Woodchopper (High-to-Low)",
-    "Standing Cable Woodchopper (Low-to-High)",
-    "Landmine Rotational Press",
-  ];
-
-  it("restricts only the requested exercises; Goblet Squat is self-restricted; Back Extension/Pallof need PT confirmation", () => {
-    for (const name of restrictedNames) expect(resolveExerciseConfig(name)!.restricted, name).toBe(true);
-    expect(resolveExerciseConfig("Trap Bar Deadlift")!.restrictionNote).toBe("PT: no hip hinge");
-    expect(listRestrictedExercises().filter((r) => r.kind === "pt").map((r) => r.name).sort()).toEqual(
-      [
-        "DB Bulgarian Split Squat",
-        "DB Romanian Deadlift",
-        "Romanian Deadlift",
-        "Landmine Rotational Press",
-        "Standing Cable Woodchopper (High-to-Low)",
-        "Standing Cable Woodchopper (Low-to-High)",
-        "Trap Bar Deadlift",
-      ].sort()
-    );
-    // the PT-prescribed single-leg RDL must stay available
-    expect(resolveExerciseConfig("Single-Leg Romanian Deadlift")!.restricted).toBe(false);
-    expect(canonicalExerciseKey("Romanian Deadlift straight bar")).toBe("romanian deadlift");
-    expect(resolveExerciseConfig("Romanian Deadlift straight bar")!.restricted).toBe(true);
-    const goblet = resolveExerciseConfig("Goblet Squat")!;
-    expect(goblet.selfRestricted).toBe(true);
-    expect(goblet.restricted).toBe(false);
-    expect(goblet.needsPtConfirmation).toBe(false);
-    expect(listRestrictedExercises().find((r) => r.name === "Goblet Squat")!.kind).toBe("self");
-    for (const name of ["Pallof Press", "Back Extensions"]) {
-      const cfg = resolveExerciseConfig(name)!;
-      expect(cfg.restricted, name).toBe(false);
-      expect(cfg.needsPtConfirmation, name).toBe(true);
-    }
-    expect(listNeedsPtConfirmation().sort()).toEqual(["Back Extension", "Pallof Press"]);
-  });
-
-  it("merges Half-Kneeling Pallof Press into Pallof Press", () => {
-    expect(canonicalExerciseKey("Half-Kneeling Pallof Press")).toBe("pallof press");
-    const { statsByGroup } = computeMuscleEngine(
-      [
-        make("1", "2026-10-10", "Pallof Press", [{ reps: 10, weight: 25 }]),
-        make("2", "2026-10-14", "Half-Kneeling Pallof Press", [{ reps: 10, weight: 25 }]),
-      ],
-      BW,
-      TODAY
-    );
-    expect(statsByGroup.obliques.contributingExercises).toEqual(["Pallof Press"]);
-  });
-
-  it("restricted and self-restricted exercises are never suggested and are reported as skipped", () => {
-    const { suggestions, skippedRestricted } = suggestExercisesForMuscle("obliques", 10);
-    for (const name of restrictedNames) expect(suggestions).not.toContain(name);
-    expect(skippedRestricted.map((s) => s.name)).toEqual(
-      expect.arrayContaining(["Standing Cable Woodchopper (High-to-Low)", "Landmine Rotational Press"])
-    );
-    const quads = suggestExercisesForMuscle("quads", 10);
-    expect(quads.suggestions).not.toContain("Goblet Squat");
-    expect(quads.skippedRestricted.map((s) => s.name)).toEqual(expect.arrayContaining(["Goblet Squat", "DB Bulgarian Split Squat"]));
-    const overridden = suggestExercisesForMuscle("obliques", 10, { "landmine rotational press": { restricted: false } });
-    expect(overridden.suggestions).toContain("Landmine Rotational Press");
-  });
-
-  it("Leg Press and Leg Extension are allowed quad exercises", () => {
-    for (const name of ["Leg Press", "Leg Extension"]) {
-      const cfg = resolveExerciseConfig(name)!;
-      expect(cfg, name).not.toBeNull();
-      expect(cfg.restricted || cfg.selfRestricted, name).toBe(false);
-    }
-    expect(allowedPrimaryExercises("quads")).toEqual(expect.arrayContaining(["Leg Press", "Leg Extension"]));
-    expect(exercisesForMuscle("quads", 3)).toEqual(expect.arrayContaining(["Leg Press", "Leg Extension"]));
-  });
-
-  it("a muscle with allowed exercises is NOT paused: it decays and Focus says 'needs work, try: leg press'", () => {
-    // Quads' only recent direct work was the restricted Bulgarian split squat.
-    const entries = [make("1", "2026-09-10", "DB Bulgarian Split Squat", [{ reps: 8, weight: 40 }])];
-    const { statsByGroup } = computeMuscleEngine(entries, BW, TODAY);
-    const quads = statsByGroup.quads;
-    expect(quads.pausedRestricted).toBe(false);
-    expect(quads.lastPrimaryWasRestricted).toBe(true);
-    expect(quads.isStale).toBe(true);
-    expect(quads.effective!).toBeLessThan(quads.peak!);
-    const item = buildFocusList(statsByGroup, undefined, undefined, 17).find((f) => f.group === "quads")!;
-    expect(item.reason).toMatch(/Needs work.*try:.*Leg Press/);
-    expect(item.suggestions).toEqual(expect.arrayContaining(["Leg Press"]));
-    expect(item.paused).toBe(false);
-  });
-
-  it("lower back isn't paused either (Back Extension / Barbell Deadlift are allowed) — rule is consistent", () => {
-    const entries = [make("1", "2026-09-01", "Trap Bar Deadlift", [{ reps: 5, weight: 225 }])];
-    const lowerBack = computeMuscleEngine(entries, BW, TODAY).statsByGroup.lowerBack;
-    expect(lowerBack.pausedRestricted).toBe(false);
-    expect(lowerBack.lastPrimaryWasRestricted).toBe(true);
-    expect(lowerBack.isStale).toBe(true);
-  });
-
-  it("pauses decay only when the muscle has NO allowed exercise", () => {
-    // Restrict every exercise that trains obliques directly.
-    const overrides = {
-      "pallof press": { restricted: true },
-      "cable woodchop": { restricted: true },
-      "side plank with leg raise": { restricted: true },
-    };
-    expect(groupHasAllowedExercise("obliques", overrides)).toBe(false);
-    const entries = [make("1", "2026-09-01", "Pallof Press", [{ reps: 10, weight: 25 }])];
-    const paused = computeMuscleEngine(entries, BW, TODAY, undefined, overrides).statsByGroup.obliques;
-    expect(paused.pausedRestricted).toBe(true);
-    expect(paused.isStale).toBe(false);
-    expect(paused.effective).toBe(paused.peak);
-    const normal = computeMuscleEngine(entries, BW, TODAY).statsByGroup.obliques;
-    expect(normal.pausedRestricted).toBe(false);
-    expect(normal.isStale).toBe(true);
-  });
-
-  it("Focus This Week skips restricted exercises and says which were skipped", () => {
-    const entries = [make("1", "2026-09-10", "Pallof Press", [{ reps: 10, weight: 25 }])];
-    const { statsByGroup } = computeMuscleEngine(entries, BW, TODAY);
-    const focus = buildFocusList(statsByGroup);
-    const all = focus.flatMap((f) => f.suggestions);
-    for (const name of restrictedNames) expect(all).not.toContain(name);
-    expect(focus.some((f) => f.skippedRestricted.length > 0)).toBe(true);
   });
 });
 

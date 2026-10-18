@@ -1,6 +1,5 @@
 import { LiftFamily, MINOR_MUSCLE_WEIGHT, SECONDARY_MUSCLE_WEIGHT } from "./muscleScoreConfig";
 import { MuscleGroupId } from "./muscleTaxonomy";
-import type { ExerciseSettingsOverrides } from "./exerciseSettings";
 
 export interface MuscleContribution {
   group: MuscleGroupId;
@@ -12,7 +11,7 @@ export type ScoringMethod =
   | { method: "proxy"; family: LiftFamily; factor: number }
   | { method: "volumeOnly" }; // no meaningful e1RM (planks, dead bug, anti-rotation holds)
 
-/** What the logged weight actually represents (informational note shown next to the multiplier). */
+/** What the logged weight actually represents — an informational label only; it never changes a score. */
 export type LoadBasis = "total" | "plates" | "combined" | "stack";
 
 export const LOAD_BASIS_LABELS: Record<LoadBasis, string> = {
@@ -22,28 +21,34 @@ export const LOAD_BASIS_LABELS: Record<LoadBasis, string> = {
   stack: "Cable / machine stack",
 };
 
+/**
+ * Shared movement-pattern tags. A user can restrict a whole pattern in
+ * Settings; it applies to every exercise carrying the tag (and its aliases).
+ * The tags are metadata only — nothing is restricted unless the user says so.
+ */
+export type MovementPattern = "hip_hinge" | "rotation" | "split_stance" | "squat";
+
+export const MOVEMENT_PATTERNS: { id: MovementPattern; label: string; hint: string }[] = [
+  { id: "hip_hinge", label: "Hip hinge", hint: "Deadlifts, Romanian deadlifts, back extensions" },
+  { id: "rotation", label: "Rotation", hint: "Woodchops, rotational presses" },
+  { id: "split_stance", label: "Split stance", hint: "Lunges, split squats" },
+  { id: "squat", label: "Squat", hint: "Squats, split squats" },
+];
+
 export interface ExerciseMapping {
   muscles: MuscleContribution[];
   scoring: ScoringMethod;
-  /** Legacy/generic placeholder name (e.g. "Core", "Curls" — the split used
-   * these before being renamed to specific exercises). Still scores real
-   * logged history under these names, but never suggested as a "new"
-   * exercise to do in the Focus card. */
+  /** Generic placeholder name (e.g. "Core", "Curls") that older logs may use.
+   * Still scores real logged history under these names, but is never
+   * suggested as a "new" exercise to do in the Focus card. */
   hidden?: boolean;
   /** Fraction of bodyweight credited as load when a set is logged as bodyweight.
    * Unset -> DEFAULT_BODYWEIGHT_FRACTION. 0 = no load credit (consistency/reps-time only). */
   bodyweightFraction?: number;
-  /** logged weight x this = effective load used for scoring and volume. Unset -> 1. */
-  loadMultiplier?: number;
+  /** Informational label for what the logged weight represents. Never affects scoring. */
   loadBasis?: LoadBasis;
-  /** PT-restricted: never suggested, and decay/staleness pauses for the muscles it last fed. */
-  restricted?: boolean;
-  restrictionNote?: string;
-  needsPtConfirmation?: boolean;
-  /** The user's own call (not PT): never suggested, but not a PT restriction and doesn't pause decay. */
-  selfRestricted?: boolean;
-  /** Canonical key of a free-weight lift this machine lift is auto-calibrated against. */
-  calibrationAnchor?: string;
+  /** Movement-pattern tags (shared metadata; used only when the user restricts a pattern). */
+  patterns?: MovementPattern[];
 }
 
 function primary(...groups: MuscleGroupId[]): MuscleContribution[] {
@@ -60,32 +65,31 @@ const standard = (family: LiftFamily): ScoringMethod => ({ method: "standard", f
 const proxy = (family: LiftFamily, factor: number): ScoringMethod => ({ method: "proxy", family, factor });
 const volumeOnly: ScoringMethod = { method: "volumeOnly" };
 
-// Seeded PT restrictions (editable in Settings > Exercise settings).
-const PT_NO_HINGE = { restricted: true, restrictionNote: "PT: no hip hinge" } as const;
-const PT_RESTRICTED = { restricted: true, restrictionNote: "PT restricted" } as const;
-const PT_CONFIRM = { needsPtConfirmation: true } as const;
-const SELF_RESTRICTED = { selfRestricted: true, restrictionNote: "Self-restricted" } as const;
+const HINGE: Pick<ExerciseMapping, "patterns"> = { patterns: ["hip_hinge"] };
+const ROTATION: Pick<ExerciseMapping, "patterns"> = { patterns: ["rotation"] };
+const SPLIT: Pick<ExerciseMapping, "patterns"> = { patterns: ["split_stance"] };
+const SQUAT: Pick<ExerciseMapping, "patterns"> = { patterns: ["squat"] };
 
 // Keys are exact exercise names as logged (case-insensitive match applied at
 // lookup time). Same-movement name variants are NOT duplicated here: they live
 // in EXERCISE_ALIASES below and resolve to one canonical entry, so history and
-// e1RM combine and suggestion chips show a single name.
+// e1RM combine and suggestion chips show a single name. Defaults are neutral:
+// no exercise is restricted, flagged or load-adjusted — all of that is local to
+// each device (see exerciseSettings.ts).
 export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
-  "trap bar deadlift": { muscles: [...primary("glutes", "lowerBack"), ...secondary("hamstrings", "traps", "forearms")], scoring: standard("deadlift"), ...PT_NO_HINGE },
-  "barbell deadlift": { muscles: [...primary("glutes", "lowerBack", "hamstrings"), ...secondary("traps", "forearms")], scoring: standard("deadlift") },
-  // "RDL" is on the PT restricted list, so the barbell version (and its "straight bar" alias) is restricted like the DB one.
-  // Single-Leg RDL is deliberately NOT restricted — it's in the PT-prescribed glute-med routine.
-  "romanian deadlift": { muscles: [...primary("hamstrings", "glutes"), ...secondary("lowerBack")], scoring: standard("deadlift"), ...PT_NO_HINGE },
-  "db romanian deadlift": { muscles: [...primary("hamstrings", "glutes"), ...secondary("lowerBack", "forearms")], scoring: standard("deadlift"), ...PT_NO_HINGE },
+  "trap bar deadlift": { muscles: [...primary("glutes", "lowerBack"), ...secondary("hamstrings", "traps", "forearms")], scoring: standard("deadlift"), ...HINGE },
+  "barbell deadlift": { muscles: [...primary("glutes", "lowerBack", "hamstrings"), ...secondary("traps", "forearms")], scoring: standard("deadlift"), ...HINGE },
+  "romanian deadlift": { muscles: [...primary("hamstrings", "glutes"), ...secondary("lowerBack")], scoring: standard("deadlift"), ...HINGE },
+  "db romanian deadlift": { muscles: [...primary("hamstrings", "glutes"), ...secondary("lowerBack", "forearms")], scoring: standard("deadlift"), ...HINGE },
 
-  "back squat": { muscles: [...primary("quads"), ...secondary("glutes", "lowerBack")], scoring: standard("squat") },
-  "leg press": { muscles: [...primary("quads"), ...secondary("glutes")], scoring: standard("legPress"), loadBasis: "plates", calibrationAnchor: "back squat" },
-  "leg extension": { muscles: primary("quads"), scoring: standard("legExtension"), loadBasis: "stack", calibrationAnchor: "back squat" },
-  "front squat": { muscles: [...primary("quads"), ...secondary("glutes", "upperBack")], scoring: standard("squat") },
-  "goblet squat": { muscles: [...primary("quads"), ...secondary("glutes", "forearms")], scoring: standard("squat"), ...SELF_RESTRICTED },
-  "db reverse lunge": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6) },
-  "db bulgarian split squat": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6), ...PT_RESTRICTED },
-  "walking lunge": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6) },
+  "back squat": { muscles: [...primary("quads"), ...secondary("glutes", "lowerBack")], scoring: standard("squat"), ...SQUAT },
+  "leg press": { muscles: [...primary("quads"), ...secondary("glutes")], scoring: standard("legPress") },
+  "leg extension": { muscles: primary("quads"), scoring: standard("legExtension") },
+  "front squat": { muscles: [...primary("quads"), ...secondary("glutes", "upperBack")], scoring: standard("squat"), ...SQUAT },
+  "goblet squat": { muscles: [...primary("quads"), ...secondary("glutes", "forearms")], scoring: standard("squat"), ...SQUAT },
+  "db reverse lunge": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6), ...SPLIT },
+  "db bulgarian split squat": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6), patterns: ["split_stance", "squat"] },
+  "walking lunge": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6), ...SPLIT },
 
   "hip thrust": { muscles: [...primary("glutes"), ...secondary("hamstrings")], scoring: standard("hipThrust") },
   "glute bridge": { muscles: [...primary("glutes"), ...secondary("hamstrings")], scoring: proxy("hipThrust", 0.6), bodyweightFraction: 0.5 },
@@ -105,7 +109,7 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "lat pulldown": { muscles: [...primary("lats"), ...secondary("biceps", "upperBack")], scoring: standard("pulldown"), loadBasis: "stack" },
   "pull up": { muscles: [...secondary("lats", "biceps", "upperBack"), ...minor("forearms")], scoring: standard("pullup"), bodyweightFraction: 1.0 },
   "chin up": { muscles: [...primary("biceps"), ...secondary("lats", "upperBack"), ...minor("forearms")], scoring: standard("pullup"), bodyweightFraction: 1.0 },
-  // Stack weight is taken at face value (no 2:1 pulley assumption) — edit the load multiplier in Settings if your cable differs.
+  // Stack weight is taken at face value (no pulley-ratio assumption) — set a load multiplier in Settings if yours differs.
   "cable row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps")], scoring: standard("row"), loadBasis: "stack" },
   "barbell row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps", "lowerBack")], scoring: standard("row") },
 
@@ -119,16 +123,16 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   // Forearm / grip sources (credited as primary so they drive the forearm score and clock).
   "wrist curl": { muscles: primary("forearms"), scoring: proxy("deadlift", 0.2) },
   "reverse wrist curl": { muscles: primary("forearms"), scoring: proxy("deadlift", 0.15) },
-  "reverse curl": { muscles: [...primary("forearms"), ...secondary("biceps")], scoring: proxy("deadlift", 0.2) },
+  "reverse curl": { muscles: [...primary("forearms"), ...secondary("biceps")], scoring: proxy("deadlift", 0.3) },
   "dead hang": { muscles: [...primary("forearms"), ...secondary("lats")], scoring: volumeOnly, bodyweightFraction: 0 },
   "plate pinch": { muscles: primary("forearms"), scoring: volumeOnly, bodyweightFraction: 0 },
 
   // Abs and obliques have separate exercise sets (no cross-credit) so their
   // scores and deltas move independently.
-  "pallof press": { muscles: primary("obliques"), scoring: volumeOnly, bodyweightFraction: 0, ...PT_CONFIRM },
-  "cable woodchop": { muscles: primary("obliques"), scoring: volumeOnly, bodyweightFraction: 0 },
-  "standing cable woodchopper (high-to-low)": { muscles: [...primary("obliques"), ...secondary("lats")], scoring: volumeOnly, bodyweightFraction: 0, ...PT_RESTRICTED },
-  "standing cable woodchopper (low-to-high)": { muscles: [...primary("obliques"), ...secondary("traps")], scoring: volumeOnly, bodyweightFraction: 0, ...PT_RESTRICTED },
+  "pallof press": { muscles: primary("obliques"), scoring: volumeOnly, bodyweightFraction: 0 },
+  "cable woodchop": { muscles: primary("obliques"), scoring: volumeOnly, bodyweightFraction: 0, ...ROTATION },
+  "standing cable woodchopper (high-to-low)": { muscles: [...primary("obliques"), ...secondary("lats")], scoring: volumeOnly, bodyweightFraction: 0, ...ROTATION },
+  "standing cable woodchopper (low-to-high)": { muscles: [...primary("obliques"), ...secondary("traps")], scoring: volumeOnly, bodyweightFraction: 0, ...ROTATION },
   "dead bug": { muscles: primary("abs"), scoring: volumeOnly, bodyweightFraction: 0 },
   plank: { muscles: [...primary("abs"), ...secondary("lowerBack")], scoring: volumeOnly, bodyweightFraction: 0 },
   "captain's chair knee raises": { muscles: primary("abs"), scoring: volumeOnly, bodyweightFraction: 0 },
@@ -136,33 +140,30 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "farmer carry": { muscles: [...primary("forearms", "traps"), ...secondary("abs", "glutes")], scoring: proxy("deadlift", 0.5) },
   "calf raise": { muscles: primary("calves"), scoring: proxy("squat", 1.3) },
 
-  // ---- Legacy split placeholder names ----
-  // The 4-day split originally used generic names before being renamed to
-  // specific exercises. Renaming the split definition doesn't retroactively
-  // rename already-logged history, so these still need to resolve — scored,
-  // just never suggested as a "new" exercise to do (hidden: true).
+  // ---- Generic placeholder names ----
+  // Older logs (and quick typing) use generic names like "Core" or "Curls".
+  // They still score real history — just never suggested as a "new" exercise
+  // to do (hidden: true).
   core: { muscles: [...primary("abs")], scoring: volumeOnly, bodyweightFraction: 0, hidden: true },
   curls: { muscles: [...primary("biceps"), ...minor("forearms")], scoring: proxy("curl", 0.55), hidden: true },
-  woodchopper: { muscles: primary("obliques"), scoring: volumeOnly, bodyweightFraction: 0, hidden: true },
+  woodchopper: { muscles: primary("obliques"), scoring: volumeOnly, bodyweightFraction: 0, hidden: true, ...ROTATION },
   "cable tricep work": { muscles: primary("triceps"), scoring: standard("tricepExt"), hidden: true },
 
-  // ---- Machine/equipment variants not in the common list or split ----
-  // Load multipliers below are estimates (see LOAD_BASIS_LABELS) — editable in
-  // Settings > Exercise settings.
-  "chest press - nautilus machine": { muscles: [...primary("midLowerChest"), ...secondary("triceps", "frontDelts")], scoring: standard("bench"), calibrationAnchor: "db bench press" },
-  "nautilus leverage chest press": { muscles: [...primary("midLowerChest"), ...secondary("triceps", "frontDelts")], scoring: standard("bench"), loadBasis: "plates", calibrationAnchor: "db bench press" },
-  "nautilus leverage incline chest press": { muscles: [...primary("upperChest", "frontDelts"), ...secondary("triceps")], scoring: standard("bench"), loadBasis: "plates", calibrationAnchor: "incline db press" },
-  "shoulder press machine": { muscles: [...primary("frontDelts"), ...secondary("triceps")], scoring: standard("ohp"), calibrationAnchor: "db shoulder press" },
-  "deltoid raise machine": { muscles: [...primary("sideRearDelts"), ...secondary("frontDelts")], scoring: standard("lateralRaise"), loadBasis: "stack", calibrationAnchor: "lateral raise" },
-  "nautilus impact rear deltoid machine": { muscles: [...primary("sideRearDelts"), ...secondary("upperBack")], scoring: standard("facePull"), loadBasis: "stack" },
-  "nautilus impact bicep curl": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: standard("curl"), loadBasis: "stack", loadMultiplier: 0.8, calibrationAnchor: "db bicep curl" },
-  "hoist preacher curl machine": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: standard("curl"), loadBasis: "stack", loadMultiplier: 0.8, calibrationAnchor: "db bicep curl" },
-  "nautilus impact tricep extension": { muscles: primary("triceps"), scoring: standard("tricepExt"), loadBasis: "stack", loadMultiplier: 0.8, calibrationAnchor: "db overhead tricep extension" },
+  // ---- Machine variants (generic). Branded machine names resolve to these via EXERCISE_ALIASES. ----
+  "chest press machine": { muscles: [...primary("midLowerChest"), ...secondary("triceps", "frontDelts")], scoring: standard("bench") },
+  "incline chest press machine": { muscles: [...primary("upperChest", "frontDelts"), ...secondary("triceps")], scoring: standard("bench") },
+  "shoulder press machine": { muscles: [...primary("frontDelts"), ...secondary("triceps")], scoring: standard("ohp") },
+  // Machine stack numbers run about double a per-hand dumbbell raise, hence the 2x factor.
+  "lateral raise machine": { muscles: [...primary("sideRearDelts"), ...secondary("frontDelts")], scoring: proxy("lateralRaise", 2) },
+  "rear delt machine": { muscles: [...primary("sideRearDelts"), ...secondary("upperBack")], scoring: standard("facePull") },
+  "bicep curl machine": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: standard("curl") },
+  "preacher curl machine": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: standard("curl") },
+  "tricep extension machine": { muscles: primary("triceps"), scoring: standard("tricepExt") },
   "db overhead tricep extension": { muscles: primary("triceps"), scoring: proxy("tricepExt", 0.6) },
   "single arm cable tricep extension": { muscles: primary("triceps"), scoring: proxy("tricepExt", 0.5), loadBasis: "stack" },
-  "landmine rotational press": { muscles: [...primary("obliques"), ...secondary("frontDelts", "triceps")], scoring: volumeOnly, bodyweightFraction: 0, ...PT_RESTRICTED },
+  "landmine rotational press": { muscles: [...primary("obliques"), ...secondary("frontDelts", "triceps")], scoring: volumeOnly, bodyweightFraction: 0, ...ROTATION },
 
-  // ---- Glute medius / hip stability (physical therapy) ----
+  // ---- Hip stability / activation ----
   // Activation/band drills have no meaningful absolute load (band
   // resistance isn't comparable to barbell standards), so they're scored
   // the same way as core anti-rotation work: consistency-driven, not
@@ -173,17 +174,19 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "banded lateral walks": { muscles: [...primary("glutes"), ...secondary("quads")], scoring: volumeOnly, bodyweightFraction: 0 },
   "clamshells with band": { muscles: primary("glutes"), scoring: volumeOnly, bodyweightFraction: 0 },
   "reverse clamshells": { muscles: primary("glutes"), scoring: volumeOnly, bodyweightFraction: 0 },
-  "single-leg romanian deadlift": { muscles: [...primary("glutes", "hamstrings"), ...secondary("lowerBack", "forearms")], scoring: proxy("deadlift", 0.35) },
+  "single-leg romanian deadlift": { muscles: [...primary("glutes", "hamstrings"), ...secondary("lowerBack", "forearms")], scoring: proxy("deadlift", 0.35), ...HINGE },
   "single leg bridge": { muscles: [...primary("glutes"), ...secondary("hamstrings")], scoring: proxy("hipThrust", 0.6), bodyweightFraction: 0.5 },
   "side plank with leg raise": { muscles: [...primary("obliques", "glutes")], scoring: volumeOnly, bodyweightFraction: 0 },
   "step-ups": { muscles: [...primary("quads", "glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.6) },
   "cable hip abduction": { muscles: primary("glutes"), scoring: proxy("squat", 0.3), bodyweightFraction: 0, loadBasis: "stack" },
 
-  "back extension": { muscles: [...primary("lowerBack"), ...secondary("glutes", "hamstrings")], scoring: standard("deadlift"), bodyweightFraction: 0.5, ...PT_CONFIRM },
+  "back extension": { muscles: [...primary("lowerBack"), ...secondary("glutes", "hamstrings")], scoring: standard("deadlift"), bodyweightFraction: 0.5, ...HINGE },
 };
 
 // Same-movement name variants -> canonical key in EXERCISE_MUSCLE_MAP (both
 // lowercase). History for every variant combines under the canonical entry.
+// Branded machine names are aliases only, so logs that use them keep scoring
+// without any brand being part of the shared exercise library.
 export const EXERCISE_ALIASES: Record<string, string> = {
   "standing calf raise": "calf raise",
   "standing calf": "calf raise",
@@ -209,8 +212,16 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "db bench press (flat)": "db bench press",
   "db bulgarian split squats": "db bulgarian split squat",
   "farmers carry": "farmer carry",
-  "half-kneeling pallof press": "pallof press",
   "farmer's carry": "farmer carry",
+  "half-kneeling pallof press": "pallof press",
+  "chest press - nautilus machine": "chest press machine",
+  "nautilus leverage chest press": "chest press machine",
+  "nautilus leverage incline chest press": "incline chest press machine",
+  "hoist preacher curl machine": "preacher curl machine",
+  "nautilus impact bicep curl": "bicep curl machine",
+  "nautilus impact tricep extension": "tricep extension machine",
+  "nautilus impact rear deltoid machine": "rear delt machine",
+  "deltoid raise machine": "lateral raise machine",
 };
 
 // Strip equipment/stance prefixes and trailing parentheticals, fold common
@@ -265,55 +276,4 @@ function titleCaseKey(key: string): string {
     if (lower === "w" && str[offset + 1] === "/") return "w";
     return lower.charAt(0).toUpperCase() + lower.slice(1);
   });
-}
-
-export interface MuscleExerciseSuggestions {
-  suggestions: string[];
-  /** Subset of `suggestions` still awaiting PT confirmation — shown with a caution. */
-  needsConfirmation: string[];
-  /** Exercises that would have been suggested but are PT-restricted. */
-  skippedRestricted: { name: string; note?: string }[];
-}
-
-/** Suggested exercises for a muscle, for the weekly focus card — primary
- * contributions first, deduped by canonical key so naming-drift variants
- * ("Calf Raise" / "Standing Calf Raise") show up once. Restricted exercises
- * (per defaults + `overrides`) are never suggested; they're reported in
- * `skippedRestricted` instead. */
-export function suggestExercisesForMuscle(
-  group: MuscleGroupId,
-  limit = 3,
-  overrides?: ExerciseSettingsOverrides
-): MuscleExerciseSuggestions {
-  const candidates = Object.entries(EXERCISE_MUSCLE_MAP)
-    .filter(([, mapping]) => !mapping.hidden)
-    .map(([key, mapping]) => ({ key, mapping, contribution: mapping.muscles.find((m) => m.group === group) }))
-    .filter((c): c is typeof c & { contribution: MuscleContribution } => c.contribution != null && c.contribution.weight >= SECONDARY_MUSCLE_WEIGHT)
-    .sort((a, b) => b.contribution.weight - a.contribution.weight);
-
-  const suggestions: string[] = [];
-  const needsConfirmation: string[] = [];
-  const skippedRestricted: { name: string; note?: string }[] = [];
-  for (const c of candidates) {
-    const override = overrides?.[c.key];
-    const restricted = override?.restricted ?? c.mapping.restricted ?? false;
-    const selfRestricted = override?.selfRestricted ?? c.mapping.selfRestricted ?? false;
-    if (restricted || selfRestricted) {
-      skippedRestricted.push({
-        name: exerciseDisplayName(c.key),
-        note: override?.restrictionNote ?? c.mapping.restrictionNote ?? (selfRestricted ? "Self-restricted" : undefined),
-      });
-      continue;
-    }
-    if (suggestions.length < limit) {
-      const name = exerciseDisplayName(c.key);
-      suggestions.push(name);
-      if (override?.needsPtConfirmation ?? c.mapping.needsPtConfirmation) needsConfirmation.push(name);
-    }
-  }
-  return { suggestions, needsConfirmation, skippedRestricted };
-}
-
-export function exercisesForMuscle(group: MuscleGroupId, limit = 3, overrides?: ExerciseSettingsOverrides): string[] {
-  return suggestExercisesForMuscle(group, limit, overrides).suggestions;
 }

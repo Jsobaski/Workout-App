@@ -27,7 +27,7 @@ export const MUSCLE_TIERS: MuscleTier[] = [
 
 /** Soft glow drawn behind Elite regions on the body map. */
 export const ELITE_GLOW_COLOR = "#facc15";
-/** Outline for muscles whose decay/staleness is paused because a PT-restricted exercise last fed them. */
+/** Outline for muscles whose decay/staleness is paused because every exercise for them is restricted. */
 export const PAUSED_OUTLINE_COLOR = "#38bdf8";
 
 export const UNRATED_COLOR = "#52525b"; // no logs yet for this muscle — gray, not "Needs Work"
@@ -42,14 +42,6 @@ export const MINOR_MUSCLE_WEIGHT = 0.15; // incidental credit (e.g. curls -> for
 export const VOLUME_BONUS_MAX_POINTS = 10; // max points the volume/consistency component can add on top of the load-standard score
 export const VOLUME_BONUS_WINDOW_DAYS = 28;
 export const VOLUME_BONUS_TARGET_SESSIONS = 8; // distinct training days hitting this muscle in the window for the full bonus
-
-// ---- Machine calibration ----
-// A machine/plate-loaded lift with a free-weight anchor (e.g. leverage chest
-// press -> DB bench) is scaled so its score lands within this many points of
-// the anchor's. The multiplier used is returned in the engine result's calibration log.
-export const CALIBRATION_TOLERANCE_POINTS = 15;
-export const CALIBRATION_MULTIPLIER_MIN = 0.05;
-export const CALIBRATION_MULTIPLIER_MAX = 4;
 
 // ---- Score display scale ----
 // Raw scores are uncapped internally (progress past "100" stays visible in the
@@ -104,10 +96,10 @@ export const LIFT_FAMILY_STANDARDS: Record<LiftFamily, [number, number, number, 
   row: [0.3, 0.55, 0.85, 1.15, 1.5],
   pullup: [0.7, 0.9, 1.15, 1.4, 1.65],
   hipThrust: [0.5, 1.0, 1.5, 2.0, 2.5],
-  curl: [0.1, 0.2, 0.35, 0.5, 0.65], // barbell/machine total; DB curls use a 0.55 factor (logged per hand)
-  tricepExt: [0.12, 0.25, 0.45, 0.65, 0.85], // cable pushdown / machine extension
+  curl: [0.15, 0.3, 0.5, 0.7, 0.95], // barbell/machine total; DB curls use a 0.55 factor (logged per hand)
+  tricepExt: [0.15, 0.35, 0.6, 0.85, 1.15], // cable pushdown / machine extension
   lateralRaise: [0.04, 0.08, 0.14, 0.2, 0.28], // per hand
-  facePull: [0.1, 0.2, 0.35, 0.5, 0.65],
+  facePull: [0.15, 0.3, 0.5, 0.7, 0.95],
   pulldown: [0.4, 0.7, 1.0, 1.35, 1.7],
   legPress: [0.6, 1.25, 2.0, 2.75, 3.5],
   legExtension: [0.25, 0.5, 0.9, 1.3, 1.7],
@@ -115,13 +107,18 @@ export const LIFT_FAMILY_STANDARDS: Record<LiftFamily, [number, number, number, 
 export const STANDARD_SCORE_BREAKPOINTS = [0, 25, 50, 75, 100] as const;
 
 // ---- Focus ranking ----
-// priority = (100 - effective score) + staleness bonus + golf bonus. The score
-// deficit (0-100) dominates; staleness and golf relevance are capped tie-breakers
+// priority = (100 - effective score) + staleness bonus + priority-tag bonus. The score
+// deficit (0-100) dominates; staleness and the optional priority-tag bonus are capped tie-breakers
 // (at most 20 + 10 points) so a very low-scoring muscle can't be buried below
 // a merely stale one. Muscles with paused (restricted) decay get no staleness bonus.
 export const FOCUS_TOP_N = 3;
 export const FOCUS_STALENESS_BOOST_PER_DAY = 1; // added per day stale, capped below
 export const FOCUS_STALENESS_BOOST_CAP = 20;
-export const FOCUS_GOLF_BOOST = 10;
+/** Added only to muscles the user has tagged as priority muscles (default: none). */
+export const FOCUS_PRIORITY_BOOST = 10;
 /** Window (days) for every "change vs. N days ago" figure shown in the UI and summary. */
 export const TREND_WINDOW_DAYS = 30;
+
+// ---- Score display ----
+/** A score within this many points of a tier boundary is shown with one decimal so the tier never looks wrong. */
+export const TIER_BOUNDARY_DECIMAL_WINDOW = 0.5;

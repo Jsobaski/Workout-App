@@ -29,7 +29,7 @@ export const COMMON_EXERCISES = [
   "Chin Up",
   "Bicep Curl",
   "Hammer Curl",
-  "Hoist Preacher Curl Machine",
+  "Preacher Curl Machine",
   "Tricep Pushdown",
   "Skull Crusher",
   "Dip",
@@ -41,7 +41,7 @@ export const COMMON_EXERCISES = [
   "Back Extension",
   "Calf Raise",
 
-  // Glute medius / hip stability (physical therapy)
+  // Hip stability / activation
   "Side-Lying Hip Abduction",
   "Banded Lateral Walks",
   "Clamshells with Band",

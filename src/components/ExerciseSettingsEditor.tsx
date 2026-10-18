@@ -1,24 +1,41 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useExerciseSettings } from "@/hooks/useExerciseSettings";
-import { EXERCISE_MUSCLE_MAP, LOAD_BASIS_LABELS, LoadBasis, exerciseDisplayName } from "@/lib/exerciseMuscleMap";
+import { EXERCISE_MUSCLE_MAP, LOAD_BASIS_LABELS, LoadBasis, canonicalExerciseKey } from "@/lib/exerciseMuscleMap";
 import {
   ExerciseSettingOverride,
-  ExerciseSettingsOverrides,
+  ExerciseSettingsData,
   resolveConfigForKey,
 } from "@/lib/exerciseSettings";
+import { MultiplierProposal, describePairedWeek, displayNameForKey, proposeMultiplier } from "@/lib/multiplierHelper";
+import { parseLimit } from "@/lib/limits";
+import { WorkoutEntry } from "@/lib/types";
 
 const BASIS_KEYS = Object.keys(LOAD_BASIS_LABELS) as LoadBasis[];
 
-// Editable per-exercise scoring/safety settings: load multiplier + basis,
-// bodyweight fraction, PT restriction (+ note) and "needs PT confirmation".
-// Overrides are stored sparsely — only fields that differ from the built-in
-// defaults — and saved immediately.
-export default function ExerciseSettingsEditor() {
-  const { overrides, loading, saveOverrides } = useExerciseSettings();
+type RestrictionChoice = "inherit" | "restricted" | "allowed";
+
+// Editable per-exercise settings: manual load multiplier (+ an optional helper
+// that proposes one from same-week paired logs), informational load basis,
+// bodyweight fraction, restriction (follow default / restricted / allowed
+// anyway), a limit like "2x10", and a "confirm first" flag. Overrides are
+// stored sparsely — only what differs from the neutral defaults — and saved
+// immediately to this device.
+export default function ExerciseSettingsEditor({
+  settings,
+  onChange,
+  entries,
+  bodyweightLb,
+}: {
+  settings: ExerciseSettingsData;
+  onChange: (next: ExerciseSettingsData) => void;
+  entries: WorkoutEntry[];
+  bodyweightLb: number | null;
+}) {
   const [query, setQuery] = useState("");
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [referenceKey, setReferenceKey] = useState("");
+  const [proposal, setProposal] = useState<{ forKey: string; result: MultiplierProposal | null } | null>(null);
 
   const keys = useMemo(
     () =>
@@ -27,44 +44,61 @@ export default function ExerciseSettingsEditor() {
         .sort((a, b) => a.localeCompare(b)),
     []
   );
-
-  if (loading) return <p className="text-xs text-neutral-500">Loading…</p>;
+  const loggedKeys = useMemo(() => {
+    const seen = new Set<string>();
+    for (const e of entries) {
+      const k = canonicalExerciseKey(e.exerciseName);
+      if (k) seen.add(k);
+    }
+    return Array.from(seen).sort((a, b) => a.localeCompare(b));
+  }, [entries]);
 
   const filtered = keys.filter((k) => k.includes(query.trim().toLowerCase()));
 
-  async function update(key: string, patch: Partial<ExerciseSettingOverride>) {
+  function update(key: string, patch: Partial<Record<keyof ExerciseSettingOverride, unknown>>) {
+    const merged: Record<string, unknown> = { ...settings.overrides[key], ...patch };
+    for (const field of Object.keys(merged)) {
+      const v = merged[field];
+      if (v === undefined || v === "" || v === null) delete merged[field];
+    }
+    // Sparse: drop values equal to the neutral defaults.
     const defaults = resolveConfigForKey(key);
-    if (!defaults) return;
-    const merged: ExerciseSettingOverride = { ...overrides[key], ...patch };
-    // Keep the stored override sparse: drop any field equal to the built-in default.
-    const sparse: ExerciseSettingOverride = {};
-    if (merged.loadMultiplier != null && merged.loadMultiplier !== defaults.loadMultiplier) sparse.loadMultiplier = merged.loadMultiplier;
-    if (merged.loadBasis != null && merged.loadBasis !== defaults.loadBasis) sparse.loadBasis = merged.loadBasis;
-    if (merged.bodyweightFraction != null && merged.bodyweightFraction !== defaults.bodyweightFraction) sparse.bodyweightFraction = merged.bodyweightFraction;
-    if (merged.restricted != null && merged.restricted !== defaults.restricted) sparse.restricted = merged.restricted;
-    if (merged.restrictionNote != null && merged.restrictionNote !== (defaults.restrictionNote ?? "")) sparse.restrictionNote = merged.restrictionNote;
-    if (merged.needsPtConfirmation != null && merged.needsPtConfirmation !== defaults.needsPtConfirmation) sparse.needsPtConfirmation = merged.needsPtConfirmation;
-    if (merged.selfRestricted != null && merged.selfRestricted !== defaults.selfRestricted) sparse.selfRestricted = merged.selfRestricted;
-    if (merged.calibrate != null && merged.calibrate !== (defaults.calibrationAnchor != null)) sparse.calibrate = merged.calibrate;
-    const next: ExerciseSettingsOverrides = { ...overrides };
-    if (Object.keys(sparse).length === 0) delete next[key];
-    else next[key] = sparse;
-    await saveOverrides(next);
+    if (defaults) {
+      if (merged.loadMultiplier === defaults.loadMultiplier) delete merged.loadMultiplier;
+      if (merged.bodyweightFraction === defaults.bodyweightFraction) delete merged.bodyweightFraction;
+      if (merged.loadBasis === defaults.loadBasis) delete merged.loadBasis;
+      if (merged.needsConfirmation === false) delete merged.needsConfirmation;
+    }
+    const overrides = { ...settings.overrides };
+    if (Object.keys(merged).length === 0) delete overrides[key];
+    else overrides[key] = merged as ExerciseSettingOverride;
+    onChange({ ...settings, overrides });
   }
 
-  async function reset(key: string) {
-    const next = { ...overrides };
-    delete next[key];
-    await saveOverrides(next);
+  function reset(key: string) {
+    const overrides = { ...settings.overrides };
+    delete overrides[key];
+    onChange({ ...settings, overrides });
+    setProposal(null);
+  }
+
+  function setRestriction(key: string, choice: RestrictionChoice) {
+    if (choice === "inherit") update(key, { restricted: undefined, restrictionNote: undefined });
+    else if (choice === "restricted") update(key, { restricted: true });
+    else update(key, { restricted: false, restrictionNote: undefined });
+  }
+
+  function runHelper(key: string) {
+    if (!referenceKey) return;
+    setProposal({ forKey: key, result: proposeMultiplier(entries, key, referenceKey, { bodyweightLb, settings }) });
   }
 
   return (
     <div className="space-y-3">
       <p className="text-xs text-neutral-500">
-        Effective load = logged weight × multiplier. Use it when a machine&apos;s number isn&apos;t the real load (plates
-        only, both sides combined, cable stacks). Defaults are estimates — adjust them to match your gym. Restricted
-        and self-restricted exercises are never suggested. A muscle&apos;s decay only pauses if every exercise for
-        it is restricted; otherwise you&apos;ll see an allowed alternative to try.
+        Everything here is optional and stored only on this device. Effective load = logged weight × multiplier
+        (default 1.0 for every exercise; nothing adjusts it automatically). Restricted exercises are never suggested,
+        and a limit like 2x10 caps suggested sets and reps.
       </p>
       <input
         value={query}
@@ -74,24 +108,34 @@ export default function ExerciseSettingsEditor() {
       />
       <div className="max-h-96 space-y-1.5 overflow-y-auto pr-1">
         {filtered.map((key) => {
-          const cfg = resolveConfigForKey(key, overrides)!;
+          const cfg = resolveConfigForKey(key, settings)!;
+          const override = settings.overrides[key];
           const isOpen = openKey === key;
-          const edited = key in overrides;
+          const edited = override != null;
+          const choice: RestrictionChoice = override?.restricted === true ? "restricted" : override?.restricted === false ? "allowed" : "inherit";
           return (
             <div key={key} className="rounded-lg border border-neutral-800 bg-neutral-900/50">
               <button
                 type="button"
-                onClick={() => setOpenKey(isOpen ? null : key)}
+                onClick={() => {
+                  setOpenKey(isOpen ? null : key);
+                  setProposal(null);
+                  setReferenceKey("");
+                }}
                 className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
               >
                 <span className="min-w-0 flex-1 truncate text-sm text-neutral-200">{cfg.displayName}</span>
                 <span className="flex shrink-0 items-center gap-1.5 text-[10px]">
-                  {cfg.restricted && <span className="rounded-full bg-sky-950 px-2 py-0.5 text-sky-300">restricted</span>}
-                  {!cfg.restricted && cfg.selfRestricted && (
-                    <span className="rounded-full bg-violet-950 px-2 py-0.5 text-violet-300">self-restricted</span>
+                  {cfg.restricted && (
+                    <span className="rounded-full bg-sky-950 px-2 py-0.5 text-sky-300">
+                      restricted{cfg.restrictionSource === "pattern" ? " (pattern)" : ""}
+                    </span>
                   )}
-                  {!cfg.restricted && !cfg.selfRestricted && cfg.needsPtConfirmation && (
-                    <span className="rounded-full bg-amber-950 px-2 py-0.5 text-amber-300">PT?</span>
+                  {!cfg.restricted && cfg.limit && (
+                    <span className="rounded-full bg-violet-950 px-2 py-0.5 text-violet-300">limit {cfg.limit}</span>
+                  )}
+                  {!cfg.restricted && cfg.needsConfirmation && (
+                    <span className="rounded-full bg-amber-950 px-2 py-0.5 text-amber-300">confirm</span>
                   )}
                   {cfg.loadMultiplier !== 1 && <span className="text-neutral-500">×{cfg.loadMultiplier}</span>}
                   {edited && <span className="text-emerald-400">edited</span>}
@@ -116,10 +160,10 @@ export default function ExerciseSettingsEditor() {
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-1 block text-xs text-neutral-500">Logged weight is…</span>
+                      <span className="mb-1 block text-xs text-neutral-500">Logged weight is… (label only)</span>
                       <select
                         value={cfg.loadBasis}
-                        onChange={(e) => update(key, { loadBasis: e.target.value as LoadBasis })}
+                        onChange={(e) => update(key, { loadBasis: e.target.value })}
                         className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
                       >
                         {BASIS_KEYS.map((b) => (
@@ -149,55 +193,129 @@ export default function ExerciseSettingsEditor() {
                     </label>
                   </div>
 
-                  <label className="flex items-center gap-2 text-sm text-neutral-300">
-                    <input
-                      type="checkbox"
-                      checked={cfg.restricted}
-                      onChange={(e) => update(key, { restricted: e.target.checked })}
-                      className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-sky-500"
-                    />
-                    PT restricted
+                  <div className="space-y-2 rounded-md bg-neutral-900 p-2">
+                    <p className="text-xs font-medium text-neutral-400">Suggest a multiplier from paired logs (optional)</p>
+                    <p className="text-[11px] text-neutral-500">
+                      Pick an exercise you logged in the same weeks. The helper compares best estimated 1RMs per week and
+                      proposes a multiplier for this one — you decide whether to use it.
+                    </p>
+                    <div className="flex gap-2">
+                      <select
+                        value={referenceKey}
+                        onChange={(e) => {
+                          setReferenceKey(e.target.value);
+                          setProposal(null);
+                        }}
+                        className="min-w-0 flex-1 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-xs text-neutral-100"
+                      >
+                        <option value="">Compare with…</option>
+                        {loggedKeys
+                          .filter((k) => k !== key)
+                          .map((k) => (
+                            <option key={k} value={k}>
+                              {displayNameForKey(k)}
+                            </option>
+                          ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={!referenceKey}
+                        onClick={() => runHelper(key)}
+                        className="shrink-0 rounded-md border border-emerald-700 px-3 py-1.5 text-xs text-emerald-400 disabled:opacity-40"
+                      >
+                        Suggest
+                      </button>
+                    </div>
+                    {proposal?.forKey === key && proposal.result == null && (
+                      <p className="text-xs text-amber-300">
+                        No weeks where both were logged, so there&apos;s nothing to compare yet.
+                      </p>
+                    )}
+                    {proposal?.forKey === key && proposal.result && (
+                      <div className="space-y-1.5 text-xs text-neutral-300">
+                        <p>
+                          Proposed multiplier{" "}
+                          <span className="font-semibold text-emerald-400">×{proposal.result.multiplier}</span> from{" "}
+                          {proposal.result.weeks.length} paired week{proposal.result.weeks.length === 1 ? "" : "s"}:
+                        </p>
+                        <ul className="space-y-0.5 text-[11px] text-neutral-500">
+                          {proposal.result.weeks.map((w) => (
+                            <li key={w.weekStart}>
+                              {describePairedWeek(w)}: this {Math.round(w.targetE1RM)} vs {displayNameForKey(referenceKey)}{" "}
+                              {Math.round(w.referenceE1RM)} → ×{w.ratio.toFixed(2)}
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              update(key, { loadMultiplier: proposal.result!.multiplier });
+                              setProposal(null);
+                            }}
+                            className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setProposal(null)}
+                            className="rounded-md border border-neutral-700 px-3 py-1 text-xs text-neutral-300"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-neutral-500">Restriction</span>
+                    <select
+                      value={choice}
+                      onChange={(e) => setRestriction(key, e.target.value as RestrictionChoice)}
+                      className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+                    >
+                      <option value="inherit">
+                        Follow my settings{cfg.restrictionSource === "pattern" ? " (restricted by pattern)" : " (not restricted)"}
+                      </option>
+                      <option value="restricted">Restricted — never suggest</option>
+                      <option value="allowed">Allowed anyway (overrides a restricted pattern)</option>
+                    </select>
                   </label>
-                  {cfg.restricted && (
+                  {(choice === "restricted" || cfg.restrictionSource === "pattern") && (
                     <input
                       key={`n-${cfg.restrictionNote ?? ""}`}
-                      defaultValue={cfg.restrictionNote ?? ""}
+                      defaultValue={override?.restrictionNote ?? ""}
                       onBlur={(e) => update(key, { restrictionNote: e.target.value.trim() })}
-                      placeholder="Note, e.g. PT: no hip hinge"
+                      placeholder="Note (optional)"
                       className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100"
                     />
                   )}
-                  <label className="flex items-center gap-2 text-sm text-neutral-300">
-                    <input
-                      type="checkbox"
-                      checked={cfg.selfRestricted}
-                      onChange={(e) => update(key, { selfRestricted: e.target.checked })}
-                      className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-violet-500"
-                    />
-                    Self-restricted (my choice, not PT)
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-neutral-300">
-                    <input
-                      type="checkbox"
-                      checked={cfg.needsPtConfirmation}
-                      onChange={(e) => update(key, { needsPtConfirmation: e.target.checked })}
-                      className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-amber-500"
-                    />
-                    Needs PT confirmation
-                  </label>
-
-                  {cfg.hasCalibrationAnchor && (
-                    <label className="flex items-center gap-2 text-sm text-neutral-300">
+                  {!cfg.restricted && (
+                    <label className="block">
+                      <span className="mb-1 block text-xs text-neutral-500">Limit (optional, e.g. 2x10 — sets × reps)</span>
                       <input
-                        type="checkbox"
-                        checked={cfg.calibrationAnchor != null}
-                        onChange={(e) => update(key, { calibrate: e.target.checked })}
-                        className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-emerald-600"
+                        key={`l-${override?.limit ?? ""}`}
+                        defaultValue={override?.limit ?? ""}
+                        onBlur={(e) => {
+                          const v = e.target.value.trim();
+                          update(key, { limit: v === "" || parseLimit(v) ? v : override?.limit });
+                        }}
+                        placeholder="e.g. 2x10"
+                        className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100"
                       />
-                      Auto-calibrate to {cfg.mapping.calibrationAnchor ? exerciseDisplayName(cfg.mapping.calibrationAnchor) : "anchor"} (keeps
-                      the score within ~15 points)
                     </label>
                   )}
+                  <label className="flex items-center gap-2 text-sm text-neutral-300">
+                    <input
+                      type="checkbox"
+                      checked={cfg.needsConfirmation}
+                      onChange={(e) => update(key, { needsConfirmation: e.target.checked })}
+                      className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-amber-500"
+                    />
+                    Flag as &quot;confirm first&quot; when suggested
+                  </label>
 
                   {edited && (
                     <button type="button" onClick={() => reset(key)} className="text-xs text-neutral-500 hover:underline">

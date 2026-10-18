@@ -104,18 +104,18 @@ export interface WorkoutSuggestion {
   summary: string;
 }
 
+// Neutral on purpose: nothing about goals, sport, injuries or nutrition is
+// assumed. Everything here is the user's own input (Settings), stored locally.
 export const DEFAULT_COACHING_CONTEXT: CoachingContext = {
   key: "coachingContext",
-  goals:
-    "Body recomposition (build muscle, lose fat). Improve rotational/hip power for golf swing. Improve hip internal rotation to fix early extension in swing.",
+  goals: "",
   ageRange: "",
   heightIn: null,
   currentWeightLb: null,
   activityLevel: "",
   trainingFrequencyTarget: null,
-  calorieTargetLow: 2100,
-  calorieTargetHigh: 2300,
-  proteinTargetG: 175,
-  injuryNotes:
-    "Neck sensitivity during Pallof press and other anti-rotation core work — watch shoulder/neck tension cues.",
+  calorieTargetLow: null,
+  calorieTargetHigh: null,
+  proteinTargetG: null,
+  injuryNotes: "",
 };

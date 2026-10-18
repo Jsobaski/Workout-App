@@ -37,7 +37,7 @@ export default function DayViewPage() {
     removeGolfActivityEntry,
   } = useDayData(dateKey);
   const { context: coachingContext } = useCoachingContext();
-  const { overrides: exerciseOverrides } = useExerciseSettings();
+  const { settings: exerciseSettings } = useExerciseSettings();
   const exerciseNames = useExerciseNames(workoutEntries.length);
   const recentFoods = useRecentFoods(foodEntries.length);
   const foodHistory = useFoodHistory(foodEntries.length);
@@ -89,7 +89,7 @@ export default function DayViewPage() {
         onSuggest={() => setShowSuggest(true)}
         canSuggest={aiUnlocked}
         bodyweightLb={coachingContext.currentWeightLb}
-        exerciseOverrides={exerciseOverrides}
+        exerciseSettings={exerciseSettings}
         onChooseSplit={() => setShowChooseSplit(true)}
         onUpdate={updateWorkoutEntry}
         onDelete={removeWorkoutEntry}

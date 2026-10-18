@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { exercisesForMuscle, lookupExerciseMapping } from "./exerciseMuscleMap";
+import { lookupExerciseMapping } from "./exerciseMuscleMap";
+import { exercisesForMuscle } from "./exerciseSuggestions";
 
 // Exact exercise names from a real user bug report: these showed up in the
 // "needs mapping" banner despite representing real training — either the

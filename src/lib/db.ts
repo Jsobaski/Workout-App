@@ -7,7 +7,13 @@ import {
   GolfActivityEntry,
   WorkoutEntry,
 } from "./types";
-import type { ExerciseSettingsOverrides, ExerciseSettingsRecord } from "./exerciseSettings";
+import {
+  ExerciseSettingsData,
+  ExerciseSettingsRecord,
+  emptyExerciseSettings,
+  normalizeExerciseSettings,
+} from "./exerciseSettings";
+import type { MigrationChoice, MigrationsRecord } from "./neutralMigration";
 
 interface GolfTrackerDB extends DBSchema {
   foodEntries: {
@@ -32,7 +38,7 @@ interface GolfTrackerDB extends DBSchema {
   };
   settings: {
     key: string;
-    value: CoachingContext | ExerciseSettingsRecord;
+    value: CoachingContext | ExerciseSettingsRecord | MigrationsRecord;
   };
 }
 
@@ -294,17 +300,78 @@ export async function saveCoachingContext(
   await db.put("settings", context);
 }
 
-// ---- Per-exercise settings overrides (load multipliers, restrictions, ...) ----
+// ---- Exercise settings (local overrides, movement-pattern restrictions, priority muscles) ----
 
-export async function getExerciseSettings(): Promise<ExerciseSettingsOverrides> {
+export async function getExerciseSettings(): Promise<ExerciseSettingsData> {
   const db = await getDB();
   const existing = (await db.get("settings", "exerciseSettings")) as ExerciseSettingsRecord | undefined;
-  return existing?.overrides ?? {};
+  return existing ? normalizeExerciseSettings(existing) : emptyExerciseSettings();
 }
 
-export async function saveExerciseSettings(
-  overrides: ExerciseSettingsOverrides
-): Promise<void> {
+export async function saveExerciseSettings(data: ExerciseSettingsData): Promise<void> {
   const db = await getDB();
-  await db.put("settings", { key: "exerciseSettings", overrides });
+  const record: ExerciseSettingsRecord = {
+    key: "exerciseSettings",
+    overrides: data.overrides,
+    patterns: data.patterns,
+    focusMuscles: data.focusMuscles,
+  };
+  await db.put("settings", record);
+}
+
+// ---- One-time migrations ----
+
+export async function getNeutralMigrationChoice(): Promise<MigrationChoice | undefined> {
+  const db = await getDB();
+  const record = (await db.get("settings", "migrations")) as MigrationsRecord | undefined;
+  return record?.neutralDefaultsV1;
+}
+
+export async function setNeutralMigrationChoice(choice: MigrationChoice): Promise<void> {
+  const db = await getDB();
+  const existing = (await db.get("settings", "migrations")) as MigrationsRecord | undefined;
+  await db.put("settings", { ...existing, key: "migrations", neutralDefaultsV1: choice });
+}
+
+/** True when this device has any logged data (workouts, food, golf activity or measurements). */
+export async function hasAnyLoggedData(): Promise<boolean> {
+  const db = await getDB();
+  const stores = ["workoutEntries", "foodEntries", "golfActivityEntries", "measurementEntries"] as const;
+  for (const store of stores) {
+    if ((await db.count(store)) > 0) return true;
+  }
+  return false;
+}
+
+export async function hasStoredCoachingContext(): Promise<boolean> {
+  const db = await getDB();
+  return (await db.get("settings", "coachingContext")) != null;
+}
+
+// ---- Exercise names ----
+
+/** Distinct logged exercise names with how many entries use each. */
+export async function listExerciseNameCounts(): Promise<{ name: string; count: number }[]> {
+  const all = await listAllWorkoutEntries();
+  const counts = new Map<string, number>();
+  for (const e of all) counts.set(e.exerciseName, (counts.get(e.exerciseName) ?? 0) + 1);
+  return Array.from(counts, ([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Renames every logged entry whose exercise name is in `fromNames` to `toName`. Returns how many entries changed. */
+export async function renameExerciseEntries(fromNames: string[], toName: string): Promise<number> {
+  const target = toName.trim();
+  if (!target) return 0;
+  const from = new Set(fromNames);
+  const db = await getDB();
+  const tx = db.transaction("workoutEntries", "readwrite");
+  let changed = 0;
+  for (const entry of await tx.store.getAll()) {
+    if (from.has(entry.exerciseName) && entry.exerciseName !== target) {
+      await tx.store.put({ ...entry, exerciseName: target });
+      changed++;
+    }
+  }
+  await tx.done;
+  return changed;
 }

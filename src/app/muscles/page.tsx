@@ -26,7 +26,7 @@ import { formatMuscleSummaryText } from "@/lib/muscleShareText";
 
 export default function MusclesPage() {
   const { entries: realEntries, bodyweightLb: realBodyweight, loading } = useMuscleData();
-  const { overrides } = useExerciseSettings();
+  const { settings } = useExerciseSettings();
   const [view, setView] = useState<"front" | "back">("front");
   const [useSampleData, setUseSampleData] = useState(false);
   const [afterDateKey, setAfterDateKey] = useState(todayKey());
@@ -40,18 +40,18 @@ export default function MusclesPage() {
   const bodyweightLb = useSampleData ? realBodyweight ?? 180 : realBodyweight;
 
   const afterResult = useMemo(
-    () => computeMuscleEngine(entries, bodyweightLb, afterDateKey, DEFAULT_STALE_THRESHOLD_DAYS, overrides),
-    [entries, bodyweightLb, afterDateKey, overrides]
+    () => computeMuscleEngine(entries, bodyweightLb, afterDateKey, DEFAULT_STALE_THRESHOLD_DAYS, settings),
+    [entries, bodyweightLb, afterDateKey, settings]
   );
   const beforeResult = useMemo(
-    () => computeMuscleEngine(entries, bodyweightLb, beforeDateKey, DEFAULT_STALE_THRESHOLD_DAYS, overrides),
-    [entries, bodyweightLb, beforeDateKey, overrides]
+    () => computeMuscleEngine(entries, bodyweightLb, beforeDateKey, DEFAULT_STALE_THRESHOLD_DAYS, settings),
+    [entries, bodyweightLb, beforeDateKey, settings]
   );
   // Focus card and trend always reflect actual today / the last TREND_WINDOW_DAYS,
   // independent of whatever comparison dates the user has picked above.
   const currentResult = useMemo(
-    () => computeMuscleEngine(entries, bodyweightLb, todayKey(), DEFAULT_STALE_THRESHOLD_DAYS, overrides),
-    [entries, bodyweightLb, overrides]
+    () => computeMuscleEngine(entries, bodyweightLb, todayKey(), DEFAULT_STALE_THRESHOLD_DAYS, settings),
+    [entries, bodyweightLb, settings]
   );
   const trendStartResult = useMemo(
     () =>
@@ -60,9 +60,9 @@ export default function MusclesPage() {
         bodyweightLb,
         shiftDateKey(todayKey(), -TREND_WINDOW_DAYS),
         DEFAULT_STALE_THRESHOLD_DAYS,
-        overrides
+        settings
       ),
-    [entries, bodyweightLb, overrides]
+    [entries, bodyweightLb, settings]
   );
   const comparison = useMemo(
     () => compareSnapshots(beforeResult.statsByGroup, afterResult.statsByGroup),
@@ -80,7 +80,7 @@ export default function MusclesPage() {
       result: currentResult,
       deltaByGroup: trendDeltas,
       entries,
-      overrides,
+      settings,
     });
     try {
       await copyToClipboard(text);
@@ -209,11 +209,11 @@ export default function MusclesPage() {
           <span className="text-neutral-400">Color</span> = strength tier.{" "}
           <span className="text-neutral-400">Dimmed with a dashed outline</span> = not trained
           meaningfully in {DEFAULT_STALE_THRESHOLD_DAYS}+ days (tier unchanged, just stale).{" "}
-          <span className="text-neutral-400">Blue dashed ring</span> = decay paused because the last work was a
-          PT-restricted exercise.
+          <span className="text-neutral-400">Blue dashed ring</span> = decay paused because every exercise for that
+          muscle is restricted.
         </p>
         <Link href="/settings#exercise-settings" className="w-full text-center text-xs text-emerald-400 hover:underline">
-          Edit load multipliers &amp; PT restrictions
+          Edit exercise preferences (load multipliers, restrictions, priority muscles)
         </Link>
       </div>
 
@@ -241,32 +241,7 @@ export default function MusclesPage() {
         )}
       </section>
 
-      {currentResult.calibrations.length > 0 && (
-        <details className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4 text-xs text-neutral-400">
-          <summary className="cursor-pointer text-sm font-semibold text-neutral-300">Machine calibration log</summary>
-          <p className="mt-2 text-neutral-500">
-            Machine lifts are scaled so their score lands within 15 points of their free-weight anchor. Multiplier
-            shown is what was applied to the machine&apos;s e1RM.
-          </p>
-          <ul className="mt-2 space-y-1">
-            {currentResult.calibrations.map((c) => (
-              <li key={c.exercise}>
-                <span className="text-neutral-200">{c.exercise}</span> vs {c.anchor}: machine {Math.round(c.machineScore)},
-                anchor {Math.round(c.anchorScore)} →{" "}
-                {c.adjusted ? (
-                  <span className="text-amber-300">
-                    ×{c.multiplier.toFixed(2)} (now {Math.round(c.calibratedScore)})
-                  </span>
-                ) : (
-                  <span className="text-emerald-400">within tolerance (×1.00)</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-
-      <WeeklyFocusCard statsByGroup={currentResult.statsByGroup} deltas={trendDeltas} overrides={overrides} />
+      <WeeklyFocusCard statsByGroup={currentResult.statsByGroup} deltas={trendDeltas} settings={settings} />
 
       {selectedGroups && (
         <MuscleDetailPanel

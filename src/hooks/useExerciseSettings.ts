@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getExerciseSettings, saveExerciseSettings } from "@/lib/db";
-import type { ExerciseSettingsOverrides } from "@/lib/exerciseSettings";
+import { ExerciseSettingsData, emptyExerciseSettings } from "@/lib/exerciseSettings";
 
+/** This device's exercise preferences (overrides, restricted patterns, priority muscles). Neutral until the user sets something. */
 export function useExerciseSettings() {
-  const [overrides, setOverrides] = useState<ExerciseSettingsOverrides>({});
+  const [settings, setSettings] = useState<ExerciseSettingsData>(emptyExerciseSettings());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -13,7 +14,7 @@ export function useExerciseSettings() {
     (async () => {
       try {
         const loaded = await getExerciseSettings();
-        if (!cancelled) setOverrides(loaded);
+        if (!cancelled) setSettings(loaded);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -23,10 +24,10 @@ export function useExerciseSettings() {
     };
   }, []);
 
-  const saveOverrides = useCallback(async (next: ExerciseSettingsOverrides) => {
-    setOverrides(next); // optimistic — the checkbox/number reflects the edit immediately
+  const saveSettings = useCallback(async (next: ExerciseSettingsData) => {
+    setSettings(next); // optimistic — controls reflect the edit immediately
     await saveExerciseSettings(next);
   }, []);
 
-  return { overrides, loading, saveOverrides };
+  return { settings, loading, saveSettings };
 }

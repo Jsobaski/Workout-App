@@ -10,7 +10,7 @@ export type DeltaStatus =
   | "like-for-like" // change on a shared exercise
   | "consistency" // reps/time-scored muscle: change in the consistency-driven score
   | "equipment-changed" // scored by different exercises in each snapshot — not comparable
-  | "paused" // decay paused for a PT-restricted exercise — not a drop
+  | "paused" // decay paused because every exercise for the muscle is restricted — not a drop
   | "incidental" // only secondary/minor credit, no direct (primary) work — nothing meaningful to compare
   | "new" // no data in the Before snapshot
   | "no-data";

@@ -6,7 +6,8 @@ import { clearSavedPin, getSavedPin } from "@/lib/appPin";
 import { CoachingContext, SuggestedExercise, WorkoutSuggestion } from "@/lib/types";
 import { dateKeysInRange, todayKey } from "@/lib/date";
 import { getExerciseSettings, listWorkoutEntriesInRange } from "@/lib/db";
-import { listNeedsPtConfirmation, listRestrictedExercises } from "@/lib/exerciseSettings";
+import { listLimitedExercises, listNeedsConfirmation, listRestrictedExercises } from "@/lib/exerciseSettings";
+import { MUSCLE_GROUPS } from "@/lib/muscleTaxonomy";
 
 export default function SuggestWorkoutModal({
   coachingContext,
@@ -58,8 +59,11 @@ export default function SuggestWorkoutModal({
         body: JSON.stringify({
           recentWorkouts,
           coachingContext,
+          // Only what the user set on this device — all empty for a neutral install.
           restrictedExercises: listRestrictedExercises(exerciseSettings),
-          needsPtConfirmation: listNeedsPtConfirmation(exerciseSettings),
+          limitedExercises: listLimitedExercises(exerciseSettings),
+          needsConfirmation: listNeedsConfirmation(exerciseSettings),
+          priorityMuscles: exerciseSettings.focusMuscles.map((id) => MUSCLE_GROUPS.find((g) => g.id === id)?.label ?? id),
           exerciseSettings,
         }),
       });
