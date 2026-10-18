@@ -20,15 +20,14 @@ interface TickProps {
   payload?: { value: string };
 }
 
-// Wrap each muscle label onto at most two lines (at "/" or the first space) so
-// long names like "Mid/Lower Chest" and "Side/Rear Delts" stay narrow instead
-// of clipping at the chart edge or colliding with their neighbours.
+// Break each muscle label into short lines (at "/" and spaces) so the labels
+// stay narrow — that lets the radar itself fill almost the whole card instead
+// of shrinking to make room for wide names like "Mid/Lower Chest".
 function splitLabel(label: string): string[] {
-  const slash = label.indexOf("/");
-  if (slash > 0) return [label.slice(0, slash + 1), label.slice(slash + 1)];
-  const space = label.indexOf(" ");
-  if (space > 0) return [label.slice(0, space), label.slice(space + 1)];
-  return [label];
+  return label
+    .replace(/\//g, "/ ")
+    .split(" ")
+    .filter(Boolean);
 }
 
 function AngleTick({ x = 0, y = 0, textAnchor = "middle", payload }: TickProps) {
@@ -36,10 +35,19 @@ function AngleTick({ x = 0, y = 0, textAnchor = "middle", payload }: TickProps) 
   return (
     <text x={x} y={y} textAnchor={textAnchor} fill="#d4d4d4" fontSize={9}>
       {parts.map((part, i) => (
-        <tspan key={i} x={x} dy={i === 0 ? (parts.length > 1 ? -4 : 0) : 10}>
+        <tspan key={i} x={x} dy={i === 0 ? -((parts.length - 1) * 5) : 10}>
           {part}
         </tspan>
       ))}
+    </text>
+  );
+}
+
+function RadiusTick(props: { x?: number | string; y?: number | string; payload?: { value?: unknown } }) {
+  if (props.payload?.value !== 50) return <g />;
+  return (
+    <text x={props.x} y={props.y} fill="#737373" fontSize={9}>
+      50
     </text>
   );
 }
@@ -58,16 +66,16 @@ export default function MuscleRadarChart({
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={340}>
-      <RadarChart data={data} outerRadius="70%" margin={{ top: 12, right: 24, bottom: 12, left: 24 }}>
+    <ResponsiveContainer width="100%" height={400}>
+      <RadarChart data={data} outerRadius="100%" margin={{ top: 30, right: 44, bottom: 30, left: 44 }}>
         <PolarGrid stroke="#404040" />
         <PolarAngleAxis dataKey="group" tick={<AngleTick />} />
-        {/* A single "50" label, halfway between two spokes, so axis numbers never collide with the muscle names. */}
+        {/* Rings at 25/50/75/100 (the outer ring marks 100), but only "50" is labeled, halfway between two spokes, so axis numbers never collide with the muscle names. */}
         <PolarRadiusAxis
           angle={90 - 360 / MUSCLE_GROUPS.length / 2}
           domain={[0, 100]}
-          ticks={[50]}
-          tick={{ fill: "#737373", fontSize: 9 }}
+          ticks={[25, 50, 75, 100]}
+          tick={RadiusTick}
           axisLine={false}
         />
         <Radar
