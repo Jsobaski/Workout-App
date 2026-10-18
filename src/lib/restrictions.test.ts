@@ -15,6 +15,7 @@ import {
   listRestrictedExercises,
   normalizeExerciseSettings,
   resolveExerciseConfig,
+  restrictionSpreadsToPattern,
 } from "./exerciseSettings";
 import { suggestExercisesForMuscle } from "./exerciseSuggestions";
 import { clampToLimit } from "./limits";
@@ -200,5 +201,74 @@ describe("a database with a restricted pattern and a cleared override", () => {
     expect(legacy.overrides["romanian deadlift"]).toEqual({ restricted: true });
     expect(legacy.overrides["not a real key"]).toEqual({ loadMultiplier: 2 });
     expect(canonicalExerciseKey("romanian deadlift")).toBe("romanian deadlift");
+  });
+});
+
+describe("restricting one exercise automatically restricts its movement pattern", () => {
+  const trapBarRestricted = (extra: Record<string, unknown> = {}): ExerciseSettingsData => ({
+    ...emptyExerciseSettings(),
+    overrides: { "trap bar deadlift": { restricted: true, ...extra } },
+  });
+  const hingeKeys = Object.entries(EXERCISE_MUSCLE_MAP)
+    .filter(([, m]) => m.patterns?.includes("hip_hinge"))
+    .map(([k]) => k);
+
+  it("excludes every hinge exercise, including ones with no override of their own", () => {
+    const settings = trapBarRestricted();
+    expect(hingeKeys.length).toBeGreaterThan(3);
+    expect(hingeKeys).toContain("barbell deadlift");
+    for (const key of hingeKeys) {
+      expect(isExerciseRestricted(key, settings), key).toBe(true);
+      expect(settings.overrides[key]?.restricted === true).toBe(key === "trap bar deadlift");
+    }
+    expect(resolveExerciseConfig("Barbell Deadlift", settings)!.restrictionSource).toBe("pattern");
+    // Other patterns are untouched.
+    expect(isExerciseRestricted("Back Squat", settings)).toBe(false);
+    expect(isExerciseRestricted("Bench Press", settings)).toBe(false);
+  });
+
+  it("removes hinge lifts from suggestions and lists them as skipped (restricted)", () => {
+    const settings = trapBarRestricted();
+    for (const group of ["hamstrings", "glutes", "lowerBack"] as const) {
+      const { suggestions, skippedRestricted } = suggestExercisesForMuscle(group, 50, settings);
+      const names = new Set(suggestions.map((n) => canonicalExerciseKey(n)));
+      for (const key of hingeKeys) expect(names.has(key), `${group}: ${key}`).toBe(false);
+      expect(skippedRestricted.length).toBeGreaterThan(0);
+    }
+    const lowerBack = suggestExercisesForMuscle("lowerBack", 50, settings);
+    expect(lowerBack.skippedRestricted.map((s) => canonicalExerciseKey(s.name))).toContain("barbell deadlift");
+    // Unrestricted settings still suggest them.
+    const open = suggestExercisesForMuscle("lowerBack", 50, emptyExerciseSettings());
+    expect(open.suggestions.map((n) => canonicalExerciseKey(n))).toContain("barbell deadlift");
+  });
+
+  it("the 'only this exercise' toggle restores the others", () => {
+    const settings = trapBarRestricted({ onlyThisExercise: true });
+    expect(isExerciseRestricted("Trap Bar Deadlift", settings)).toBe(true);
+    for (const key of hingeKeys.filter((k) => k !== "trap bar deadlift")) {
+      expect(isExerciseRestricted(key, settings), key).toBe(false);
+    }
+    expect(restrictionSpreadsToPattern("trap bar deadlift", settings)).toEqual([]);
+    expect(restrictionSpreadsToPattern("trap bar deadlift", trapBarRestricted())).toEqual(["hip_hinge"]);
+  });
+
+  it("an explicit 'allowed anyway' on another lift still wins, and the toggle survives a save/load round trip", () => {
+    const settings: ExerciseSettingsData = {
+      ...trapBarRestricted(),
+      overrides: { ...trapBarRestricted().overrides, "barbell deadlift": { restricted: false } },
+    };
+    expect(isExerciseRestricted("Barbell Deadlift", settings)).toBe(false);
+    expect(isExerciseRestricted("Romanian Deadlift", settings)).toBe(true);
+    const round = normalizeExerciseSettings(JSON.parse(JSON.stringify(trapBarRestricted({ onlyThisExercise: true }))));
+    expect(round.overrides["trap bar deadlift"].onlyThisExercise).toBe(true);
+  });
+
+  it("feeds the Focus 'skipped' list and the engine's paused rule", () => {
+    const settings = trapBarRestricted();
+    const entries = [make("a", "2026-09-01", "Trap Bar Deadlift", 5, 300)];
+    const { statsByGroup } = computeMuscleEngine(entries, BW, TODAY, 10, settings);
+    const focus = buildFocusList(statsByGroup, undefined, settings, 20);
+    const lowerBack = focus.find((f) => f.group === "lowerBack");
+    expect(lowerBack?.skippedRestricted.map((s) => canonicalExerciseKey(s.name))).toContain("barbell deadlift");
   });
 });

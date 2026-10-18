@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { EXERCISE_MUSCLE_MAP, LOAD_BASIS_LABELS, LoadBasis, canonicalExerciseKey } from "@/lib/exerciseMuscleMap";
+import { EXERCISE_MUSCLE_MAP, LOAD_BASIS_LABELS, LoadBasis, MOVEMENT_PATTERNS, canonicalExerciseKey } from "@/lib/exerciseMuscleMap";
 import {
   ExerciseSettingOverride,
   ExerciseSettingsData,
@@ -68,6 +68,7 @@ export default function ExerciseSettingsEditor({
       if (merged.bodyweightFraction === defaults.bodyweightFraction) delete merged.bodyweightFraction;
       if (merged.loadBasis === defaults.loadBasis) delete merged.loadBasis;
       if (merged.needsConfirmation === false) delete merged.needsConfirmation;
+      if (merged.onlyThisExercise === false) delete merged.onlyThisExercise;
     }
     const overrides = { ...settings.overrides };
     if (Object.keys(merged).length === 0) delete overrides[key];
@@ -83,9 +84,9 @@ export default function ExerciseSettingsEditor({
   }
 
   function setRestriction(key: string, choice: RestrictionChoice) {
-    if (choice === "inherit") update(key, { restricted: undefined, restrictionNote: undefined });
+    if (choice === "inherit") update(key, { restricted: undefined, restrictionNote: undefined, onlyThisExercise: undefined });
     else if (choice === "restricted") update(key, { restricted: true });
-    else update(key, { restricted: false, restrictionNote: undefined });
+    else update(key, { restricted: false, restrictionNote: undefined, onlyThisExercise: undefined });
   }
 
   function runHelper(key: string) {
@@ -112,6 +113,7 @@ export default function ExerciseSettingsEditor({
           const override = settings.overrides[key];
           const isOpen = openKey === key;
           const edited = override != null;
+          const patternTags = override?.restricted === true ? (EXERCISE_MUSCLE_MAP[key].patterns ?? []) : [];
           const choice: RestrictionChoice = override?.restricted === true ? "restricted" : override?.restricted === false ? "allowed" : "inherit";
           return (
             <div key={key} className="rounded-lg border border-neutral-800 bg-neutral-900/50">
@@ -141,6 +143,24 @@ export default function ExerciseSettingsEditor({
                   {edited && <span className="text-emerald-400">edited</span>}
                 </span>
               </button>
+              {patternTags.length > 0 && (
+                <div className="px-3 pb-2 text-[11px] text-neutral-500">
+                  <p>
+                    {override?.onlyThisExercise
+                      ? "Only this exercise is skipped."
+                      : `Also skipping other ${patternTags.map((id) => MOVEMENT_PATTERNS.find((p) => p.id === id)!.label.toLowerCase()).join(" / ")} exercises.`}
+                  </p>
+                  <label className="mt-0.5 flex items-center gap-1.5">
+                    <input
+                      type="checkbox"
+                      checked={override?.onlyThisExercise === true}
+                      onChange={(e) => update(key, { onlyThisExercise: e.target.checked })}
+                      className="h-3.5 w-3.5 shrink-0 rounded border-neutral-700 bg-neutral-900 accent-sky-500"
+                    />
+                    Restrict only this exercise instead
+                  </label>
+                </div>
+              )}
               {isOpen && (
                 <div className="space-y-3 border-t border-neutral-800 px-3 py-3">
                   <div className="grid grid-cols-2 gap-3">

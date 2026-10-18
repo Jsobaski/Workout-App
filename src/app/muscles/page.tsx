@@ -235,13 +235,17 @@ export default function MusclesPage() {
           </div>
         </div>
         {comparisonView === "change" ? (
-          <MuscleChangeChart deltas={comparison} />
+          <MuscleChangeChart deltas={comparison} before={beforeResult.statsByGroup} after={afterResult.statsByGroup} settings={settings} />
         ) : (
           <MuscleRadarChart before={beforeResult.statsByGroup} after={afterResult.statsByGroup} />
         )}
       </section>
 
-      <WeeklyFocusCard statsByGroup={currentResult.statsByGroup} deltas={trendDeltas} settings={settings} />
+      {entries.length > 0 ? (
+        <WeeklyFocusCard statsByGroup={currentResult.statsByGroup} deltas={trendDeltas} settings={settings} />
+      ) : (
+        !loading && <p className="text-center text-sm text-neutral-500">Log a workout to see your muscle map.</p>
+      )}
 
       {selectedGroups && (
         <MuscleDetailPanel

@@ -8,7 +8,6 @@ const TABS = [
   { href: "/trends", label: "Trends", icon: "📈" },
   { href: "/measurements", label: "Measure", icon: "📏" },
   { href: "/muscles", label: "Muscles", icon: "💪" },
-  { href: "/badges", label: "Badges", icon: "🏅" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 

@@ -6,6 +6,8 @@ export interface BadgeCategory {
   title: string;
   icon: string;
   unit: string;
+  /** Short noun phrase for a count of this category, used in goal hints: "1 workout", "10,000 lb of volume". */
+  noun: (n: number) => string;
   /** Ascending milestone thresholds. */
   tiers: number[];
   /** How to phrase a reached/target value, e.g. v => `${v} workouts completed`. */
@@ -18,6 +20,7 @@ export const BADGE_CATEGORIES: BadgeCategory[] = [
     title: "Workouts",
     icon: "🎯",
     unit: "workouts",
+    noun: (n) => `workout${n === 1 ? "" : "s"}`,
     tiers: [1, 10, 25, 50, 100, 200, 365],
     describe: (v) => `${v} workout${v === 1 ? "" : "s"} completed`,
   },
@@ -26,6 +29,7 @@ export const BADGE_CATEGORIES: BadgeCategory[] = [
     title: "Volume",
     icon: "🏋️",
     unit: "lb",
+    noun: () => "lb of volume",
     tiers: [10_000, 50_000, 100_000, 250_000, 500_000, 1_000_000],
     describe: (v) => `${v.toLocaleString()} lb total volume`,
   },
@@ -34,6 +38,7 @@ export const BADGE_CATEGORIES: BadgeCategory[] = [
     title: "Streaks",
     icon: "🔥",
     unit: "weeks",
+    noun: (n) => `week${n === 1 ? "" : "s"} in a row`,
     tiers: [1, 4, 8, 12, 26, 52],
     describe: (v) => `${v} week${v === 1 ? "" : "s"} streak`,
   },
@@ -42,6 +47,7 @@ export const BADGE_CATEGORIES: BadgeCategory[] = [
     title: "Consistency",
     icon: "📅",
     unit: "workouts/month",
+    noun: () => "workouts in a month",
     tiers: [4, 8, 12, 16, 20, 24],
     describe: (v) => `${v} workouts in a month`,
   },
@@ -50,6 +56,7 @@ export const BADGE_CATEGORIES: BadgeCategory[] = [
     title: "Golf Activity",
     icon: "⛳",
     unit: "sessions",
+    noun: (n) => `golf session${n === 1 ? "" : "s"}`,
     tiers: [1, 5, 10, 25, 50, 100],
     describe: (v) => `${v} golf session${v === 1 ? "" : "s"} logged`,
   },
@@ -58,6 +65,7 @@ export const BADGE_CATEGORIES: BadgeCategory[] = [
     title: "Nutrition",
     icon: "🥩",
     unit: "days",
+    noun: (n) => `day${n === 1 ? "" : "s"} hitting your protein target in a row`,
     tiers: [3, 7, 14, 30, 60, 100],
     describe: (v) => `${v}-day protein streak`,
   },
@@ -81,6 +89,17 @@ export function computeProgress(category: BadgeCategory, value: number, availabl
   const floor = currentTier ?? 0;
   const progressToNext = nextTier ? Math.min(1, (value - floor) / (nextTier - floor)) : 1;
   return { category, value, unlockedTiers, currentTier, nextTier, progressToNext, available };
+}
+
+/**
+ * The next reachable goal, phrased for a compact list: "1 workout to your first badge",
+ * "3 workouts to your next badge". Null when every badge is unlocked or the metric isn't available.
+ */
+export function nextGoalHint(progress: BadgeProgress): string | null {
+  if (!progress.available || progress.nextTier == null) return null;
+  const remaining = progress.nextTier - progress.value;
+  const first = progress.currentTier == null;
+  return `${remaining.toLocaleString()} ${progress.category.noun(remaining)} to your ${first ? "first" : "next"} badge`;
 }
 
 // ---- Metric calculations ----

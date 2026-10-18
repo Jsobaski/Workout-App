@@ -8,6 +8,8 @@
 // instead of printing a number that could contradict the real change. Pure.
 import { MuscleStats } from "./muscleEngine";
 import { MUSCLE_GROUPS, MuscleGroupId } from "./muscleTaxonomy";
+import { ExerciseSettingsData, resolveConfigForKey } from "./exerciseSettings";
+import { DECAY_FLOOR_RATIO, DECAY_GRACE_DAYS, VOLUME_BONUS_WINDOW_DAYS } from "./muscleScoreConfig";
 
 export type DeltaStatus =
   | "like-for-like" // the same lift group leads both snapshots; delta is the muscle's real score change
@@ -119,4 +121,102 @@ export function describeDeltaStatus(d: MuscleDelta): string | null {
     default:
       return null;
   }
+}
+
+export type DeltaReasonKind =
+  | "lead-lift" // the lead lift (or the training volume behind it) really changed
+  | "replaced" // a new lift replaced the old one, or the lift has no earlier baseline
+  | "decay" // time since the last direct work
+  | "restricted" // the lead lift is now restricted (or the whole muscle is paused)
+  | "none";
+
+export interface DeltaReason {
+  kind: DeltaReasonKind;
+  label: string;
+  text: string;
+}
+
+const REASON_LABELS: Record<DeltaReasonKind, string> = {
+  "lead-lift": "Real change",
+  replaced: "New lift",
+  decay: "Inactivity",
+  restricted: "Restricted",
+  none: "No comparison",
+};
+
+function reason(kind: DeltaReasonKind, text: string): DeltaReason {
+  return { kind, label: REASON_LABELS[kind], text };
+}
+
+/**
+ * Why a muscle's delta is what it is, chosen automatically from the two snapshots (no input needed):
+ * a real change in the lead lift, a new lift replacing the old one, decay from inactivity,
+ * or the lead lift now being restricted. Pure.
+ */
+export function explainDelta(
+  before: MuscleStats,
+  after: MuscleStats,
+  delta: MuscleDelta,
+  settings?: ExerciseSettingsData
+): DeltaReason {
+  const lead = leadingExercise(after);
+  const leadBefore = leadingExercise(before);
+
+  switch (delta.status) {
+    case "paused":
+      return reason("restricted", "Every exercise for this muscle is restricted, so its score is held instead of decaying.");
+    case "no-data":
+      return reason("none", "Nothing logged for this muscle yet.");
+    case "incidental":
+      return reason("none", "Only incidental credit from other lifts. There is no direct work to compare.");
+    case "new":
+      return reason(
+        "replaced",
+        lead && leadBefore
+          ? `${lead.name} now leads and has no comparable earlier baseline (a new lift, or loaded a different way than ${leadBefore.name}), so no change is claimed.`
+          : lead
+            ? `${lead.name} is new for this muscle, so there is nothing earlier to compare with.`
+            : "This muscle had no earlier scored work to compare with."
+      );
+    case "lead-changed":
+      return reason(
+        "replaced",
+        `${lead?.name ?? "A different lift"} now leads this muscle${leadBefore ? ` instead of ${leadBefore.name}` : ""}, so a single before/after figure would be misleading.`
+      );
+  }
+
+  const change = delta.delta ?? 0;
+  if (Math.abs(change) < 0.5) return reason("none", "No meaningful change in this period.");
+  if (delta.status === "consistency") {
+    return reason("lead-lift", "Reps, time and training consistency changed. This muscle has no load standard to score against.");
+  }
+
+  // Split the real change into "peak" (best lift / training volume) and "decay" (days since direct work).
+  const peakChange = (after.peak ?? 0) - (before.peak ?? 0);
+  const decayChange = (after.effective ?? 0) - (after.peak ?? 0) - ((before.effective ?? 0) - (before.peak ?? 0));
+  const days = after.daysStale;
+
+  if (change < 0 && decayChange < 0 && Math.abs(decayChange) >= Math.abs(peakChange)) {
+    const decayText =
+      days != null
+        ? `no direct work for ${days} ${days === 1 ? "day" : "days"} (decay starts after ${DECAY_GRACE_DAYS} days and never goes below ${Math.round(DECAY_FLOOR_RATIO * 100)}% of your peak)`
+        : "no direct work logged";
+    const cfg = lead ? resolveConfigForKey(lead.key, settings) : null;
+    if (cfg?.restricted) {
+      return reason(
+        "restricted",
+        `${lead!.name} is now restricted, so it hasn't been repeated: ${decayText}. Your peak is unchanged; an allowed exercise for this muscle will bring the score back.`
+      );
+    }
+    return reason("decay", `Decay from inactivity: ${decayText}. Your best lift is unchanged.`);
+  }
+
+  const bScore = lead ? before.exerciseScores.find((e) => e.groupKey === lead.groupKey) : undefined;
+  if (lead && bScore && Math.abs(lead.e1RM - bScore.e1RM) >= 1) {
+    return reason("lead-lift", `${lead.name} best estimated 1RM went from ${Math.round(bScore.e1RM)} to ${Math.round(lead.e1RM)} lb.`);
+  }
+  return reason(
+    "lead-lift",
+    `Training volume over the last ${VOLUME_BONUS_WINDOW_DAYS} days changed${lead ? ` (${lead.name}'s best is unchanged)` : ""}.`
+  );
 }

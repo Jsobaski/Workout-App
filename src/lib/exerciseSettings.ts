@@ -23,6 +23,12 @@ export interface ExerciseSettingOverride {
   /** true = restricted, false = explicitly allowed (wins over a restricted pattern), unset = follow the pattern. */
   restricted?: boolean;
   restrictionNote?: string;
+  /**
+   * Restricting an exercise that has a movement pattern automatically restricts that pattern
+   * (every other exercise sharing it). Set this to restrict ONLY this exercise instead —
+   * an optional correction, never required.
+   */
+  onlyThisExercise?: boolean;
   /** Per-exercise limit like "2x10": shown on suggestion chips, and suggestions never go beyond it. */
   limit?: string;
   /** Show a "confirm first" flag on suggestions of this exercise. */
@@ -81,6 +87,7 @@ export function normalizeExerciseSettings(raw: unknown): ExerciseSettingsData {
     if (typeof value.loadBasis === "string") next.loadBasis = value.loadBasis as LoadBasis;
     if (typeof value.restricted === "boolean") next.restricted = value.restricted;
     if (typeof value.restrictionNote === "string" && value.restrictionNote.trim()) next.restrictionNote = value.restrictionNote.trim();
+    if (value.onlyThisExercise === true) next.onlyThisExercise = true;
     if (typeof value.limit === "string" && value.limit.trim()) next.limit = value.limit.trim();
     const confirm = value.needsConfirmation ?? value.needsPtConfirmation;
     if (typeof confirm === "boolean") next.needsConfirmation = confirm;
@@ -120,16 +127,43 @@ export interface ResolvedExerciseConfig {
   needsConfirmation: boolean;
 }
 
+/**
+ * Patterns restricted automatically because the user restricted an exercise that carries them
+ * (unless that exercise is marked "only this exercise"). Keyed pattern -> the exercise that caused it.
+ */
+const impliedCache = new WeakMap<ExerciseSettingsData, Partial<Record<MovementPattern, string>>>();
+export function impliedPatternRestrictions(settings: ExerciseSettingsData | undefined): Partial<Record<MovementPattern, string>> {
+  if (!settings) return {};
+  const cached = impliedCache.get(settings);
+  if (cached) return cached;
+  const implied: Partial<Record<MovementPattern, string>> = {};
+  for (const [key, o] of Object.entries(settings.overrides)) {
+    if (o.restricted !== true || o.onlyThisExercise) continue;
+    for (const id of EXERCISE_MUSCLE_MAP[key]?.patterns ?? []) {
+      if (!implied[id]) implied[id] = exerciseDisplayName(key);
+    }
+  }
+  impliedCache.set(settings, implied);
+  return implied;
+}
+
+/** True when this exercise's restriction also restricts its movement pattern(s) — drives the "Also skipping…" note. */
+export function restrictionSpreadsToPattern(key: string, settings: ExerciseSettingsData): MovementPattern[] {
+  const o = settings.overrides[key];
+  if (o?.restricted !== true || o.onlyThisExercise) return [];
+  return [...(EXERCISE_MUSCLE_MAP[key]?.patterns ?? [])];
+}
+
 function patternRestriction(
   mapping: ExerciseMapping,
-  patterns: PatternRestrictions | undefined
+  settings: ExerciseSettingsData | undefined
 ): { note: string } | null {
+  const implied = impliedPatternRestrictions(settings);
   for (const id of mapping.patterns ?? []) {
-    const hit = patterns?.[id];
-    if (hit) {
-      const def = MOVEMENT_PATTERNS.find((p) => p.id === id)!;
-      return { note: hit.note ?? `${def.label} restricted` };
-    }
+    const def = MOVEMENT_PATTERNS.find((p) => p.id === id)!;
+    const hit = settings?.patterns[id];
+    if (hit) return { note: hit.note ?? `${def.label} restricted` };
+    if (implied[id]) return { note: `${def.label} restricted (via ${implied[id]})` };
   }
   return null;
 }
@@ -150,7 +184,7 @@ export function resolveConfigForKey(key: string, settings?: ExerciseSettingsData
       restrictionNote = o.restrictionNote;
     }
   } else {
-    const hit = patternRestriction(mapping, settings?.patterns);
+    const hit = patternRestriction(mapping, settings);
     if (hit) {
       restricted = true;
       restrictionSource = "pattern";

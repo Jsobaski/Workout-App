@@ -74,7 +74,14 @@ export function useTrendsData(days: number) {
       .map(([weekKey, daySet]) => ({ weekKey, daysTrained: daySet.size }));
   }, [dateKeys, workoutEntries]);
 
-  return { dailyPoints, weeklyFrequency, workoutEntries, loading };
+  return {
+    dailyPoints,
+    weeklyFrequency,
+    workoutEntries,
+    hasFoodData: foodEntries.length > 0,
+    hasWorkoutData: workoutEntries.length > 0,
+    loading,
+  };
 }
 
 function isoWeekKey(dateKey: string): string {

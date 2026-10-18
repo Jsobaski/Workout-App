@@ -64,7 +64,8 @@ export function applyKeepLegacyDefaults(current: ExerciseSettingsData): Exercise
   for (const d of LEGACY_RESTRICTED_DEFAULTS) {
     const existing = overrides[d.key] ?? {};
     if (existing.restricted !== undefined) continue;
-    overrides[d.key] = { ...existing, restricted: true, restrictionNote: existing.restrictionNote ?? d.note };
+    // The old defaults were per-exercise, so keep them that way instead of spreading to the whole pattern.
+    overrides[d.key] = { ...existing, restricted: true, onlyThisExercise: true, restrictionNote: existing.restrictionNote ?? d.note };
   }
   for (const key of LEGACY_CONFIRMATION_DEFAULTS) {
     const existing = overrides[key] ?? {};

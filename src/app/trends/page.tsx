@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   Bar,
@@ -17,12 +18,14 @@ import { useTrendsData } from "@/hooks/useTrendsData";
 import { useCoachingContext } from "@/hooks/useCoachingContext";
 import { useExerciseNames } from "@/hooks/useExerciseNames";
 import { useExerciseHistory } from "@/hooks/useExerciseHistory";
+import BadgesSection from "@/components/BadgesSection";
 
 const RANGE_OPTIONS = [14, 30];
 
 export default function TrendsPage() {
   const [days, setDays] = useState(14);
-  const { dailyPoints, weeklyFrequency, loading } = useTrendsData(days);
+  const { dailyPoints, weeklyFrequency, hasFoodData, hasWorkoutData, loading } =
+    useTrendsData(days);
   const { context } = useCoachingContext();
   const exerciseNames = useExerciseNames();
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
@@ -52,78 +55,99 @@ export default function TrendsPage() {
       {loading && <p className="text-sm text-neutral-500">Loading…</p>}
 
       <ChartCard title="Calories vs. target">
-        <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={dailyPoints}>
-            <CartesianGrid stroke="#262626" strokeDasharray="3 3" />
-            <XAxis dataKey="label" stroke="#737373" fontSize={11} />
-            <YAxis stroke="#737373" fontSize={11} />
-            <Tooltip
-              contentStyle={{ background: "#171717", border: "1px solid #333" }}
-            />
-            {context.calorieTargetLow && (
-              <ReferenceLine
-                y={context.calorieTargetLow}
-                stroke="#facc15"
-                strokeDasharray="4 4"
+        {!loading && !hasFoodData ? (
+          <EmptyChart what="meals" days={days} />
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={dailyPoints}>
+              <CartesianGrid stroke="#262626" strokeDasharray="3 3" />
+              <XAxis dataKey="label" stroke="#737373" fontSize={11} />
+              <YAxis stroke="#737373" fontSize={11} />
+              <Tooltip
+                contentStyle={{
+                  background: "#171717",
+                  border: "1px solid #333",
+                }}
               />
-            )}
-            {context.calorieTargetHigh && (
-              <ReferenceLine
-                y={context.calorieTargetHigh}
-                stroke="#facc15"
-                strokeDasharray="4 4"
+              {context.calorieTargetLow && (
+                <ReferenceLine
+                  y={context.calorieTargetLow}
+                  stroke="#facc15"
+                  strokeDasharray="4 4"
+                />
+              )}
+              {context.calorieTargetHigh && (
+                <ReferenceLine
+                  y={context.calorieTargetHigh}
+                  stroke="#facc15"
+                  strokeDasharray="4 4"
+                />
+              )}
+              <Line
+                type="monotone"
+                dataKey="calories"
+                stroke="#34d399"
+                strokeWidth={2}
+                dot={false}
               />
-            )}
-            <Line
-              type="monotone"
-              dataKey="calories"
-              stroke="#34d399"
-              strokeWidth={2}
-              dot={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </ChartCard>
 
       <ChartCard title="Protein vs. target">
-        <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={dailyPoints}>
-            <CartesianGrid stroke="#262626" strokeDasharray="3 3" />
-            <XAxis dataKey="label" stroke="#737373" fontSize={11} />
-            <YAxis stroke="#737373" fontSize={11} />
-            <Tooltip
-              contentStyle={{ background: "#171717", border: "1px solid #333" }}
-            />
-            {context.proteinTargetG && (
-              <ReferenceLine
-                y={context.proteinTargetG}
-                stroke="#facc15"
-                strokeDasharray="4 4"
+        {!loading && !hasFoodData ? (
+          <EmptyChart what="meals" days={days} />
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={dailyPoints}>
+              <CartesianGrid stroke="#262626" strokeDasharray="3 3" />
+              <XAxis dataKey="label" stroke="#737373" fontSize={11} />
+              <YAxis stroke="#737373" fontSize={11} />
+              <Tooltip
+                contentStyle={{
+                  background: "#171717",
+                  border: "1px solid #333",
+                }}
               />
-            )}
-            <Line
-              type="monotone"
-              dataKey="proteinG"
-              stroke="#60a5fa"
-              strokeWidth={2}
-              dot={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+              {context.proteinTargetG && (
+                <ReferenceLine
+                  y={context.proteinTargetG}
+                  stroke="#facc15"
+                  strokeDasharray="4 4"
+                />
+              )}
+              <Line
+                type="monotone"
+                dataKey="proteinG"
+                stroke="#60a5fa"
+                strokeWidth={2}
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </ChartCard>
 
       <ChartCard title="Workout frequency (days trained per week)">
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={weeklyFrequency}>
-            <CartesianGrid stroke="#262626" strokeDasharray="3 3" />
-            <XAxis dataKey="weekKey" stroke="#737373" fontSize={11} />
-            <YAxis stroke="#737373" fontSize={11} allowDecimals={false} />
-            <Tooltip
-              contentStyle={{ background: "#171717", border: "1px solid #333" }}
-            />
-            <Bar dataKey="daysTrained" fill="#34d399" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        {!loading && !hasWorkoutData ? (
+          <EmptyChart what="workouts" days={days} />
+        ) : (
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={weeklyFrequency}>
+              <CartesianGrid stroke="#262626" strokeDasharray="3 3" />
+              <XAxis dataKey="weekKey" stroke="#737373" fontSize={11} />
+              <YAxis stroke="#737373" fontSize={11} allowDecimals={false} />
+              <Tooltip
+                contentStyle={{
+                  background: "#171717",
+                  border: "1px solid #333",
+                }}
+              />
+              <Bar dataKey="daysTrained" fill="#34d399" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </ChartCard>
 
       <ChartCard
@@ -132,7 +156,8 @@ export default function TrendsPage() {
           <select
             value={selectedExercise ?? ""}
             onChange={(e) => setSelectedExercise(e.target.value || null)}
-            className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-200"
+            aria-label="Exercise"
+            className="w-full min-w-0 max-w-full truncate rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-200 sm:w-56"
           >
             <option value="">Pick an exercise…</option>
             {exerciseNames.map((name) => (
@@ -150,7 +175,10 @@ export default function TrendsPage() {
               <XAxis dataKey="label" stroke="#737373" fontSize={11} />
               <YAxis stroke="#737373" fontSize={11} />
               <Tooltip
-                contentStyle={{ background: "#171717", border: "1px solid #333" }}
+                contentStyle={{
+                  background: "#171717",
+                  border: "1px solid #333",
+                }}
               />
               <Line
                 type="monotone"
@@ -169,6 +197,30 @@ export default function TrendsPage() {
           </p>
         )}
       </ChartCard>
+
+      <BadgesSection />
+    </div>
+  );
+}
+
+function EmptyChart({
+  what,
+  days,
+}: {
+  what: "meals" | "workouts";
+  days: number;
+}) {
+  return (
+    <div className="py-8 text-center">
+      <p className="text-sm text-neutral-400">
+        No {what} logged in the last {days} days
+      </p>
+      <Link
+        href="/"
+        className="mt-1 inline-block text-xs text-emerald-400 hover:underline"
+      >
+        Go to Today to log {what === "meals" ? "a meal" : "a workout"}
+      </Link>
     </div>
   );
 }
@@ -184,8 +236,10 @@ function ChartCard({
 }) {
   return (
     <section className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-neutral-300">{title}</h2>
+      <div className="mb-2 flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <h2 className="shrink-0 text-sm font-semibold text-neutral-300">
+          {title}
+        </h2>
         {right}
       </div>
       {children}
