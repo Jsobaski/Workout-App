@@ -112,7 +112,7 @@ export default function MusclesPage() {
         disabled={loading}
         className="w-full rounded-lg border border-emerald-700 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950 disabled:opacity-40"
       >
-        {copied ? "Copied ✓" : "Copy muscle data for Claude"}
+        {copied ? "Copied ✓" : "Copy Muscle Data"}
       </button>
 
       {loading && <p className="text-sm text-neutral-500">Loading…</p>}
@@ -143,22 +143,25 @@ export default function MusclesPage() {
         </button>
       </div>
 
-      <div className="flex items-center justify-center gap-2 text-xs text-neutral-500">
-        <span>Before</span>
-        <input
-          type="date"
-          value={beforeDateKey}
-          onChange={(e) => setBeforeDateKey(e.target.value)}
-          className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200"
-        />
-        <span>vs.</span>
-        <input
-          type="date"
-          value={afterDateKey}
-          onChange={(e) => setAfterDateKey(e.target.value)}
-          className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200"
-        />
-        <span>After</span>
+      <div className="grid grid-cols-2 gap-3 text-xs text-neutral-500">
+        <label className="min-w-0">
+          <span className="mb-1 block text-center">Before</span>
+          <input
+            type="date"
+            value={beforeDateKey}
+            onChange={(e) => setBeforeDateKey(e.target.value)}
+            className="w-full min-w-0 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200"
+          />
+        </label>
+        <label className="min-w-0">
+          <span className="mb-1 block text-center">After</span>
+          <input
+            type="date"
+            value={afterDateKey}
+            onChange={(e) => setAfterDateKey(e.target.value)}
+            className="w-full min-w-0 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200"
+          />
+        </label>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

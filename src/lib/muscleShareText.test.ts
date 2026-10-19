@@ -35,3 +35,20 @@ describe("formatMuscleSummaryText", () => {
     expect(text).toContain("Bench Press: 5×135lb");
   });
 });
+
+import { formatNutritionText } from "./shareText";
+describe("formatNutritionText", () => {
+  it("lists entries, totals and targets", () => {
+    const text = formatNutritionText(
+      "2026-10-19",
+      [{ id: "1", dateKey: "2026-10-19", timestamp: Date.parse("2026-10-19T12:00:00"), itemName: "Chicken bowl", calories: 650, proteinG: 45, source: "typed" }],
+      { calories: 650, proteinG: 45 },
+      { calories: [2000, 2200], proteinG: 150 }
+    );
+    expect(text).toContain("Chicken bowl: 650 kcal, 45g protein");
+    expect(text).toContain("Total: 650 kcal, 45g protein");
+    expect(text).toContain("Calorie target: 2000-2200 kcal");
+    expect(text).toContain("Protein target: 150g");
+    expect(formatNutritionText("2026-10-19", [], { calories: 0, proteinG: 0 })).toContain("No food logged.");
+  });
+});

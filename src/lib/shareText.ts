@@ -1,6 +1,6 @@
-import { WorkoutEntry } from "./types";
+import { FoodEntry, WorkoutEntry } from "./types";
 import { VolumeOptions, workoutSummary } from "./aggregate";
-import { formatDisplayDate } from "./date";
+import { formatDisplayDate, formatTime } from "./date";
 import { bandLabel } from "./bands";
 
 export function formatWorkoutText(dateKey: string, entries: WorkoutEntry[], volumeOpts: VolumeOptions = {}): string {
@@ -27,6 +27,27 @@ export function formatWorkoutText(dateKey: string, entries: WorkoutEntry[], volu
 
   lines.push("");
   lines.push(`Total volume: ${workoutSummary(entries, volumeOpts).totalVolume.toLocaleString()} lb`);
+  return lines.join("\n");
+}
+
+export function formatNutritionText(
+  dateKey: string,
+  entries: FoodEntry[],
+  totals: { calories: number; proteinG: number },
+  targets?: { calories?: [number | null, number | null]; proteinG?: number | null }
+): string {
+  const lines = [`Nutrition — ${formatDisplayDate(dateKey)}`, ""];
+  if (entries.length === 0) {
+    lines.push("No food logged.");
+    return lines.join("\n");
+  }
+  for (const e of entries) {
+    lines.push(`${formatTime(e.timestamp)} ${e.itemName}: ${e.calories} kcal, ${e.proteinG}g protein`);
+  }
+  lines.push("", `Total: ${totals.calories} kcal, ${totals.proteinG}g protein`);
+  const [low, high] = targets?.calories ?? [null, null];
+  if (low || high) lines.push(`Calorie target: ${low && high ? `${low}-${high}` : (high ?? low)} kcal`);
+  if (targets?.proteinG) lines.push(`Protein target: ${targets.proteinG}g`);
   return lines.join("\n");
 }
 

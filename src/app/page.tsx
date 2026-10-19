@@ -102,6 +102,7 @@ export default function DayViewPage() {
       />
 
       <NutritionSection
+        dateKey={dateKey}
         entries={foodEntries}
         targetCalories={[
           coachingContext.calorieTargetLow,

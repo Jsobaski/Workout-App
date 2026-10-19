@@ -5,8 +5,10 @@ import CollapsibleSection from "./CollapsibleSection";
 import { FoodEntry } from "@/lib/types";
 import { formatTime } from "@/lib/date";
 import { nutritionTotals } from "@/lib/aggregate";
+import { copyToClipboard, formatNutritionText } from "@/lib/shareText";
 
 export default function NutritionSection({
+  dateKey,
   entries,
   targetCalories,
   targetProtein,
@@ -14,6 +16,7 @@ export default function NutritionSection({
   onUpdate,
   onDelete,
 }: {
+  dateKey: string;
   entries: FoodEntry[];
   targetCalories?: [number | null, number | null];
   targetProtein?: number | null;
@@ -23,6 +26,15 @@ export default function NutritionSection({
 }) {
   const totals = nutritionTotals(entries);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    await copyToClipboard(
+      formatNutritionText(dateKey, entries, totals, { calories: targetCalories, proteinG: targetProtein })
+    );
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
 
   return (
     <CollapsibleSection
@@ -110,16 +122,25 @@ export default function NutritionSection({
         </div>
       )}
 
-      <div className="mt-3 flex items-center justify-between border-t border-neutral-800 pt-3">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-neutral-800 pt-3">
         <div className="text-sm font-semibold text-neutral-200">
           Total: {totals.calories} kcal · {totals.proteinG}g protein
         </div>
-        <button
-          onClick={onAdd}
-          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
-        >
-          + Add Food
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleCopy}
+            disabled={entries.length === 0}
+            className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm font-medium text-neutral-300 hover:bg-neutral-800 disabled:opacity-40"
+          >
+            {copied ? "Copied!" : "Copy"}
+          </button>
+          <button
+            onClick={onAdd}
+            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            + Add Food
+          </button>
+        </div>
       </div>
     </CollapsibleSection>
   );
