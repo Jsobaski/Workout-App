@@ -256,6 +256,8 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "seated cable rows": "cable row",
   "cable rows": "cable row",
   "cable tricep pushdown": "tricep pushdown",
+  "straight bar tricep pushdown": "tricep pushdown",
+  "straight-bar tricep pushdown": "tricep pushdown",
   "face pulls": "cable face pulls",
   "cable face pulls w/ external rotation": "cable face pulls",
   "leg bridge": "glute bridge",

@@ -31,6 +31,7 @@ const userLoggedNames = [
   "Single Arm Cable Tricep Extension",
   "Standing Cable Woodchoppers (high to low)",
   "Standing Calf",
+  "Straight Bar Tricep Pushdown",
   "Woodchopper",
 ];
 
