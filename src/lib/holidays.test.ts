@@ -99,3 +99,15 @@ describe("parseAppearance", () => {
     expect(parseAppearance(JSON.stringify({ theme: 5, celebrations: "yes" }))).toEqual(DEFAULT_APPEARANCE);
   });
 });
+
+import { backdropImage } from "./holidays";
+describe("backdropImage", () => {
+  it("is empty without a holiday and embeds the holiday's emoji otherwise", () => {
+    expect(backdropImage(null)).toBe("");
+    const css = backdropImage(HOLIDAY_BY_ID["thanksgiving"]);
+    expect(css).toContain("linear-gradient");
+    const svg = decodeURIComponent(css.split('url("data:image/svg+xml,')[1].replace(/"\)$/, ""));
+    expect(svg).toContain("🦃");
+    expect(svg).toContain("🥧");
+  });
+});

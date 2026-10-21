@@ -137,3 +137,27 @@ export function accentVariables(holiday: Holiday | null): Record<string, string>
   }
   return vars;
 }
+
+/**
+ * Full-page backdrop for a holiday: a soft accent wash at the top plus a faint repeating
+ * pattern of the holiday's emoji. Returned as CSS `background-image` for a fixed,
+ * non-interactive layer behind the app. Empty for no holiday.
+ */
+export function backdropImage(holiday: Holiday | null): string {
+  if (!holiday) return "";
+  const size = 150;
+  const spots = [
+    [28, 38, -14],
+    [104, 26, 12],
+    [62, 84, 8],
+    [128, 104, -10],
+    [22, 126, 16],
+    [86, 140, -6],
+  ];
+  const glyphs = spots
+    .map(([x, y, rotate], i) => `<text x='${x}' y='${y}' font-size='26' transform='rotate(${rotate} ${x} ${y})'>${holiday.emojis[i % holiday.emojis.length]}</text>`)
+    .join("");
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'>${glyphs}</svg>`;
+  const wash = `linear-gradient(oklch(0.696 ${holiday.chroma} ${holiday.hue} / 0.16), transparent 45%)`;
+  return `${wash}, url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}

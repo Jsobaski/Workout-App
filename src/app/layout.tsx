@@ -54,7 +54,7 @@ export default function RootLayout({
         <ThemeApplier />
         <CelebrationHost />
         <NavBar />
-        <main className="pb-20 sm:pb-6">
+        <main className="relative z-[1] pb-20 sm:pb-6">
           <div className="mx-auto max-w-2xl px-4 py-4">
             <NeutralDefaultsNotice />
             {children}
