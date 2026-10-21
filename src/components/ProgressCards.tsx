@@ -3,7 +3,7 @@
 import Link from "next/link";
 import CollapsibleSection from "./CollapsibleSection";
 import { useProgressData } from "@/hooks/useProgressData";
-import { useAppearance } from "@/lib/appearance";
+import { useAppearance, useTodayKey } from "@/lib/appearance";
 import { resolveTheme } from "@/lib/holidays";
 import { formatDisplayDate, shiftDateKey, todayKey } from "@/lib/date";
 import { Win } from "@/lib/wins";
@@ -26,7 +26,8 @@ function relativeDay(dateKey: string, today: string): string {
 // Holiday greeting + emoji strip: shown only while a holiday theme is active.
 export function HolidayBanner() {
   const { theme } = useAppearance();
-  const holiday = resolveTheme(todayKey(), theme);
+  const today = useTodayKey();
+  const holiday = today ? resolveTheme(today, theme) : null;
   if (!holiday) return null;
   return (
     <div className="rounded-xl border border-emerald-800 bg-emerald-950/40 px-4 py-2 text-center">

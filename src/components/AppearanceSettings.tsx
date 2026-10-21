@@ -1,6 +1,6 @@
 "use client";
 
-import { saveAppearance, useAppearance } from "@/lib/appearance";
+import { saveAppearance, useAppearance, useTodayKey } from "@/lib/appearance";
 import { celebrate } from "@/lib/celebrate";
 import { HOLIDAYS, resolveTheme } from "@/lib/holidays";
 import { todayKey } from "@/lib/date";
@@ -9,7 +9,8 @@ import { todayKey } from "@/lib/date";
 // work without ever opening this.
 export default function AppearanceSettings() {
   const appearance = useAppearance();
-  const active = resolveTheme(todayKey(), appearance.theme);
+  const today = useTodayKey();
+  const active = today ? resolveTheme(today, appearance.theme) : null;
   return (
     <div className="space-y-3">
       <label className="block">

@@ -4,6 +4,7 @@
 // themes follow the calendar automatically and celebrations are on.
 import { useSyncExternalStore } from "react";
 import type { ThemeChoice } from "./holidays";
+import { todayKey } from "./date";
 
 export interface Appearance {
   theme: ThemeChoice;
@@ -72,4 +73,11 @@ function snapshot(): Appearance {
 
 export function useAppearance(): Appearance {
   return useSyncExternalStore(subscribe, snapshot, () => DEFAULT_APPEARANCE);
+}
+
+const noopSubscribe = () => () => {};
+
+/** Today's date key on the client, null during server rendering, so date-based UI never mismatches prerendered HTML. */
+export function useTodayKey(): string | null {
+  return useSyncExternalStore(noopSubscribe, () => todayKey(), () => null);
 }
