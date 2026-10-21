@@ -5,6 +5,7 @@ import { useCoachingContext } from "@/hooks/useCoachingContext";
 import { buildBackup, downloadBackup, restoreBackup } from "@/lib/backup";
 import ExerciseMergeTool from "@/components/ExerciseMergeTool";
 import ExercisePreferences from "@/components/ExercisePreferences";
+import AppearanceSettings from "@/components/AppearanceSettings";
 import { clearSavedPin, getSavedPin, setSavedPin, verifyPin } from "@/lib/appPin";
 
 const ACTIVITY_LEVELS = [
@@ -237,6 +238,10 @@ export default function SettingsPage() {
         {backupError && (
           <p className="mt-2 text-xs text-red-400">{backupError}</p>
         )}
+      </FormSection>
+
+      <FormSection title="Appearance">
+        <AppearanceSettings />
       </FormSection>
 
       <div id="exercise-settings">

@@ -18,6 +18,11 @@ import { useExerciseNames } from "@/hooks/useExerciseNames";
 import { useRecentFoods } from "@/hooks/useRecentFoods";
 import { useFoodHistory } from "@/hooks/useFoodHistory";
 import { todayKey } from "@/lib/date";
+import ProgressCards, { HolidayBanner } from "@/components/ProgressCards";
+import { listAllWorkoutEntries } from "@/lib/db";
+import { newWinsFromSave } from "@/lib/wins";
+import { celebrate } from "@/lib/celebrate";
+import { WorkoutEntry } from "@/lib/types";
 import { SuggestedExercise, WorkoutSuggestion } from "@/lib/types";
 import { inferMuscleGroups } from "@/lib/muscleGroups";
 
@@ -42,6 +47,26 @@ export default function DayViewPage() {
   const recentFoods = useRecentFoods(foodEntries.length);
   const foodHistory = useFoodHistory(foodEntries.length);
 
+  // Saves a workout, then celebrates any new personal record, muscle tier-up or badge.
+  // Celebration problems must never get in the way of saving.
+  async function saveWorkout(entry: Omit<WorkoutEntry, "id" | "dateKey">) {
+    let before: WorkoutEntry[] | null = null;
+    try {
+      before = await listAllWorkoutEntries();
+    } catch {
+      before = null;
+    }
+    await addWorkoutEntry(entry);
+    if (!before) return;
+    try {
+      const after = await listAllWorkoutEntries();
+      const wins = newWinsFromSave(before, after, dateKey, { bodyweightLb: coachingContext.currentWeightLb, settings: exerciseSettings });
+      celebrate({ wins, logged: !before.some((e) => e.dateKey === dateKey) });
+    } catch {
+      // ignore
+    }
+  }
+
   const [showAddFood, setShowAddFood] = useState(false);
   const [showLogWorkout, setShowLogWorkout] = useState(false);
   const [showSuggest, setShowSuggest] = useState(false);
@@ -63,7 +88,7 @@ export default function DayViewPage() {
   }
 
   async function handleAddSuggested(exercise: SuggestedExercise) {
-    await addWorkoutEntry({
+    await saveWorkout({
       timestamp: Date.now(),
       exerciseName: exercise.name,
       muscleGroups:
@@ -80,6 +105,8 @@ export default function DayViewPage() {
 
   return (
     <div className="space-y-4">
+      <HolidayBanner />
+
       <DayNav dateKey={dateKey} onChange={setDateKey} />
 
       <WorkoutSection
@@ -114,6 +141,8 @@ export default function DayViewPage() {
         onDelete={removeFoodEntry}
       />
 
+      <ProgressCards refreshKey={workoutEntries.length} />
+
       {showAddFood && (
         <AddFoodModal
           recentFoods={recentFoods}
@@ -127,14 +156,14 @@ export default function DayViewPage() {
         <LogWorkoutModal
           exerciseNames={exerciseNames}
           onClose={() => setShowLogWorkout(false)}
-          onSave={addWorkoutEntry}
+          onSave={saveWorkout}
         />
       )}
 
       {showChooseSplit && (
         <WorkoutSplitModal
           onClose={() => setShowChooseSplit(false)}
-          onSave={addWorkoutEntry}
+          onSave={saveWorkout}
         />
       )}
 
