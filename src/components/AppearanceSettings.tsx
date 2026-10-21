@@ -54,9 +54,7 @@ export default function AppearanceSettings() {
           Preview a celebration
         </button>
       )}
-      <p className="text-xs text-neutral-500">
-        Stored only on this device. App date: {today ?? "…"} · build {process.env.NEXT_PUBLIC_BUILD_ID}
-      </p>
+      <p className="text-xs text-neutral-500">Stored only on this device.</p>
     </div>
   );
 }

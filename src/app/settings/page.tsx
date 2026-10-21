@@ -6,6 +6,7 @@ import { buildBackup, downloadBackup, restoreBackup } from "@/lib/backup";
 import ExerciseMergeTool from "@/components/ExerciseMergeTool";
 import ExercisePreferences from "@/components/ExercisePreferences";
 import AppearanceSettings from "@/components/AppearanceSettings";
+import AboutSection from "@/components/AboutSection";
 import { clearSavedPin, getSavedPin, setSavedPin, verifyPin } from "@/lib/appPin";
 
 const ACTIVITY_LEVELS = [
@@ -288,6 +289,10 @@ export default function SettingsPage() {
           </div>
         )}
         {pinError && <p className="mt-2 text-xs text-red-400">{pinError}</p>}
+      </FormSection>
+
+      <FormSection title="About">
+        <AboutSection />
       </FormSection>
     </div>
   );
