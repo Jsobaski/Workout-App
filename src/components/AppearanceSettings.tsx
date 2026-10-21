@@ -2,7 +2,7 @@
 
 import { saveAppearance, useAppearance, useTodayKey } from "@/lib/appearance";
 import { celebrate } from "@/lib/celebrate";
-import { HOLIDAYS, resolveTheme } from "@/lib/holidays";
+import { CUSTOM_THEMES, HOLIDAYS, resolveTheme } from "@/lib/holidays";
 import { todayKey } from "@/lib/date";
 
 // Optional overrides. The defaults (holiday themes follow the calendar, celebrations on)
@@ -22,11 +22,20 @@ export default function AppearanceSettings() {
         >
           <option value="auto">Automatic (follows the calendar)</option>
           <option value="off">Off (always the default theme)</option>
-          {HOLIDAYS.map((h) => (
-            <option key={h.id} value={h.id}>
-              {h.emojis[0]} {h.name}
-            </option>
-          ))}
+          <optgroup label="Your themes">
+            {CUSTOM_THEMES.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.emojis[0]} {h.name}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Holidays">
+            {HOLIDAYS.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.emojis[0]} {h.name}
+              </option>
+            ))}
+          </optgroup>
         </select>
         <span className="mt-1 block text-xs text-neutral-500">
           {active ? `Showing ${active.name} today.` : "No holiday theme right now."}

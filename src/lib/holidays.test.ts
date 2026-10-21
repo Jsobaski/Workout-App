@@ -111,3 +111,23 @@ describe("backdropImage", () => {
     expect(svg).toContain("🥧");
   });
 });
+
+import { CUSTOM_THEMES } from "./holidays";
+describe("custom (pick-it-yourself) themes", () => {
+  it("never come from the calendar but resolve when chosen", () => {
+    expect(CUSTOM_THEMES.map((t) => t.id)).toContain("unlv");
+    for (const t of CUSTOM_THEMES) {
+      expect(t.start(2026)).toBeNull();
+      for (const d of ["2026-01-15", "2026-07-04", "2026-10-31", "2026-11-26", "2026-12-25"]) expect(holidayForDate(d)?.id).not.toBe(t.id);
+    }
+    expect(resolveTheme("2026-06-10", "unlv")?.name).toBe("UNLV Rebels");
+    expect(resolveTheme("2026-10-31", "auto")?.id).toBe("halloween");
+  });
+
+  it("uses artwork for the banner and backdrop, and the accent ramp is scarlet", () => {
+    const unlv = HOLIDAY_BY_ID["unlv"];
+    expect(unlv.images?.banner.length).toBeGreaterThan(0);
+    expect(backdropImage(unlv)).toContain("/themes/unlv/");
+    expect(accentVariables(unlv)["--color-emerald-500"]).toMatch(/ 22\)$/);
+  });
+});

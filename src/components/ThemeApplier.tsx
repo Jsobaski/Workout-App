@@ -25,7 +25,7 @@ export default function ThemeApplier() {
       aria-hidden="true"
       data-testid="holiday-backdrop"
       className="pointer-events-none fixed inset-0 z-0 opacity-[0.14]"
-      style={{ backgroundImage: backdropImage(holiday), backgroundSize: "auto, 150px 150px" }}
+      style={{ backgroundImage: backdropImage(holiday), backgroundSize: holiday.images ? "auto, 130px auto" : "auto, 150px 150px" }}
     />
   );
 }

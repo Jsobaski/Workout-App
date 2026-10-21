@@ -32,9 +32,18 @@ export function HolidayBanner() {
   return (
     <div className="rounded-xl border border-emerald-800 bg-emerald-950/40 px-4 py-2 text-center">
       <p className="text-sm font-medium text-emerald-300">{holiday.greeting}</p>
-      <p className="text-lg tracking-widest" aria-hidden="true">
-        {holiday.emojis.join(" ")}
-      </p>
+      {holiday.images ? (
+        <div className="mt-1 flex items-center justify-center gap-3">
+          {holiday.images.banner.map((src) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={src} src={src} alt="" className="h-12 w-auto" />
+          ))}
+        </div>
+      ) : (
+        <p className="text-lg tracking-widest" aria-hidden="true">
+          {holiday.emojis.join(" ")}
+        </p>
+      )}
     </div>
   );
 }

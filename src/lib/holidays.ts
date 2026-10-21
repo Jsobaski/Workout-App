@@ -24,6 +24,8 @@ export interface Holiday {
   after: number;
   /** The holiday's start date in a given year, or null when it isn't known for that year. */
   start: (year: number) => string | null;
+  /** Optional artwork (served from /public) for the banner and the repeating backdrop. */
+  images?: { banner: string[]; backdrop: string };
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -80,7 +82,26 @@ export const HOLIDAYS: Holiday[] = [
   { id: "super-bowl", name: "Super Bowl Sunday", greeting: "Game day!", emojis: ["🏈", "🏆", "🍗", "📣", "🎉", "🧊"], hue: 40, chroma: 0.17, before: 2, after: 0, start: (y) => nthWeekday(y, 2, 0, 2) },
 ];
 
-export const HOLIDAY_BY_ID: Record<string, Holiday> = Object.fromEntries(HOLIDAYS.map((h) => [h.id, h]));
+/**
+ * Themes you pick yourself in Settings: never chosen by the calendar, so they never appear
+ * unless selected. The team logos are files supplied by the app's owner, used unmodified.
+ */
+export const CUSTOM_THEMES: Holiday[] = [
+  {
+    id: "unlv",
+    name: "UNLV Rebels",
+    greeting: "Go Rebels!",
+    emojis: ["🏀", "🔴", "⚫", "🏆", "🔥", "🎉"],
+    hue: 22,
+    chroma: 0.22,
+    before: 0,
+    after: 0,
+    start: () => null,
+    images: { banner: ["/themes/unlv/wordmark.png", "/themes/unlv/rebels-script.png"], backdrop: "/themes/unlv/wordmark.png" },
+  },
+];
+
+export const HOLIDAY_BY_ID: Record<string, Holiday> = Object.fromEntries([...HOLIDAYS, ...CUSTOM_THEMES].map((h) => [h.id, h]));
 
 function windowFor(h: Holiday, year: number): [string, string] | null {
   const start = h.start(year);
@@ -145,6 +166,8 @@ export function accentVariables(holiday: Holiday | null): Record<string, string>
  */
 export function backdropImage(holiday: Holiday | null): string {
   if (!holiday) return "";
+  const wash = `linear-gradient(oklch(0.696 ${holiday.chroma} ${holiday.hue} / 0.16), transparent 45%)`;
+  if (holiday.images) return `${wash}, url("${holiday.images.backdrop}")`;
   const size = 150;
   const spots = [
     [28, 38, -14],
@@ -158,6 +181,5 @@ export function backdropImage(holiday: Holiday | null): string {
     .map(([x, y, rotate], i) => `<text x='${x}' y='${y}' font-size='26' transform='rotate(${rotate} ${x} ${y})'>${holiday.emojis[i % holiday.emojis.length]}</text>`)
     .join("");
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'>${glyphs}</svg>`;
-  const wash = `linear-gradient(oklch(0.696 ${holiday.chroma} ${holiday.hue} / 0.16), transparent 45%)`;
   return `${wash}, url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
