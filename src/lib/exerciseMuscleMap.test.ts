@@ -134,6 +134,14 @@ describe("exercises added from the user's checklist", () => {
     expect(primaryOf("Pullover")).toEqual([]);
   });
 
+  it("wrist curls map to forearms, palms up and palms down as separate lifts", () => {
+    expect(canonicalExerciseKey("Wrist Curls (Palms Up)")).toBe("wrist curl");
+    expect(canonicalExerciseKey("Wrist Curls (Palms Down)")).toBe("reverse wrist curl");
+    for (const name of ["Wrist Curls (Palms Up)", "Wrist Curls (Palms Down)"]) {
+      expect(primaryOf(name)).toEqual(["forearms"]);
+    }
+  });
+
   it("variants resolve to the same exercise", () => {
     for (const [alias, canon] of [["Wide-Grip Pulldown", "lat pulldown"], ["Pec Deck (Machine Fly)", "pec deck"], ["Reverse Fly", "rear delt fly"], ["lunges", "forward lunge"], ["EZ Curl", "ez-bar curl"], ["Sit-ups", "sit-up"]]) {
       expect(canonicalExerciseKey(alias), alias).toBe(canon);

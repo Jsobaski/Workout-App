@@ -98,4 +98,6 @@ export const COMMON_EXERCISES = [
   "Bird Dog",
   "Kettlebell Swing",
   "Battle Ropes",
+  "Wrist Curls (Palms Up)",
+  "Wrist Curls (Palms Down)",
 ];
