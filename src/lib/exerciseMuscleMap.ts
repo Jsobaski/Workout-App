@@ -122,8 +122,10 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "skull crusher": { muscles: primary("triceps"), scoring: proxy("tricepExt", 0.7) },
 
   // Forearm / grip sources (credited as primary so they drive the forearm score and clock).
-  "wrist curl": { muscles: primary("forearms"), scoring: proxy("deadlift", 0.2) },
-  "reverse wrist curl": { muscles: primary("forearms"), scoring: proxy("deadlift", 0.15) },
+  // Isolation lifts with their own wrist-curl standard (see LIFT_FAMILY_STANDARDS.wristCurl); a deadlift-sized
+  // benchmark put an ordinary starting wrist curl at the bottom of Needs Work.
+  "wrist curl": { muscles: primary("forearms"), scoring: standard("wristCurl") },
+  "reverse wrist curl": { muscles: primary("forearms"), scoring: proxy("wristCurl", 0.57) },
   "reverse curl": { muscles: [...primary("forearms"), ...secondary("biceps")], scoring: proxy("deadlift", 0.3) },
   "dead hang": { muscles: [...primary("forearms"), ...secondary("lats")], scoring: volumeOnly, bodyweightFraction: 0 },
   "plate pinch": { muscles: primary("forearms"), scoring: volumeOnly, bodyweightFraction: 0 },

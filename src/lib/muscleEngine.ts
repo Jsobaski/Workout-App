@@ -142,7 +142,8 @@ export function computeMuscleEngine(
   bodyweightLb: number | null,
   asOfDateKey: string,
   staleThresholdDays: number = DEFAULT_STALE_THRESHOLD_DAYS,
-  settings?: ExerciseSettingsData
+  settings?: ExerciseSettingsData,
+  options: { basisFloor?: boolean } = {}
 ): MuscleEngineResult {
   const effectiveBodyweight = bodyweightLb && bodyweightLb > 0 ? bodyweightLb : BODYWEIGHT_FALLBACK_LB;
   const relevant = entries.filter((e) => e.dateKey <= asOfDateKey);
@@ -224,6 +225,24 @@ export function computeMuscleEngine(
   }
   const sessionsOf = (group: string) => groupDates.get(group)?.size ?? 0;
 
+  // The same engine run on the history before a given day (memoised), for the basis-change floor.
+  const priorSnapshots = new Map<string, Record<MuscleGroupId, MuscleStats>>();
+  const priorSnapshot = (dateKey: string) => {
+    let snap = priorSnapshots.get(dateKey);
+    if (!snap) {
+      snap = computeMuscleEngine(
+        entries.filter((e) => e.dateKey < dateKey),
+        bodyweightLb,
+        shiftDateKey(dateKey, -1),
+        staleThresholdDays,
+        settings,
+        { basisFloor: false }
+      ).statsByGroup;
+      priorSnapshots.set(dateKey, snap);
+    }
+    return snap;
+  };
+
   const windowStart = shiftDateKey(asOfDateKey, -VOLUME_BONUS_WINDOW_DAYS);
   const statsByGroup = {} as Record<MuscleGroupId, MuscleStats>;
 
@@ -238,6 +257,8 @@ export function computeMuscleEngine(
     let lastPrimaryRestricted: string | null = null;
     let lastPrimaryAllowed: string | null = null;
     let lastSecondary: string | null = null;
+    // Earliest day this muscle got direct (primary, load-scored) work.
+    let firstDirectDate: string | null = null;
     const contributingExercises = new Set<string>();
     const exerciseScores = new Map<string, ExerciseScoreSnapshot>();
     // Training days in the consistency window, each weighted by the strongest
@@ -273,6 +294,9 @@ export function computeMuscleEngine(
 
       const best = bestByExercise.get(cfg.key)!;
       const standards = standardsForMapping(cfg.mapping);
+      if (isPrimary && standards && best.bestE1RM > 0 && (firstDirectDate == null || entry.dateKey < firstDirectDate)) {
+        firstDirectDate = entry.dateKey;
+      }
       // No load credit (e.g. bodyweight-only reps at fraction 0) -> best.bestE1RM is 0
       // and the exercise feeds consistency only, never the strength score.
       if (!standards || best.bestE1RM <= 0 || exerciseScores.has(cfg.key)) continue;
@@ -350,8 +374,23 @@ export function computeMuscleEngine(
     // score against — consistency itself becomes the primary signal instead
     // of a small top-up.
     const bonusMax = hasLoadablePrimary ? VOLUME_BONUS_MAX_POINTS : 70;
-    const peakRaw = bestWeightedLiftScore + volumeConsistencyBonus(weightedDays, VOLUME_BONUS_TARGET_SESSIONS, bonusMax);
+    let peakRaw = bestWeightedLiftScore + volumeConsistencyBonus(weightedDays, VOLUME_BONUS_TARGET_SESSIONS, bonusMax);
     let peak = softCapScore(peakRaw);
+
+    // Basis change: a muscle that was scored from incidental credit / consistency (no direct lift) and now
+    // has its first direct lift keeps at least the score it already had, so doing the right exercise can't
+    // lower it. Once the direct lift's score exceeds the earlier one, the direct score simply takes over.
+    let floorPeak: number | null = null;
+    let floorEffective: number | null = null;
+    if (options.basisFloor !== false && hasLoadablePrimary && firstDirectDate != null) {
+      const earlier = priorSnapshot(firstDirectDate)[groupDef.id];
+      if (earlier.hasAnyData && earlier.scoringBasis !== "load" && earlier.peak != null && earlier.effective != null) {
+        floorPeak = earlier.peak;
+        floorEffective = earlier.effective;
+        peak = Math.max(peak, earlier.peak);
+        peakRaw = Math.max(peakRaw, earlier.peakRaw ?? 0);
+      }
+    }
 
     // Decay clock runs off "days since last meaningful *primary* stimulus"
     // rather than a separate "days since the single best-ever lift" concept,
@@ -393,8 +432,9 @@ export function computeMuscleEngine(
       const computedTier = tierForScore(effective);
       if (computedTier.minScore > 0) {
         const cap = computedTier.minScore - PROVISIONAL_CAP_EPSILON;
-        effective = Math.min(effective, cap);
-        peak = Math.min(peak, cap);
+        // The cap never pushes a muscle below the score it already had (see the basis-change floor).
+        effective = Math.max(Math.min(effective, cap), Math.min(effective, floorEffective ?? 0));
+        peak = Math.max(Math.min(peak, cap), Math.min(peak, floorPeak ?? 0));
       }
     }
     const effectiveRaw = pausedRestricted ? peakRaw : peakRaw * decayFactor(daysStale ?? Infinity);

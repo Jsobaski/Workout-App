@@ -51,8 +51,10 @@ const REFERENCE: Record<string, { category: Category; ratios: Profile }> = {
   "hammer curl": { category: "isolation", ratios: [0.12, 0.25, 0.4] },
   "skull crusher": { category: "isolation", ratios: [0.2, 0.45, 0.75] },
   "db overhead tricep extension": { category: "isolation", ratios: [0.15, 0.35, 0.6] },
-  "wrist curl": { category: "isolation", ratios: [0.12, 0.25, 0.45] },
-  "reverse wrist curl": { category: "isolation", ratios: [0.08, 0.18, 0.3] },
+  // Dumbbell wrist curl (per hand): published intermediate ~0.34-0.36x, advanced ~0.60x bodyweight (Strength Level, FitnessVolt).
+  "wrist curl": { category: "isolation", ratios: [0.12, 0.34, 0.6] },
+  // Extensors are ~0.57x the flexors (isokinetic study; Strength Level dumbbell reverse vs. normal wrist curl).
+  "reverse wrist curl": { category: "isolation", ratios: [0.07, 0.19, 0.34] },
   "reverse curl": { category: "isolation", ratios: [0.2, 0.4, 0.65] },
   "calf raise": { category: "isolation", ratios: [0.8, 1.5, 2.2] },
   "seated calf raise": { category: "isolation", ratios: [0.6, 1.1, 1.7] },
@@ -202,6 +204,50 @@ describe("strength standards audit", () => {
       expect(b, key).toBeGreaterThanOrEqual(a);
       expect(c, key).toBeGreaterThanOrEqual(b);
     }
+  });
+
+  describe("forearm wrist curls scale with bodyweight", () => {
+    const sets = (weight: number, reps: number) => [{ reps, weight }];
+    const lift = (key: string, bw: number, weight: number, reps: number) => {
+      const entry: WorkoutEntry = { id: "w", dateKey: "2026-10-15", timestamp: Date.parse("2026-10-15T12:00:00"), exerciseName: key, muscleGroups: [], sets: sets(weight, reps) };
+      const score = computeMuscleEngine([entry], bw, TODAY).statsByGroup.forearms.exerciseScores.find((e) => e.key === key)!.peakScore;
+      return { score, tier: tierForScore(score).id };
+    };
+    // Loads from ratios of 1RM to bodyweight, as the profiles above, so the same relative strength is tested at each weight.
+    const loadFor = (ratio: number, bw: number, reps: number) => (ratio * bw) / (1 + reps / 30);
+
+    for (const bw of [150, 205]) {
+      it(`${bw} lb: a returning lifter's 15 lb x 15 wrist curl is Developing, not Needs Work`, () => {
+        expect(lift("wrist curl", bw, 15, 15).tier).toBe("developing");
+      });
+
+      it(`${bw} lb: an intermediate wrist curl (0.34x bodyweight) is Solid, an advanced one Strong or better`, () => {
+        expect(lift("wrist curl", bw, loadFor(0.34, bw, 10), 10).tier).toBe("solid");
+        expect(["strong", "elite"]).toContain(lift("wrist curl", bw, loadFor(0.6, bw, 10), 10).tier);
+      });
+
+      it(`${bw} lb: reverse wrist curls are calibrated lower (a lighter load earns the same tier)`, () => {
+        const wrist = lift("wrist curl", bw, loadFor(0.34, bw, 10), 10);
+        const reverseSameRelativeLoad = lift("reverse wrist curl", bw, loadFor(0.34 * 0.57, bw, 10), 10);
+        expect(reverseSameRelativeLoad.tier).toBe(wrist.tier);
+        expect(lift("reverse wrist curl", bw, loadFor(0.19, bw, 10), 10).tier).toBe("solid");
+      });
+    }
+
+    it("a heavier lifter needs a heavier absolute load for the same score, and the two lifts keep separate standards", () => {
+      expect(lift("wrist curl", 150, 15, 15).score).toBeGreaterThan(lift("wrist curl", 205, 15, 15).score);
+      const wrist = standardsFor("wrist curl");
+      const reverse = standardsFor("reverse wrist curl");
+      reverse.forEach((v, i) => expect(v).toBeLessThan(wrist[i]));
+      expect(EXERCISE_MUSCLE_MAP["wrist curl"].scoring).not.toEqual(EXERCISE_MUSCLE_MAP["reverse wrist curl"].scoring);
+    });
+
+    it("does not score against a deadlift-sized benchmark", () => {
+      for (const key of ["wrist curl", "reverse wrist curl"]) {
+        const scoring = EXERCISE_MUSCLE_MAP[key].scoring;
+        expect(scoring.method === "standard" || scoring.method === "proxy" ? scoring.family : null).toBe("wristCurl");
+      }
+    });
   });
 
   it("prints the tier table (score and tier per profile)", () => {

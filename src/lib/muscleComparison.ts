@@ -128,6 +128,7 @@ export type DeltaReasonKind =
   | "replaced" // a new lift replaced the old one, or the lift has no earlier baseline
   | "decay" // time since the last direct work
   | "restricted" // the lead lift is now restricted (or the whole muscle is paused)
+  | "basis" // the muscle is now scored from a direct lift instead of incidental credit
   | "none";
 
 export interface DeltaReason {
@@ -141,6 +142,7 @@ const REASON_LABELS: Record<DeltaReasonKind, string> = {
   replaced: "New lift",
   decay: "Inactivity",
   restricted: "Restricted",
+  basis: "Scoring changed",
   none: "No comparison",
 };
 
@@ -170,6 +172,12 @@ export function explainDelta(
     case "incidental":
       return reason("none", "Only incidental credit from other lifts. There is no direct work to compare.");
     case "new":
+      if (before.hasAnyData && before.scoringBasis !== "load" && after.scoringBasis === "load" && lead) {
+        return reason(
+          "basis",
+          `Now scored from ${lead.name} instead of incidental credit, so this isn't a gain or a drop. The score keeps at least what it was until the ${lead.name} score is higher.`
+        );
+      }
       return reason(
         "replaced",
         lead && leadBefore

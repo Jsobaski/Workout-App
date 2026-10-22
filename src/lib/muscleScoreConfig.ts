@@ -82,6 +82,7 @@ export type LiftFamily =
   // curls/raises read as Elite with raw scores of 130-270).
   | "curl"
   | "tricepExt"
+  | "wristCurl"
   | "lateralRaise"
   | "facePull"
   | "pulldown"
@@ -99,6 +100,15 @@ export const LIFT_FAMILY_STANDARDS: Record<LiftFamily, [number, number, number, 
   hipThrust: [0.5, 1.0, 1.5, 2.0, 2.5],
   curl: [0.15, 0.3, 0.5, 0.7, 0.95], // barbell/machine total; DB curls use a 0.55 factor (logged per hand)
   tricepExt: [0.15, 0.35, 0.6, 0.85, 1.15], // cable pushdown / machine extension
+  // Wrist curl (per dumbbell, e1RM / bodyweight). Anchors are published community/standards data for the
+  // dumbbell wrist curl, male lifters: Strength Level (beginner 8 / novice 28 / intermediate 62 / advanced 108 /
+  // elite 164 lb per hand, ~0.04 / 0.16 / 0.34 / 0.60 / 0.91 x a ~180 lb average lifter) and FitnessVolt
+  // (180 lb male: intermediate ~65 lb = 0.36x, advanced ~110 lb = 0.61x). The two agree on the upper anchors, which are
+  // used as published (0.34 / 0.60 / 0.90). The 25-point anchor sits at 0.12 rather than the published novice 0.16 so a
+  // returning lifter's ordinary starting load (about 15 lb x 15, e1RM ~0.11x at 205 lb) reads Developing, not Needs Work.
+  // Reverse wrist curl is this table x 0.57: the extensors are weaker than the flexors (isokinetic extensor/flexor peak
+  // torque ratio 0.57 in a 40-subject study; Strength Level's dumbbell reverse vs. normal wrist curl levels are ~0.56-0.71x).
+  wristCurl: [0.04, 0.12, 0.34, 0.6, 0.9],
   lateralRaise: [0.04, 0.08, 0.14, 0.2, 0.28], // per hand
   facePull: [0.15, 0.3, 0.5, 0.7, 0.95],
   pulldown: [0.4, 0.7, 1.0, 1.35, 1.7],
