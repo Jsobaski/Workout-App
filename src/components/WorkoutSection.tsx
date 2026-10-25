@@ -6,6 +6,7 @@ import { SetEntry, WorkoutEntry } from "@/lib/types";
 import type { ExerciseSettingsData } from "@/lib/exerciseSettings";
 import { workoutSummary } from "@/lib/aggregate";
 import { copyToClipboard, formatWorkoutText } from "@/lib/shareText";
+import { supersetPosition } from "@/lib/superset";
 import { BAND_OPTIONS, BandColor, bandLabel } from "@/lib/bands";
 
 export default function WorkoutSection({
@@ -68,7 +69,7 @@ export default function WorkoutSection({
         <p className="py-2 text-sm text-neutral-500">No workout logged yet.</p>
       ) : (
         <div className="space-y-2">
-          {entries.map((entry) =>
+          {entries.map((entry, entryIndex) =>
             editingId === entry.id ? (
               <EditWorkoutRow
                 key={entry.id}
@@ -82,11 +83,21 @@ export default function WorkoutSection({
             ) : (
               <div
                 key={entry.id}
-                className="flex items-start justify-between gap-2 rounded-lg bg-neutral-800/50 px-3 py-2"
+                className={`flex items-start justify-between gap-2 rounded-lg bg-neutral-800/50 px-3 py-2 ${
+                  entry.supersetId ? "border-l-2 border-emerald-600" : ""
+                }`}
               >
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium text-neutral-100">
                     {entry.exerciseName}
+                    {(() => {
+                      const pos = supersetPosition(entries, entryIndex);
+                      return pos ? (
+                        <span className="ml-2 rounded-full bg-emerald-950 px-2 py-0.5 text-[10px] font-normal text-emerald-300">
+                          Superset {pos.position}/{pos.total}
+                        </span>
+                      ) : null;
+                    })()}
                   </div>
                   <div className="mt-1 flex flex-wrap gap-1 text-xs text-neutral-400">
                     {entry.sets.map((s, i) => {

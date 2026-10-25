@@ -18,6 +18,8 @@ export interface WorkoutEntry {
   timed?: boolean; // logged by duration (seconds held) rather than reps — e.g. planks
   banded?: boolean; // resistance comes from a band color, not a numeric weight
   notes?: string;
+  /** Movements logged together as a superset / circuit share this id (they alternate sets). */
+  supersetId?: string;
 }
 
 export interface BodyMeasurementEntry {

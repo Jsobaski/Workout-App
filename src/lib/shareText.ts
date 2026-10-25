@@ -10,7 +10,10 @@ export function formatWorkoutText(dateKey: string, entries: WorkoutEntry[], volu
     return lines.join("\n");
   }
 
+  let lastSupersetId: string | undefined;
   for (const entry of entries) {
+    if (entry.supersetId && entry.supersetId !== lastSupersetId) lines.push("Superset (alternating):");
+    lastSupersetId = entry.supersetId;
     const setsText = entry.sets
       .map((s) => {
         const qty = entry.timed
@@ -21,7 +24,7 @@ export function formatWorkoutText(dateKey: string, entries: WorkoutEntry[], volu
         return entry.banded && s.bandColor ? `${qty} (${bandLabel(s.bandColor)})` : qty;
       })
       .join(", ");
-    lines.push(`${entry.exerciseName}: ${setsText}`);
+    lines.push(`${entry.supersetId ? "  " : ""}${entry.exerciseName}: ${setsText}`);
     if (entry.notes) lines.push(`  (${entry.notes})`);
   }
 
