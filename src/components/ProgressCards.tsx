@@ -7,7 +7,11 @@ import { useAppearance, useTodayKey } from "@/lib/appearance";
 import { resolveTheme } from "@/lib/holidays";
 import { formatDisplayDate, shiftDateKey, todayKey } from "@/lib/date";
 import { Win } from "@/lib/wins";
-import { WeeklyRecap } from "@/lib/recap";
+import { WeeklyRecap, formatRecapText } from "@/lib/recap";
+import ShareImageButton from "./ShareImageButton";
+import { buildRecapCardModel } from "@/lib/shareCard";
+import { copyToClipboard } from "@/lib/shareText";
+import { useState } from "react";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 
@@ -173,6 +177,7 @@ function RecapBody({ recap }: { recap: WeeklyRecap }) {
           />
         )}
       </dl>
+      <RecapActions recap={recap} />
       {recap.daysTrained === 0 && (
         <p className="text-sm text-neutral-400">
           No workouts that week. A fresh start is the easiest one to win.
@@ -196,6 +201,26 @@ function Stat({
       <dt className="text-xs text-neutral-500">{label}</dt>
       <dd className="font-semibold text-neutral-100">{value}</dd>
       {note && <dd className="text-[11px] text-neutral-500">{note}</dd>}
+    </div>
+  );
+}
+
+function RecapActions({ recap }: { recap: WeeklyRecap }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex gap-2">
+      <button
+        type="button"
+        onClick={async () => {
+          await copyToClipboard(formatRecapText(recap));
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }}
+        className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm font-medium text-neutral-300 hover:bg-neutral-800"
+      >
+        {copied ? "Copied!" : "Copy"}
+      </button>
+      <ShareImageButton filename={`recap-${recap.weekStart}.png`} getModel={(emojis) => buildRecapCardModel(recap, emojis)} />
     </div>
   );
 }

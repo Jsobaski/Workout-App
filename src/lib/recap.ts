@@ -71,3 +71,16 @@ export function buildWeeklyRecap(
     proteinDaysHit,
   };
 }
+
+/** Plain-text version of the recap, for the Copy button. */
+export function formatRecapText(recap: WeeklyRecap): string {
+  const lines = [
+    `${recap.inProgress ? "This week" : "Last week"}: ${recap.weekStart} to ${recap.weekEnd}`,
+    `Days trained: ${recap.daysTrained}/7 (${recap.trained.map((t, i) => (t ? "MTWTFSS"[i] : "-")).join("")})`,
+    `Sets: ${recap.setCount}`,
+    `Volume: ${recap.volume.toLocaleString()} lb${recap.previousVolume != null ? ` (week before: ${recap.previousVolume.toLocaleString()} lb)` : ""}`,
+  ];
+  if (recap.proteinDaysHit != null) lines.push(`Protein target hit: ${recap.proteinDaysHit}/7 days`);
+  for (const w of recap.wins) lines.push(`${w.emoji} ${w.title}: ${w.detail}`);
+  return lines.join("\n");
+}

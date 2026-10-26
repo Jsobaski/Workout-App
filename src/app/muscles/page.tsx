@@ -9,6 +9,7 @@ import MuscleRadarChart from "@/components/MuscleRadarChart";
 import MuscleChangeChart from "@/components/MuscleChangeChart";
 import MuscleDetailPanel from "@/components/MuscleDetailPanel";
 import WeeklyFocusCard from "@/components/WeeklyFocusCard";
+import MuscleTrendLines from "@/components/MuscleTrendLines";
 import { computeMuscleEngine } from "@/lib/muscleEngine";
 import { buildMuscleSeedData } from "@/lib/muscleSeedData";
 import { MuscleGroupId } from "@/lib/muscleTaxonomy";
@@ -243,6 +244,8 @@ export default function MusclesPage() {
           <MuscleRadarChart before={beforeResult.statsByGroup} after={afterResult.statsByGroup} />
         )}
       </section>
+
+      {entries.length > 0 && <MuscleTrendLines entries={entries} bodyweightLb={bodyweightLb} settings={settings} />}
 
       {entries.length > 0 ? (
         <WeeklyFocusCard statsByGroup={currentResult.statsByGroup} deltas={trendDeltas} settings={settings} />

@@ -7,6 +7,9 @@ import type { ExerciseSettingsData } from "@/lib/exerciseSettings";
 import { workoutSummary } from "@/lib/aggregate";
 import { copyToClipboard, formatWorkoutText } from "@/lib/shareText";
 import { supersetPosition } from "@/lib/superset";
+import Link from "next/link";
+import ShareImageButton from "./ShareImageButton";
+import { buildWorkoutCardModel } from "@/lib/shareCard";
 import { BAND_OPTIONS, BandColor, bandLabel } from "@/lib/bands";
 
 export default function WorkoutSection({
@@ -89,7 +92,9 @@ export default function WorkoutSection({
               >
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium text-neutral-100">
-                    {entry.exerciseName}
+                    <Link href={`/exercise?name=${encodeURIComponent(entry.exerciseName)}`} className="hover:text-emerald-300 hover:underline">
+                      {entry.exerciseName}
+                    </Link>
                     {(() => {
                       const pos = supersetPosition(entries, entryIndex);
                       return pos ? (
@@ -159,6 +164,11 @@ export default function WorkoutSection({
           >
             {copied ? "Copied!" : "Copy"}
           </button>
+          <ShareImageButton
+            disabled={entries.length === 0}
+            filename={`workout-${dateKey}.png`}
+            getModel={(emojis) => buildWorkoutCardModel(dateKey, entries, summary, emojis)}
+          />
           <button
             onClick={onChooseSplit}
             className="rounded-lg border border-emerald-700 px-3 py-1.5 text-sm font-medium text-emerald-400 hover:bg-emerald-950"

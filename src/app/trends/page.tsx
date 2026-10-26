@@ -196,6 +196,14 @@ export default function TrendsPage() {
               : "Pick an exercise to see weight progression."}
           </p>
         )}
+        {selectedExercise && (
+          <Link
+            href={`/exercise?name=${encodeURIComponent(selectedExercise)}`}
+            className="mt-2 inline-block text-xs text-emerald-400 hover:underline"
+          >
+            Full history, records and volume →
+          </Link>
+        )}
       </ChartCard>
 
       <BadgesSection />

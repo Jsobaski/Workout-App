@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { SetEntry, WorkoutEntry } from "@/lib/types";
 import { fuzzyMatchNames } from "@/lib/fuzzyMatch";
 import { COMMON_EXERCISES } from "@/lib/commonExercises";
-import { findLastWorkoutEntryForExercise } from "@/lib/db";
-import { formatShortDate } from "@/lib/date";
+import { findLastWorkoutEntryForExercise, listAllWorkoutEntries } from "@/lib/db";
+import { formatShortDate, todayKey } from "@/lib/date";
+import { buildExerciseHistory, summarizeSets } from "@/lib/exerciseHistory";
+import { SetSuggestion, suggestNextSets } from "@/lib/setSuggestions";
 import { BAND_OPTIONS, BandColor, bandLabel } from "@/lib/bands";
 
 /** Everything the user enters for one movement in the Log Exercise form. */
@@ -37,6 +39,7 @@ export default function MovementFields({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
   const [lastEntry, setLastEntry] = useState<WorkoutEntry | null>(null);
+  const [suggestion, setSuggestion] = useState<SetSuggestion | null>(null);
 
   const historyNames = useMemo(() => new Set(exerciseNames), [exerciseNames]);
   const allNames = useMemo(() => Array.from(new Set([...exerciseNames, ...COMMON_EXERCISES])), [exerciseNames]);
@@ -47,7 +50,12 @@ export default function MovementFields({
     const trimmed = name.trim();
     (async () => {
       const found = trimmed ? await findLastWorkoutEntryForExercise(trimmed) : null;
-      if (!cancelled) setLastEntry(found);
+      // Smart set suggestion from this movement's whole history (name variants combined).
+      const next = trimmed ? suggestNextSets(buildExerciseHistory(await listAllWorkoutEntries(), trimmed), todayKey()) : null;
+      if (!cancelled) {
+        setLastEntry(found);
+        setSuggestion(next);
+      }
     })();
     return () => {
       cancelled = true;
@@ -63,6 +71,16 @@ export default function MovementFields({
       bodyweight: lastEntry.bodyweight ?? false,
       timed: lastEntry.timed ?? false,
       banded: lastEntry.banded ?? false,
+    });
+  }
+
+  function useSuggestion() {
+    if (!suggestion) return;
+    patch({
+      sets: suggestion.sets.map((s) => ({ ...s })),
+      bodyweight: suggestion.flags.bodyweight,
+      timed: suggestion.flags.timed,
+      banded: suggestion.flags.banded,
     });
   }
 
@@ -166,6 +184,18 @@ export default function MovementFields({
           </span>
           <button type="button" onClick={useLastTime} className="shrink-0 text-emerald-400 hover:underline">
             Use these
+          </button>
+        </div>
+      )}
+
+      {suggestion && (
+        <div className="flex items-center justify-between gap-3 rounded-md border border-emerald-900 bg-emerald-950/30 px-3 py-1.5 text-xs">
+          <span className="min-w-0 text-neutral-400">
+            <span className="font-medium text-emerald-300">Try: {summarizeSets(suggestion.sets, suggestion.flags)}</span>
+            <span className="block">{suggestion.reason}</span>
+          </span>
+          <button type="button" onClick={useSuggestion} className="shrink-0 text-emerald-400 hover:underline">
+            Use this
           </button>
         </div>
       )}
