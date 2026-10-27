@@ -7,7 +7,8 @@ import { COMMON_EXERCISES } from "@/lib/commonExercises";
 import { findLastWorkoutEntryForExercise, listAllWorkoutEntries } from "@/lib/db";
 import { formatShortDate, todayKey } from "@/lib/date";
 import { buildExerciseHistory, summarizeSets } from "@/lib/exerciseHistory";
-import { SetSuggestion, suggestNextSets } from "@/lib/setSuggestions";
+import { SetSuggestion, loggedWeightsForGroup, suggestNextSets } from "@/lib/setSuggestions";
+import { useExerciseSettings } from "@/hooks/useExerciseSettings";
 import { BAND_OPTIONS, BandColor, bandLabel } from "@/lib/bands";
 
 /** Everything the user enters for one movement in the Log Exercise form. */
@@ -40,6 +41,7 @@ export default function MovementFields({
   const [highlightIndex, setHighlightIndex] = useState(0);
   const [lastEntry, setLastEntry] = useState<WorkoutEntry | null>(null);
   const [suggestion, setSuggestion] = useState<SetSuggestion | null>(null);
+  const { settings } = useExerciseSettings();
 
   const historyNames = useMemo(() => new Set(exerciseNames), [exerciseNames]);
   const allNames = useMemo(() => Array.from(new Set([...exerciseNames, ...COMMON_EXERCISES])), [exerciseNames]);
@@ -51,7 +53,14 @@ export default function MovementFields({
     (async () => {
       const found = trimmed ? await findLastWorkoutEntryForExercise(trimmed) : null;
       // Smart set suggestion from this movement's whole history (name variants combined).
-      const next = trimmed ? suggestNextSets(buildExerciseHistory(await listAllWorkoutEntries(), trimmed), todayKey()) : null;
+      let next: SetSuggestion | null = null;
+      if (trimmed) {
+        const all = await listAllWorkoutEntries();
+        next = suggestNextSets(buildExerciseHistory(all, trimmed), todayKey(), {
+          settings,
+          loggedWeights: loggedWeightsForGroup(all, trimmed, settings),
+        });
+      }
       if (!cancelled) {
         setLastEntry(found);
         setSuggestion(next);
@@ -60,7 +69,7 @@ export default function MovementFields({
     return () => {
       cancelled = true;
     };
-  }, [name]);
+  }, [name, settings]);
 
   const patch = (changes: Partial<MovementDraft>) => onChange({ ...draft, ...changes });
 
