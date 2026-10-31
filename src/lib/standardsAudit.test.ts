@@ -60,6 +60,7 @@ const REFERENCE: Record<string, { category: Category; ratios: Profile }> = {
   "seated calf raise": { category: "isolation", ratios: [0.6, 1.1, 1.7] },
   "dumbbell fly": { category: "isolation", ratios: [0.1, 0.2, 0.35] },
   "shrugs": { category: "isolation", ratios: [0.5, 1.0, 1.7] },
+  "db shrugs": { category: "isolation", ratios: [0.25, 0.5, 0.85] }, // per hand: half the barbell shrug
   "rear delt fly": { category: "isolation", ratios: [0.05, 0.12, 0.22] },
   "ez-bar curl": { category: "isolation", ratios: [0.2, 0.45, 0.75] },
   "barbell curl": { category: "isolation", ratios: [0.2, 0.45, 0.75] },

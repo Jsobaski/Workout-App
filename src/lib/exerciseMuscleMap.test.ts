@@ -113,7 +113,7 @@ describe("exercises added from the user's checklist", () => {
     ["Cable Glute Kickback", ["glutes"]], ["Frog Pump", ["glutes"]], ["Seated Calf Raise", ["calves"]], ["Sled Push", ["glutes", "quads"]],
     ["Nordic Curl", ["hamstrings"]], ["Incline Barbell Bench", ["frontDelts", "upperChest"]], ["Decline Bench", ["midLowerChest"]],
     ["Close-Grip Bench", ["triceps"]], ["Dumbbell Fly", ["midLowerChest"]], ["Cable Fly", ["midLowerChest"]],
-    ["Pec Deck (Machine Fly)", ["midLowerChest"]], ["Shrugs", ["traps"]], ["T-Bar Row", ["upperBack"]],
+    ["Pec Deck (Machine Fly)", ["midLowerChest"]], ["Shrugs", ["traps"]], ["DB Shrugs", ["traps"]], ["T-Bar Row", ["upperBack"]],
     ["One-Arm Dumbbell Row", ["upperBack"]], ["Chest-Supported Row", ["upperBack"]], ["Rear Delt Fly (Reverse Fly)", ["sideRearDelts"]],
     ["Arnold Press", ["frontDelts"]], ["EZ-Bar Curl", ["biceps"]], ["Barbell Curl", ["biceps"]], ["Cable Curl", ["biceps"]],
     ["Concentration Curl", ["biceps"]], ["Rope Overhead Tricep Extension", ["triceps"]], ["Tricep Kickback", ["triceps"]],
@@ -140,6 +140,12 @@ describe("exercises added from the user's checklist", () => {
     for (const name of ["Wrist Curls (Palms Up)", "Wrist Curls (Palms Down)"]) {
       expect(primaryOf(name)).toEqual(["forearms"]);
     }
+  });
+
+  it("DB Shrugs is its own per-hand lift; the dumbbell spellings resolve to it, barbell shrugs stay separate", () => {
+    for (const alias of ["DB Shrugs", "Dumbbell Shrugs", "DB Shrug", "dumbbell shrug"]) expect(canonicalExerciseKey(alias), alias).toBe("db shrugs");
+    expect(canonicalExerciseKey("Shrugs")).toBe("shrugs");
+    expect(canonicalExerciseKey("Barbell Shrugs")).toBe("shrugs");
   });
 
   it("variants resolve to the same exercise", () => {

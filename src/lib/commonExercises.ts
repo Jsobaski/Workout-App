@@ -74,6 +74,7 @@ export const COMMON_EXERCISES = [
   "Cable Fly",
   "Pec Deck",
   "Shrugs",
+  "DB Shrugs",
   "T-Bar Row",
   "One-Arm Dumbbell Row",
   "Chest-Supported Row",

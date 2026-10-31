@@ -209,6 +209,8 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
 
   // ---- Back, traps, rear delts ----
   "shrugs": { muscles: [...primary("traps"), ...minor("forearms")], scoring: proxy("deadlift", 0.9) },
+  // Dumbbells are logged per hand, so the table is half the barbell (total-load) shrug's.
+  "db shrugs": { muscles: [...primary("traps"), ...minor("forearms")], scoring: proxy("deadlift", 0.45) },
   "t-bar row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps", "lowerBack")], scoring: proxy("row", 0.9), loadBasis: "plates" },
   "one-arm dumbbell row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps")], scoring: proxy("row", 0.5) },
   "chest-supported row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps")], scoring: proxy("row", 0.85) },
@@ -319,7 +321,9 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "db fly": "dumbbell fly",
   "cable crossover": "cable fly",
   "shrug": "shrugs",
-  "dumbbell shrugs": "shrugs",
+  "dumbbell shrugs": "db shrugs",
+  "db shrug": "db shrugs",
+  "dumbbell shrug": "db shrugs",
   "barbell shrugs": "shrugs",
   "db row": "one-arm dumbbell row",
   "one arm dumbbell row": "one-arm dumbbell row",
