@@ -102,14 +102,21 @@ export function inferRepCeiling(sessions: HistorySession[]): { ceiling: number; 
 }
 
 /**
- * The smallest weight step the user's equipment allows, from the gaps between weights they've logged:
- * the smallest gap that most gaps are whole multiples of. Null with too little history.
+ * The smallest weight step the user's equipment allows, from the gaps between weights they've logged.
+ * A step only counts if it's been used repeatedly (at least twice); one stray weight (a typo, a one-off
+ * 1 lb change) must not turn every suggestion into "+1 lb". Of the repeated gaps, the smallest one that
+ * most gaps (75%) are whole multiples of wins. Null with too little history.
  */
 export function inferIncrement(weights: number[]): number | null {
   const distinct = Array.from(new Set(weights.filter((w) => w > 0).map((w) => Math.round(w * 100) / 100))).sort((a, b) => a - b);
   if (distinct.length < MIN_WEIGHTS_FOR_INCREMENT) return null;
   const gaps = distinct.slice(1).map((w, i) => Math.round((w - distinct[i]) * 100) / 100);
-  const candidates = Array.from(new Set(gaps)).filter((g) => g >= 1).sort((a, b) => a - b);
+  const counts = new Map<number, number>();
+  for (const g of gaps) counts.set(g, (counts.get(g) ?? 0) + 1);
+  const candidates = Array.from(counts.entries())
+    .filter(([gap, count]) => gap >= 1 && count >= 2)
+    .map(([gap]) => gap)
+    .sort((a, b) => a - b);
   for (const c of candidates) {
     const multiples = gaps.filter((g) => Math.abs(g / c - Math.round(g / c)) < 0.02).length;
     if (multiples / gaps.length >= 0.75) return c;

@@ -109,6 +109,23 @@ describe("B. weight increments from the user's own history", () => {
     expect(inferIncrement([100, 120, 140, 160, 180, 187.5])).toBe(20); // 7.5 gap is 1 of 5 gaps
   });
 
+  it("one stray weight never turns the step into 1 lb (a real stack logged in 5s with a stray 56)", () => {
+    expect(inferIncrement([40, 45, 50, 55, 56])).toBe(5);
+    expect(inferIncrement([50, 55, 56])).toBeNull(); // no repeated step: fall back to the 2.5 / 5 rule
+    expect(inferIncrement([50, 51, 55])).toBeNull();
+    // The suggestion for a machine whose history is 50/55 plus a stray 56 elsewhere in the group is +5, not +1.
+    const entries = [
+      session("a", 24, "Tricep Extension Machine", [[12, 40], [12, 40]]),
+      session("b", 17, "Tricep Extension Machine", [[12, 45], [12, 45]]),
+      session("c", 10, "Tricep Extension Machine", [[12, 50], [12, 55], [12, 55]]),
+      session("d", 9, "Rope Overhead Tricep Extension", [[12, 56]]),
+    ];
+    const s = run(entries, "Tricep Extension Machine")!;
+    expect(s.kind).toBe("add-weight");
+    expect(s.sets[0].weight).toBe(60);
+    expect(s.reason).toContain("add 5 lb");
+  });
+
   it("also learns from grouped variants of the same lift", () => {
     const entries = [
       ...stepHistory("Lying Leg Curl", [100, 120], 12),
