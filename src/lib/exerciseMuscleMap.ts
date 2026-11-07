@@ -141,6 +141,11 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "captain's chair knee raises": { muscles: primary("abs"), scoring: volumeOnly, bodyweightFraction: 0 },
 
   "farmer carry": { muscles: [...primary("forearms", "traps"), ...secondary("abs", "glutes")], scoring: proxy("deadlift", 0.5) },
+  // One weight in one hand (suitcase carry): lighter than a two-handed carry, with the obliques resisting the lean.
+  "single arm farmer carry": { muscles: [...primary("forearms", "traps"), ...secondary("obliques", "abs", "glutes")], scoring: proxy("deadlift", 0.4) },
+  // Static holds are timed, with no strength standard (like dead hang): they build consistency credit, not a tier.
+  "farmer hold": { muscles: [...primary("forearms", "traps"), ...secondary("abs")], scoring: volumeOnly, bodyweightFraction: 0 },
+  "single arm farmer hold": { muscles: [...primary("forearms", "traps"), ...secondary("obliques", "abs")], scoring: volumeOnly, bodyweightFraction: 0 },
   "calf raise": { muscles: primary("calves"), scoring: proxy("squat", 1.3) },
 
   // ---- Generic placeholder names ----
@@ -288,6 +293,21 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "db bulgarian split squats": "db bulgarian split squat",
   "farmers carry": "farmer carry",
   "farmer's carry": "farmer carry",
+  "single-arm farmer carry": "single arm farmer carry",
+  "single arm farmers carry": "single arm farmer carry",
+  "single arm farmer's carry": "single arm farmer carry",
+  "one arm farmer carry": "single arm farmer carry",
+  "one-arm farmer carry": "single arm farmer carry",
+  "suitcase carry": "single arm farmer carry",
+  "farmers hold": "farmer hold",
+  "farmer's hold": "farmer hold",
+  "farmer carry hold": "farmer hold",
+  "single-arm farmer hold": "single arm farmer hold",
+  "single arm farmers hold": "single arm farmer hold",
+  "single arm farmer's hold": "single arm farmer hold",
+  "one arm farmer hold": "single arm farmer hold",
+  "one-arm farmer hold": "single arm farmer hold",
+  "suitcase hold": "single arm farmer hold",
   "half-kneeling pallof press": "pallof press",
   "wide-grip pulldown": "lat pulldown",
   "wide grip pulldown": "lat pulldown",

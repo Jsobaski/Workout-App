@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { canonicalExerciseKey, lookupExerciseMapping } from "./exerciseMuscleMap";
 import { exercisesForMuscle } from "./exerciseSuggestions";
+import { inferMuscleGroups } from "./muscleGroups";
 
 // Exact exercise names from a real user bug report: these showed up in the
 // "needs mapping" banner despite representing real training — either the
@@ -146,6 +147,21 @@ describe("exercises added from the user's checklist", () => {
     for (const alias of ["DB Shrugs", "Dumbbell Shrugs", "DB Shrug", "dumbbell shrug"]) expect(canonicalExerciseKey(alias), alias).toBe("db shrugs");
     expect(canonicalExerciseKey("Shrugs")).toBe("shrugs");
     expect(canonicalExerciseKey("Barbell Shrugs")).toBe("shrugs");
+  });
+
+  it("farmer carry and hold variants: single-arm lifts are their own, holds are timed consistency work", () => {
+    const cases: [string, string][] = [
+      ["Single Arm Farmer Carry", "single arm farmer carry"], ["One Arm Farmer Carry", "single arm farmer carry"], ["Suitcase Carry", "single arm farmer carry"],
+      ["Farmer Hold", "farmer hold"], ["Farmer's Hold", "farmer hold"],
+      ["Single Arm Farmer Hold", "single arm farmer hold"], ["Suitcase Hold", "single arm farmer hold"],
+      ["Farmer Carry", "farmer carry"], ["Farmers Carry", "farmer carry"],
+    ];
+    for (const [name, key] of cases) expect(canonicalExerciseKey(name), name).toBe(key);
+    for (const name of ["Single Arm Farmer Carry", "Farmer Hold", "Single Arm Farmer Hold"]) expect(primaryOf(name), name).toEqual(["forearms", "traps"]);
+    expect(lookupExerciseMapping("Single Arm Farmer Carry")!.muscles.find((m) => m.group === "obliques")!.weight).toBeLessThan(1);
+    expect(lookupExerciseMapping("Farmer Hold")!.scoring.method).toBe("volumeOnly");
+    expect(lookupExerciseMapping("Single Arm Farmer Hold")!.scoring.method).toBe("volumeOnly");
+    expect(inferMuscleGroups("Single Arm Farmer Hold")).toEqual(expect.arrayContaining(["Back", "Core"]));
   });
 
   it("variants resolve to the same exercise", () => {

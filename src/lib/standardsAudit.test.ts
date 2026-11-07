@@ -83,6 +83,7 @@ const REFERENCE: Record<string, { category: Category; ratios: Profile }> = {
   "db shoulder press": { category: "compound", ratios: [0.15, 0.3, 0.5] },
   "barbell row": { category: "compound", ratios: [0.45, 0.8, 1.2] },
   "farmer carry": { category: "compound", ratios: [0.3, 0.5, 0.8] },
+  "single arm farmer carry": { category: "compound", ratios: [0.2, 0.4, 0.65] },
   "step-ups": { category: "compound", ratios: [0.15, 0.35, 0.6] },
   "good morning": { category: "compound", ratios: [0.35, 0.65, 1.0] },
   "forward lunge": { category: "compound", ratios: [0.15, 0.3, 0.5] },

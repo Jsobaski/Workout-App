@@ -11,6 +11,7 @@ const RULES: { pattern: RegExp; groups: string[] }[] = [
   { pattern: /tricep|dip|skull.?crusher|pushdown|(?<!glute )kickback|close.?grip/i, groups: ["Triceps"] },
   { pattern: /pallof|anti.?rotation|core|plank|dead.?bug|ab |knee raise|captain.?s chair|leg raise|crunch|sit.?up|rollout|bird dog/i, groups: ["Core"] },
   { pattern: /rotation|russian twist|cable chop|wood.?chop/i, groups: ["Rotational Core"] },
+  { pattern: /farmer|suitcase/i, groups: ["Back", "Core"] },
   { pattern: /calf/i, groups: ["Calves"] },
   { pattern: /hip thrust|glute bridge|leg bridge|clamshell|hip abduction|hip adduction|lateral walk|glute|frog pump/i, groups: ["Glutes"] },
 ];

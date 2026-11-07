@@ -39,6 +39,9 @@ export const COMMON_EXERCISES = [
   "Dead Bug",
   "Plank",
   "Farmer Carry",
+  "Single Arm Farmer Carry",
+  "Farmer Hold",
+  "Single Arm Farmer Hold",
   "Back Extension",
   "Calf Raise",
 
