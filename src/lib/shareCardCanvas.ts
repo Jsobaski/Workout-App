@@ -3,10 +3,10 @@ import type { ShareCardModel } from "./shareCard";
 
 const WIDTH = 1080;
 const PAD = 64;
-const FONT = '"Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+export const FONT = '"Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const FALLBACK_ACCENT = "#10b981";
 
-function accentColor(): string {
+export function accentColor(): string {
   try {
     const v = getComputedStyle(document.documentElement).getPropertyValue("--color-emerald-500").trim();
     if (v && CSS.supports("color", v)) return v;
@@ -16,14 +16,14 @@ function accentColor(): string {
   return FALLBACK_ACCENT;
 }
 
-function fit(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+export function fit(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
   if (ctx.measureText(text).width <= maxWidth) return text;
   let t = text;
   while (t.length > 1 && ctx.measureText(`${t}…`).width > maxWidth) t = t.slice(0, -1);
   return `${t}…`;
 }
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+export function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);

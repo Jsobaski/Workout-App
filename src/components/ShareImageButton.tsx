@@ -8,11 +8,14 @@ import type { ShareCardModel } from "@/lib/shareCard";
 // Builds the card image on tap and opens the share sheet (or downloads it). Copy-as-text stays separate.
 export default function ShareImageButton({
   getModel,
+  makeImage,
   filename,
   disabled,
   className,
 }: {
-  getModel: (emojis: string[] | undefined) => ShareCardModel;
+  /** The standard text-and-stats card; or `makeImage` for a card drawn some other way (title is used for the share sheet). */
+  getModel?: (emojis: string[] | undefined) => ShareCardModel;
+  makeImage?: (emojis: string[] | undefined) => Promise<{ blob: Blob; title: string }>;
   filename: string;
   disabled?: boolean;
   className?: string;
@@ -26,9 +29,19 @@ export default function ShareImageButton({
     try {
       const [{ renderShareCard }, { shareImage }] = await Promise.all([import("@/lib/shareCardCanvas"), import("@/lib/shareImage")]);
       const holiday = today ? resolveTheme(today, theme) : null;
-      const model = getModel(holiday?.emojis.slice(0, 5));
-      const blob = await renderShareCard(model);
-      const result = await shareImage(blob, filename, model.title);
+      const emojis = holiday?.emojis.slice(0, 5);
+      let blob: Blob;
+      let title: string;
+      if (makeImage) {
+        ({ blob, title } = await makeImage(emojis));
+      } else if (getModel) {
+        const model = getModel(emojis);
+        blob = await renderShareCard(model);
+        title = model.title;
+      } else {
+        throw new Error("Nothing to share");
+      }
+      const result = await shareImage(blob, filename, title);
       setState(result === "cancelled" ? "idle" : "done");
     } catch {
       setState("error");

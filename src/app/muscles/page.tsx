@@ -10,6 +10,8 @@ import MuscleChangeChart from "@/components/MuscleChangeChart";
 import MuscleDetailPanel from "@/components/MuscleDetailPanel";
 import WeeklyFocusCard from "@/components/WeeklyFocusCard";
 import MuscleTrendLines from "@/components/MuscleTrendLines";
+import ShareImageButton from "@/components/ShareImageButton";
+import { formatShortDate } from "@/lib/date";
 import { computeMuscleEngine } from "@/lib/muscleEngine";
 import { buildMuscleSeedData } from "@/lib/muscleSeedData";
 import { MuscleGroupId } from "@/lib/muscleTaxonomy";
@@ -108,13 +110,32 @@ export default function MusclesPage() {
         </button>
       </div>
 
-      <button
-        onClick={handleCopy}
-        disabled={loading}
-        className="w-full rounded-lg border border-emerald-700 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950 disabled:opacity-40"
-      >
-        {copied ? "Copied ✓" : "Copy Muscle Data"}
-      </button>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={handleCopy}
+          disabled={loading}
+          className="rounded-lg border border-emerald-700 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950 disabled:opacity-40"
+        >
+          {copied ? "Copied ✓" : "Copy Muscle Data"}
+        </button>
+        <ShareImageButton
+          disabled={loading || entries.length === 0}
+          filename={`muscle-map-${afterDateKey}.png`}
+          className="rounded-lg border border-emerald-700 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950 disabled:opacity-40"
+          makeImage={async (emojis) => {
+            const { renderMuscleShareCard } = await import("@/lib/muscleShareCanvas");
+            const blob = await renderMuscleShareCard({
+              before: beforeResult.statsByGroup,
+              after: afterResult.statsByGroup,
+              deltas: comparison,
+              beforeLabel: formatShortDate(beforeDateKey),
+              afterLabel: formatShortDate(afterDateKey),
+              emojis,
+            });
+            return { blob, title: "Muscle Map" };
+          }}
+        />
+      </div>
 
       {loading && <p className="text-sm text-neutral-500">Loading…</p>}
 
