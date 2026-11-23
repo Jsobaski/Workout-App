@@ -22,6 +22,10 @@ export interface DayWorkoutSummary {
   setCount: number;
   muscleGroups: string[];
   totalVolume: number; // sum of reps * effective load across all sets (same load basis as the muscle scoring)
+  /** The part of totalVolume that is weight actually lifted (logged weight x load multiplier). */
+  loadedVolume: number;
+  /** The part of totalVolume credited from bodyweight (bodyweight-logged sets). */
+  bodyweightVolume: number;
 }
 
 export interface VolumeOptions {
@@ -35,38 +39,47 @@ export interface VolumeOptions {
  * bodyweight (0 for planks, clamshells, ...), and logged weights are scaled by
  * the exercise's load multiplier. Timed holds carry no rep volume.
  */
-export function entryVolume(entry: WorkoutEntry, opts: VolumeOptions = {}): number {
-  if (entry.timed) return 0;
+export function entryVolumeParts(entry: WorkoutEntry, opts: VolumeOptions = {}): { loaded: number; bodyweight: number } {
+  if (entry.timed) return { loaded: 0, bodyweight: 0 };
   const cfg = resolveExerciseConfig(entry.exerciseName, opts.settings);
   const bodyweightLb = opts.bodyweightLb && opts.bodyweightLb > 0 ? opts.bodyweightLb : BODYWEIGHT_FALLBACK_LB;
-  return entry.sets.reduce(
-    (sum, set) =>
-      sum +
-      set.reps *
-        effectiveLoadForSet(set.weight, {
-          isBodyweight: entry.bodyweight,
-          bodyweightLb,
-          bodyweightFraction: cfg?.bodyweightFraction ?? DEFAULT_BODYWEIGHT_FRACTION,
-          loadMultiplier: cfg?.loadMultiplier ?? 1,
-        }),
-    0
-  );
+  const fraction = cfg?.bodyweightFraction ?? DEFAULT_BODYWEIGHT_FRACTION;
+  const multiplier = cfg?.loadMultiplier ?? 1;
+  let loaded = 0;
+  let bodyweight = 0;
+  for (const set of entry.sets) {
+    const load = effectiveLoadForSet(set.weight, { isBodyweight: entry.bodyweight, bodyweightLb, bodyweightFraction: fraction, loadMultiplier: multiplier });
+    const credit = entry.bodyweight ? bodyweightLb * fraction : 0;
+    bodyweight += set.reps * credit;
+    loaded += set.reps * (load - credit);
+  }
+  return { loaded, bodyweight };
+}
+
+export function entryVolume(entry: WorkoutEntry, opts: VolumeOptions = {}): number {
+  const { loaded, bodyweight } = entryVolumeParts(entry, opts);
+  return loaded + bodyweight;
 }
 
 export function workoutSummary(entries: WorkoutEntry[], opts: VolumeOptions = {}): DayWorkoutSummary {
   const muscleGroups = new Set<string>();
   let setCount = 0;
-  let totalVolume = 0;
+  let loadedVolume = 0;
+  let bodyweightVolume = 0;
   for (const entry of entries) {
     entry.muscleGroups.forEach((g) => muscleGroups.add(g));
     setCount += entry.sets.length;
-    totalVolume += entryVolume(entry, opts);
+    const parts = entryVolumeParts(entry, opts);
+    loadedVolume += parts.loaded;
+    bodyweightVolume += parts.bodyweight;
   }
   return {
     exerciseCount: entries.length,
     setCount,
     muscleGroups: Array.from(muscleGroups),
-    totalVolume: Math.round(totalVolume),
+    totalVolume: Math.round(loadedVolume + bodyweightVolume),
+    loadedVolume: Math.round(loadedVolume),
+    bodyweightVolume: Math.round(bodyweightVolume),
   };
 }
 

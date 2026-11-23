@@ -165,6 +165,9 @@ export const E1RM_MAX_CREDITED_REPS = 12;
 // trunk like the squat and deadlift); approximate.
 export const WOMEN_STANDARD_FACTOR = { upper: 0.7, lower: 0.8 } as const;
 
+/** Bump when any standards table, the bodyweight scaling or the e1RM rule changes, so exports say which rules they used. */
+export const STANDARDS_VERSION = "2026.2";
+
 export const STANDARD_SCORE_BREAKPOINTS = [0, 25, 50, 75, 100] as const;
 
 // ---- Focus ranking ----

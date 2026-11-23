@@ -29,7 +29,13 @@ export function formatWorkoutText(dateKey: string, entries: WorkoutEntry[], volu
   }
 
   lines.push("");
-  lines.push(`Total volume: ${workoutSummary(entries, volumeOpts).totalVolume.toLocaleString()} lb`);
+  const summary = workoutSummary(entries, volumeOpts);
+  // Bodyweight credit is an estimate of body load, not weight lifted, so it is shown apart from the loaded volume.
+  lines.push(
+    summary.bodyweightVolume > 0
+      ? `Total volume: ${summary.loadedVolume.toLocaleString()} lb loaded + ${summary.bodyweightVolume.toLocaleString()} lb bodyweight credit`
+      : `Total volume: ${summary.totalVolume.toLocaleString()} lb`
+  );
   return lines.join("\n");
 }
 
