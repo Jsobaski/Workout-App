@@ -33,13 +33,17 @@ describe("consistency-only muscles (obliques via planks)", () => {
 
   it("keeps most of its score 29+ days later instead of dropping to 0, and never below the decay floor", () => {
     const peak = at(1).peak!;
-    for (const days of [29, 45, 120]) {
+    for (const days of [29, 45, 90]) {
       const later = at(days);
       expect(later.peak!).toBeCloseTo(peak, 6);
       expect(later.effective!).toBeGreaterThan(0);
       expect(later.effective!).toBeGreaterThanOrEqual(peak * DECAY_FLOOR_RATIO - 1e-6);
       expect(later.effective!).toBeLessThan(peak);
     }
+  });
+
+  it("windows older than the lookback no longer count: nothing in the last 90 days means no consistency score", () => {
+    expect(at(120).effective!).toBe(0);
   });
 
   it("stays flagged stale, and decay neither resets the stale clock nor counts as new work", () => {

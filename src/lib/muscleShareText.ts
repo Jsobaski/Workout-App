@@ -3,9 +3,11 @@ import { MUSCLE_GROUPS, MuscleGroupId } from "./muscleTaxonomy";
 import { WorkoutEntry } from "./types";
 import { formatWorkoutText } from "./shareText";
 import { shiftDateKey } from "./date";
+import { daysBetween } from "./muscleScoring";
 import { MuscleDelta, describeDeltaStatus } from "./muscleComparison";
 import {
   ExerciseSettingsData,
+  hasAnyRestrictions,
   listLimitedExercises,
   listNeedsConfirmation,
   listRestrictedExercises,
@@ -13,6 +15,7 @@ import {
 import { MOVEMENT_PATTERNS } from "./exerciseMuscleMap";
 import {
   BODYWEIGHT_CLAMP_LB,
+  CONSISTENCY_LOOKBACK_DAYS,
   DECAY_FLOOR_RATIO,
   DECAY_GRACE_DAYS,
   DEFAULT_STALE_THRESHOLD_DAYS,
@@ -32,14 +35,40 @@ const RECENT_DAYS = 14;
 const shortDate = (dateKey: string) =>
   new Date(`${dateKey}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
+/** Per-lift contribution and decay (or the consistency window) behind one muscle's score, so it can be explained from the export. */
+function breakdownLines(s: MuscleStats, asOfDateKey: string): string[] {
+  const lines: string[] = [];
+  const ordered = [...s.exerciseScores].sort((a, b) => b.effectiveScore - a.effectiveScore);
+  for (const e of ordered) {
+    const days = e.lastDateKey ? daysBetween(e.lastDateKey, asOfDateKey) : null;
+    const lost = e.peakScore > 0 ? Math.round((1 - e.effectiveScore / e.peakScore) * 100) : 0;
+    const role = e.weight >= 1 ? "primary" : e.weight >= 0.4 ? "secondary" : "minor";
+    lines.push(
+      `    · ${e.name} (${role}${e.restricted ? ", restricted" : ""}): ~${Math.round(e.e1RM)} lb e1RM, credit ${formatScore(e.peakScore)} → ${formatScore(e.effectiveScore)}` +
+        (e.lastDateKey ? `, last done ${shortDate(e.lastDateKey)} (${days}d ago${lost > 0 ? `, decayed ${lost}%` : ""})` : ", never done meaningfully")
+    );
+  }
+  const c = s.consistencyPeak;
+  if (c) {
+    lines.push(
+      `    · consistency peak: ${c.weightedDays.toFixed(1)} weighted training days in ${shortDate(c.windowStart)}–${shortDate(c.windowEnd)} (best window of the last ${c.lookbackDays} days) = ${formatScore(c.bonusPoints)} pts; from ` +
+        (c.exercises.length > 0 ? c.exercises.map((x) => `${x.name} ${x.days}d${x.weight < 1 ? " (secondary)" : ""}${x.restricted ? " (restricted)" : ""}`).join(", ") : "nothing in the lookback")
+    );
+  }
+  return lines;
+}
+
 /** The rules behind the numbers, built from the live tunables so the export can't drift from the scoring. */
-function scoringRulesLines(): string[] {
+function scoringRulesLines(settings?: ExerciseSettingsData): string[] {
   const taperReps = `${E1RM_FULL_CREDIT_REPS + 1}-${E1RM_MAX_CREDITED_REPS}`;
   return [
     `Scoring rules (standards version ${STANDARDS_VERSION}):`,
     `- e1RM = Epley (weight x (1 + reps/30)) on credited reps: reps 1-${E1RM_FULL_CREDIT_REPS} count in full, reps ${taperReps} count ${Math.round(E1RM_TAPER_CREDIT * 100)}% each, reps above ${E1RM_MAX_CREDITED_REPS} add nothing. E.g. 12 reps count as ${E1RM_FULL_CREDIT_REPS + (E1RM_MAX_CREDITED_REPS - E1RM_FULL_CREDIT_REPS) * E1RM_TAPER_CREDIT}.`,
     `- Each lift's e1RM is compared with strength-standard tables (multiples of bodyweight for a ${REFERENCE_BODYWEIGHT_LB} lb lifter, scaled by bodyweight^2/3, bodyweight clamped to ${BODYWEIGHT_CLAMP_LB[0]}-${BODYWEIGHT_CLAMP_LB[1]} lb); a muscle's score comes from its best primary lift plus capped secondary credit and a small consistency bonus (${VOLUME_BONUS_WINDOW_DAYS}-day window).`,
-    `- Decay: scores hold for ${DECAY_GRACE_DAYS} days after the last meaningful primary work, then fade toward a floor of ${Math.round(DECAY_FLOOR_RATIO * 100)}% of the peak. Muscles scored only by consistency (e.g. planks) use the same rule on their best consistency reached. Decay never counts as new work or resets the stale clock.`,
+    `- Decay (one rule for every muscle): credit holds for ${DECAY_GRACE_DAYS} days after the work that earned it, then fades toward a floor of ${Math.round(DECAY_FLOOR_RATIO * 100)}% of its peak. Strength-scored muscles decay each lift on its own last-done date, so training one lift never keeps another lift's old peak fresh; the muscle's score is its best decayed lift. Consistency-scored muscles (e.g. planks) use the best ${VOLUME_BONUS_WINDOW_DAYS}-day window that ended within the last ${CONSISTENCY_LOOKBACK_DAYS} days, decayed from the last primary work. Decay never counts as new work or resets the stale clock.`,
+    ...(hasAnyRestrictions(settings)
+      ? ["- Restricted exercises are scored exactly like any other (restrictions only affect suggestions, and pause decay only when every exercise for a muscle is restricted); the breakdown marks them (restricted)."]
+      : []),
     "- 'best' is the lift with the highest peak for that muscle, with when it was last done. If a different lift now leads because the peak lift has decayed, both are named.",
     "- Workout totals show weight lifted ('loaded') separately from bodyweight credit (an estimate of body load on bodyweight-logged sets).",
   ];
@@ -82,7 +111,7 @@ export function formatMuscleSummaryText(opts: {
     `"Stale" = no meaningful primary-muscle training in ${DEFAULT_STALE_THRESHOLD_DAYS}+ days (score decays over time). Secondary credit never resets that clock.`,
     `Changes are ${TREND_WINDOW_DAYS}-day and only shown when the same lift (similar exercises on the same kind of equipment count as one lift) leads both snapshots; otherwise it says "new exercise, no comparison". A score from a lift logged on fewer than ${PROVISIONAL_MIN_SESSIONS} sessions is marked PROVISIONAL and its tier is held one level below the computed one.`,
     "",
-    ...scoringRulesLines(),
+    ...scoringRulesLines(settings),
     "",
     "Muscles:",
   ];
@@ -113,6 +142,7 @@ export function formatMuscleSummaryText(opts: {
       parts.push(describeBestLift(s));
     }
     lines.push(`- ${g.label}${tag}: ${parts.join(", ")}`);
+    lines.push(...breakdownLines(s, asOfDateKey));
   }
 
   if (result.needsMapping.length > 0) {

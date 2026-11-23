@@ -41,6 +41,8 @@ export const SECONDARY_ONLY_CAP = 20;
 export const MINOR_MUSCLE_WEIGHT = 0.15; // incidental credit (e.g. curls -> forearms); counts for score, never resets "last trained"
 export const VOLUME_BONUS_MAX_POINTS = 10; // max points the volume/consistency component can add on top of the load-standard score
 export const VOLUME_BONUS_WINDOW_DAYS = 28;
+/** A consistency-only muscle's peak is the best window that ended within this many days; older windows are history, not evidence. */
+export const CONSISTENCY_LOOKBACK_DAYS = 90;
 export const VOLUME_BONUS_TARGET_SESSIONS = 8; // distinct training days hitting this muscle in the window for the full bonus
 
 // ---- Score display scale ----

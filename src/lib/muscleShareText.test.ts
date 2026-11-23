@@ -78,7 +78,7 @@ describe("export explains itself", () => {
     expect(text).toContain("Scoring rules");
     expect(text).toContain(`standards version ${STANDARDS_VERSION}`);
     expect(text).toMatch(/reps 11-12 count 50% each, reps above 12 add nothing/);
-    expect(text).toMatch(/after the last meaningful primary work, then fade toward a floor of 70%/);
+    expect(text).toMatch(/after the work that earned it, then fades toward a floor of 70% of its peak/);
   });
 
   it("says when each muscle's best lift was last done, and names the decayed lift when another now leads", () => {

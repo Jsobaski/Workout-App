@@ -16,6 +16,7 @@ import {
   resolveExerciseConfig,
 } from "./exerciseSettings";
 import {
+  CONSISTENCY_LOOKBACK_DAYS,
   BODYWEIGHT_FALLBACK_LB,
   DEFAULT_STALE_THRESHOLD_DAYS,
   FRESHNESS_SET_THRESHOLD_RATIO,
@@ -63,6 +64,18 @@ export interface ExerciseScoreSnapshot {
   /** peakScore decayed by this exercise's own time since last meaningful set. */
   effectiveScore: number;
   lastDateKey: string | null;
+  /** Restricted by the user (still scored the same; shown so the breakdown is honest about it). */
+  restricted: boolean;
+}
+
+/** Where a consistency-scored muscle's peak came from: the window and the exercises on its training days. */
+export interface ConsistencyPeak {
+  windowStart: string;
+  windowEnd: string;
+  weightedDays: number;
+  bonusPoints: number;
+  lookbackDays: number;
+  exercises: { name: string; days: number; weight: number; restricted: boolean }[];
 }
 
 export interface MuscleStats {
@@ -96,6 +109,8 @@ export interface MuscleStats {
   bestLift: BestLift | null;
   contributingExercises: string[];
   exerciseScores: ExerciseScoreSnapshot[];
+  /** Set for consistency-scored muscles: the window that produced the peak. Null for strength-scored ones. */
+  consistencyPeak: ConsistencyPeak | null;
 }
 
 export interface MuscleEngineResult {
@@ -241,6 +256,9 @@ export function computeMuscleEngine(
     let hasLoadablePrimary = false;
     let bestPrimaryScore = 0;
     let bestSecondaryScore = 0;
+    // The same two, after each lift's own decay (see exerciseScores).
+    let bestPrimaryEff = 0;
+    let bestSecondaryEff = 0;
     let bestLift: BestLift | null = null;
     let bestLiftKey: string | null = null;
     let lastPrimary: string | null = null;
@@ -256,6 +274,7 @@ export function computeMuscleEngine(
     const dayWeights = new Map<string, number>();
     // The same weights over the whole history, for consistency-only muscles (see bestWindowDayWeightSum).
     const allDayWeights = new Map<string, number>();
+    const dayExercises = new Map<string, Map<string, { name: string; weight: number; restricted: boolean }>>();
 
     for (const { entry, cfg, meaningful } of resolved) {
       const contribution = cfg.mapping.muscles.find((m) => m.group === groupDef.id);
@@ -281,6 +300,8 @@ export function computeMuscleEngine(
       }
 
       allDayWeights.set(entry.dateKey, Math.max(allDayWeights.get(entry.dateKey) ?? 0, contribution.weight));
+      if (!dayExercises.has(entry.dateKey)) dayExercises.set(entry.dateKey, new Map());
+      dayExercises.get(entry.dateKey)!.set(cfg.key, { name: cfg.displayName, weight: contribution.weight, restricted: cfg.restricted });
       if (entry.dateKey >= windowStart && entry.dateKey <= asOfDateKey) {
         dayWeights.set(entry.dateKey, Math.max(dayWeights.get(entry.dateKey) ?? 0, contribution.weight));
       }
@@ -319,7 +340,12 @@ export function computeMuscleEngine(
         peakScore,
         effectiveScore: applyDecay(peakScore, lastDateKey ? daysBetween(lastDateKey, asOfDateKey) : Infinity),
         lastDateKey,
+        restricted: cfg.restricted,
       });
+      // Each lift's raw credit decays on its own clock (days since that lift was last done meaningfully).
+      const liftDecay = decayFactor(lastDateKey ? daysBetween(lastDateKey, asOfDateKey) : Infinity);
+      if (isPrimary) bestPrimaryEff = Math.max(bestPrimaryEff, weighted * liftDecay);
+      else bestSecondaryEff = Math.max(bestSecondaryEff, weighted * liftDecay);
       if (isPrimary) {
         if (bestLift == null || weighted > bestPrimaryScore) {
           bestPrimaryScore = weighted;
@@ -352,6 +378,7 @@ export function computeMuscleEngine(
         bestLift: null,
         contributingExercises: [],
         exerciseScores: [],
+        consistencyPeak: null,
       };
       continue;
     }
@@ -362,18 +389,43 @@ export function computeMuscleEngine(
     const secondaryCap = hasLoadablePrimary ? SECONDARY_CAP_FRACTION * bestPrimaryScore : SECONDARY_ONLY_CAP;
     const bestWeightedLiftScore = Math.max(bestPrimaryScore, Math.min(bestSecondaryScore, secondaryCap));
     // Strength-scored muscles keep their lift score between sessions, so only the small consistency top-up looks at
-    // the last window. A consistency-only muscle (planks, holds) has nothing else, so it behaves the same way: it
-    // keeps the best consistency it has reached (its peak) and then decays from the last real work, rather than
-    // dropping to 0 the moment the window empties.
-    const weightedDays = hasLoadablePrimary
-      ? Array.from(dayWeights.values()).reduce((a, b) => a + b, 0)
-      : bestWindowDayWeightSum(allDayWeights, VOLUME_BONUS_WINDOW_DAYS, asOfDateKey, VOLUME_BONUS_TARGET_SESSIONS);
-    // A muscle with no *primary* loadable driver (anti-rotation holds,
-    // planks, bodyweight-only reps) has no load standard to meaningfully
-    // score against — consistency itself becomes the primary signal instead
-    // of a small top-up.
+    // the last window. A consistency-only muscle (planks, holds) has nothing else, so its peak is the best window it
+    // reached within CONSISTENCY_LOOKBACK_DAYS (older windows are history, not evidence), decayed from the last real work.
+    let consistencyPeak: ConsistencyPeak | null = null;
+    let effectiveConsistencyBonus = 0;
+    let weightedDays: number;
+    if (hasLoadablePrimary) {
+      weightedDays = Array.from(dayWeights.values()).reduce((a, b) => a + b, 0);
+    } else {
+      const windows = bestConsistencyWindows(allDayWeights, VOLUME_BONUS_WINDOW_DAYS, asOfDateKey, CONSISTENCY_LOOKBACK_DAYS, (d) =>
+        volumeConsistencyBonus(d, VOLUME_BONUS_TARGET_SESSIONS, 70)
+      );
+      const win = windows.peak;
+      effectiveConsistencyBonus = windows.current.bonus;
+      weightedDays = win.sum;
+      const perExercise = new Map<string, { name: string; days: number; weight: number; restricted: boolean }>();
+      for (const [date, exs] of dayExercises) {
+        if (date < win.start || date > win.end) continue;
+        for (const [key, ex] of exs) {
+          const cur = perExercise.get(key) ?? { ...ex, days: 0 };
+          cur.days += 1;
+          cur.weight = Math.max(cur.weight, ex.weight);
+          perExercise.set(key, cur);
+        }
+      }
+      consistencyPeak = {
+        windowStart: win.start,
+        windowEnd: win.end,
+        weightedDays: win.sum,
+        bonusPoints: 0, // filled below
+        lookbackDays: CONSISTENCY_LOOKBACK_DAYS,
+        exercises: Array.from(perExercise.values()).sort((a, b) => b.days - a.days),
+      };
+    }
     const bonusMax = hasLoadablePrimary ? VOLUME_BONUS_MAX_POINTS : 70;
-    let peakRaw = bestWeightedLiftScore + volumeConsistencyBonus(weightedDays, VOLUME_BONUS_TARGET_SESSIONS, bonusMax);
+    const bonusPoints = volumeConsistencyBonus(weightedDays, VOLUME_BONUS_TARGET_SESSIONS, bonusMax);
+    if (consistencyPeak) consistencyPeak.bonusPoints = bonusPoints;
+    let peakRaw = bestWeightedLiftScore + bonusPoints;
     let peak = softCapScore(peakRaw);
 
     // Basis change: a muscle that was scored from incidental credit / consistency (no direct lift) and now
@@ -381,6 +433,7 @@ export function computeMuscleEngine(
     // lower it. Once the direct lift's score exceeds the earlier one, the direct score simply takes over.
     let floorPeak: number | null = null;
     let floorEffective: number | null = null;
+    let floorRaw = 0;
     if (options.basisFloor !== false && hasLoadablePrimary && firstDirectDate != null) {
       const earlier = priorSnapshot(firstDirectDate)[groupDef.id];
       if (earlier.hasAnyData && earlier.scoringBasis !== "load" && earlier.peak != null && earlier.effective != null) {
@@ -388,6 +441,7 @@ export function computeMuscleEngine(
         floorEffective = earlier.effective;
         peak = Math.max(peak, earlier.peak);
         peakRaw = Math.max(peakRaw, earlier.peakRaw ?? 0);
+        floorRaw = earlier.peakRaw ?? 0;
       }
     }
 
@@ -410,7 +464,20 @@ export function computeMuscleEngine(
       daysStale != null &&
       daysStale >= staleThresholdDays;
 
-    let effective = pausedRestricted ? peak : applyDecay(peak, daysStale ?? Infinity);
+    // Every lift's credit decays from when that lift was last done, so an old peak can't be kept fresh by training a
+    // different lift. The consistency top-up and consistency-scored muscles decay from the muscle's last primary work.
+    const muscleDecay = decayFactor(daysStale ?? Infinity);
+    const effectiveSecondaryCap = hasLoadablePrimary ? SECONDARY_CAP_FRACTION * bestPrimaryEff : SECONDARY_ONLY_CAP;
+    const liftPartEff = hasLoadablePrimary
+      ? Math.max(bestPrimaryEff, Math.min(bestSecondaryEff, effectiveSecondaryCap))
+      : bestWeightedLiftScore * muscleDecay;
+    // The basis-change floor (the score the muscle already had) is carried through decay on the muscle's own clock.
+    // A consistency-scored muscle's bonus has already been decayed from the day its window ended (see above).
+    const bonusEff = consistencyPeak ? effectiveConsistencyBonus : bonusPoints * muscleDecay;
+    const effectiveRawPerLift = Math.max(liftPartEff + bonusEff, floorRaw * muscleDecay);
+    // When every component shares one clock this equals peak * decayFactor, as before.
+    const perLiftRatio = peakRaw > 0 ? Math.min(1, effectiveRawPerLift / peakRaw) : muscleDecay;
+    let effective = pausedRestricted ? peak : peak * perLiftRatio;
     const uncappedEffective = effective;
 
     // Provisional: the strength score comes solely from one lift group that has
@@ -436,7 +503,7 @@ export function computeMuscleEngine(
         peak = Math.max(Math.min(peak, cap), Math.min(peak, floorPeak ?? 0));
       }
     }
-    const effectiveRaw = pausedRestricted ? peakRaw : peakRaw * decayFactor(daysStale ?? Infinity);
+    const effectiveRaw = pausedRestricted ? peakRaw : peakRaw * perLiftRatio;
 
     statsByGroup[groupDef.id] = {
       group: groupDef.id,
@@ -458,6 +525,7 @@ export function computeMuscleEngine(
       bestLift,
       contributingExercises: Array.from(contributingExercises).sort(),
       exerciseScores: Array.from(exerciseScores.values()),
+      consistencyPeak,
     };
   }
 
@@ -465,25 +533,31 @@ export function computeMuscleEngine(
 }
 
 /**
- * The most weighted training days in any window of `windowDays` ending on a training day (or on asOfDateKey), capped
- * at the days that already earn the full bonus. This is a consistency-only muscle's lifetime peak.
+ * Consistency windows of `windowDays` ending on a training day (or on asOfDateKey) within `lookbackDays` of
+ * asOfDateKey. `peak` is the one with the most weighted training days (ties go to the latest); `current` is the one
+ * whose bonus is worth most after decaying from the day it ended, so an old peak competes with recent work at its
+ * decayed value, exactly as a lift's old best competes with a newer lift.
  */
-function bestWindowDayWeightSum(
+function bestConsistencyWindows(
   weights: Map<string, number>,
   windowDays: number,
   asOfDateKey: string,
-  fullBonusDays: number
-): number {
+  lookbackDays: number,
+  bonusFor: (weightedDays: number) => number
+): { peak: { sum: number; start: string; end: string }; current: { bonus: number; end: string } } {
   const dates = Array.from(weights.keys());
-  let best = 0;
-  for (const end of [...dates, asOfDateKey]) {
+  const earliestEnd = shiftDateKey(asOfDateKey, -lookbackDays);
+  let peak = { sum: 0, start: asOfDateKey, end: asOfDateKey };
+  let current = { bonus: 0, end: asOfDateKey };
+  for (const end of [...dates, asOfDateKey].filter((d) => d >= earliestEnd && d <= asOfDateKey).sort()) {
     const start = shiftDateKey(end, -windowDays);
     let sum = 0;
     for (const d of dates) if (d >= start && d <= end) sum += weights.get(d)!;
-    if (sum > best) best = sum;
-    if (best >= fullBonusDays) return best;
+    if (sum >= peak.sum && sum > 0) peak = { sum, start, end };
+    const decayed = bonusFor(sum) * decayFactor(daysBetween(end, asOfDateKey));
+    if (decayed > current.bonus) current = { bonus: decayed, end };
   }
-  return best;
+  return { peak, current };
 }
 
 export function tierForScore(score: number): MuscleTier {
