@@ -7,7 +7,9 @@ import {
   DECAY_FLOOR_RATIO,
   DECAY_GRACE_DAYS,
   DECAY_HALF_LIFE_DAYS,
-  E1RM_REP_CAP,
+  E1RM_FULL_CREDIT_REPS,
+  E1RM_MAX_CREDITED_REPS,
+  E1RM_TAPER_CREDIT,
   REFERENCE_BODYWEIGHT_LB,
   SOFT_CAP_SCALE,
   SOFT_CAP_START,
@@ -23,11 +25,22 @@ export function epley1RM(weight: number, reps: number): number {
 }
 
 /**
- * Estimated 1RM used for scoring and history: Epley, but reps beyond E1RM_REP_CAP don't count, since the formula
+ * Reps that count toward the e1RM estimate: all reps up to E1RM_FULL_CREDIT_REPS, a fraction (E1RM_TAPER_CREDIT) of
+ * each rep after that up to E1RM_MAX_CREDITED_REPS, and none beyond. With the defaults 10 reps count 10, 11 count 10.5,
+ * 12 count 11, and 13 or more count 11.
+ */
+export function creditedReps(reps: number): number {
+  if (reps <= E1RM_FULL_CREDIT_REPS) return reps;
+  const taperReps = Math.min(reps, E1RM_MAX_CREDITED_REPS) - E1RM_FULL_CREDIT_REPS;
+  return E1RM_FULL_CREDIT_REPS + taperReps * E1RM_TAPER_CREDIT;
+}
+
+/**
+ * Estimated 1RM used for scoring and history: Epley on the credited reps (see creditedReps), since the formula
  * overstates high-rep sets (15 reps would otherwise read as a 1.5x max).
  */
 export function estimate1RM(weight: number, reps: number): number {
-  return epley1RM(weight, Math.min(reps, E1RM_REP_CAP));
+  return epley1RM(weight, creditedReps(reps));
 }
 
 /**

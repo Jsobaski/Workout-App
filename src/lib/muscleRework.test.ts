@@ -57,7 +57,7 @@ describe("bodyweight credit", () => {
       TODAY
     );
     const glutes = statsByGroup.glutes;
-    expect(glutes.bestLift!.e1RM).toBeCloseTo(BW * 0.5 * (1 + 10 / 30), 5); // reps beyond 10 add nothing to the estimate: 136.7, not ~287
+    expect(glutes.bestLift!.e1RM).toBeCloseTo(BW * 0.5 * (1 + 11 / 30), 5); // 12 reps count as 11 (half credit for reps 11-12): 140.1, not ~287
     expect(glutes.effective!).toBeLessThan(60);
     expect(tierForScore(glutes.effective!).id).not.toBe("elite");
   });

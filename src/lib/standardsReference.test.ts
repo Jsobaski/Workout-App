@@ -4,7 +4,7 @@ import { freshDatabase, workout } from "./dbTestHelper";
 import { EXERCISE_MUSCLE_MAP } from "./exerciseMuscleMap";
 import { emptyExerciseSettings, normalizeExerciseSettings } from "./exerciseSettings";
 import { computeMuscleEngine } from "./muscleEngine";
-import { BODYWEIGHT_CLAMP_LB, E1RM_REP_CAP, LIFT_FAMILY_STANDARDS, REFERENCE_BODYWEIGHT_LB, WOMEN_STANDARD_FACTOR } from "./muscleScoreConfig";
+import { BODYWEIGHT_CLAMP_LB, E1RM_FULL_CREDIT_REPS, E1RM_MAX_CREDITED_REPS, E1RM_TAPER_CREDIT, LIFT_FAMILY_STANDARDS, REFERENCE_BODYWEIGHT_LB, WOMEN_STANDARD_FACTOR } from "./muscleScoreConfig";
 import { epley1RM, estimate1RM, normalizedBodyweightRatio } from "./muscleScoring";
 import { describeStandard, standardForMapping, womenFactor } from "./standards";
 import { buildExerciseHistory } from "./exerciseHistory";
@@ -16,18 +16,20 @@ const score = (name: string, reps: number, weight: number, bw: number, standards
   return computeMuscleEngine([lift(name, reps, weight)], bw, TODAY, 10, settings).statsByGroup;
 };
 
-describe("rep-capped estimated 1RM", () => {
-  it("counts at most E1RM_REP_CAP reps, so a set of 15 isn't a 1.5x max", () => {
-    expect(E1RM_REP_CAP).toBe(10);
+describe("tapered estimated 1RM", () => {
+  it("gives full credit to 10 reps, half credit to reps 11-12, and none above 12", () => {
+    expect([E1RM_FULL_CREDIT_REPS, E1RM_TAPER_CREDIT, E1RM_MAX_CREDITED_REPS]).toEqual([10, 0.5, 12]);
     expect(estimate1RM(100, 5)).toBeCloseTo(epley1RM(100, 5));
     expect(estimate1RM(100, 10)).toBeCloseTo(100 * (1 + 10 / 30));
-    expect(estimate1RM(100, 15)).toBeCloseTo(estimate1RM(100, 10));
-    expect(estimate1RM(100, 30)).toBeCloseTo(estimate1RM(100, 10));
+    expect(estimate1RM(100, 11)).toBeCloseTo(100 * (1 + 10.5 / 30));
+    expect(estimate1RM(100, 12)).toBeCloseTo(100 * (1 + 11 / 30));
+    expect(estimate1RM(100, 15)).toBeCloseTo(estimate1RM(100, 12));
+    expect(estimate1RM(100, 30)).toBeCloseTo(estimate1RM(100, 12));
     expect(estimate1RM(100, 1)).toBe(100);
   });
 
-  it("a high-rep set scores the same as the same weight for 10 reps, in scoring and in the history page", () => {
-    const a = score("Leg Press", 10, 400, 180).quads.exerciseScores[0].peakScore;
+  it("a high-rep set scores the same as the same weight for 12 reps (no credit above 12), in scoring and in the history page", () => {
+    const a = score("Leg Press", 12, 400, 180).quads.exerciseScores[0].peakScore;
     const b = score("Leg Press", 15, 400, 180).quads.exerciseScores[0].peakScore;
     expect(b).toBeCloseTo(a, 6);
     const history = buildExerciseHistory([lift("Leg Press", 15, 400)], "Leg Press")!;

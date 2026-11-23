@@ -150,8 +150,12 @@ export const BODYWEIGHT_EXPONENT = 2 / 3;
 export const BODYWEIGHT_CLAMP_LB: [number, number] = [90, 400];
 
 // ---- Estimated 1RM ----
-// Epley is unreliable for high-rep sets (a set of 15 is not a 1.5x max), so reps beyond this don't add to the estimate.
-export const E1RM_REP_CAP = 10;
+// Epley is unreliable for high-rep sets (a set of 15 is not a 1.5x max), so the reps that feed it taper off:
+// full credit up to E1RM_FULL_CREDIT_REPS, half credit (E1RM_TAPER_CREDIT) for each rep after that up to
+// E1RM_MAX_CREDITED_REPS, and nothing beyond. Epley itself is unchanged; it just receives the credited reps.
+export const E1RM_FULL_CREDIT_REPS = 10;
+export const E1RM_TAPER_CREDIT = 0.5;
+export const E1RM_MAX_CREDITED_REPS = 12;
 
 // ---- Women's reference ----
 // Optional scoring preference. The tables above are men's published standards; the women's setting multiplies the
