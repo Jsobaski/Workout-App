@@ -118,6 +118,15 @@ describe("muscle trends", () => {
     expect(t.slopePerWeek.calves).toBeNull();
   });
 
+  it("hides the slope until a muscle has about 6 weeks of scored history", () => {
+    const recent = Array.from({ length: 3 }, (_, i) => at(`r${i}`, 20 - i * 7, "Back Squat", 5, 135 + i * 10));
+    const t = buildMuscleTrends(recent, 180, TODAY, undefined, { weeks: 12 });
+    expect(t.series.quads.some((v) => v != null)).toBe(true); // the line still draws
+    expect(t.slopePerWeek.quads).toBeNull(); // about 3 weeks of data: no slope
+    const long = buildMuscleTrends(climbing, 180, TODAY, undefined, { weeks: 12 });
+    expect(long.slopePerWeek.quads).not.toBeNull();
+  });
+
   it("slope math and direction thresholds", () => {
     expect(linearSlope([0, 1, 2, 3], [10, 12, 14, 16])).toBeCloseTo(2);
     expect(linearSlope([0, 1], [1, 2])).toBeNull();

@@ -45,7 +45,13 @@ export default function MovementFields({
 
   const historyNames = useMemo(() => new Set(exerciseNames), [exerciseNames]);
   const allNames = useMemo(() => Array.from(new Set([...exerciseNames, ...COMMON_EXERCISES])), [exerciseNames]);
-  const suggestions = useMemo(() => fuzzyMatchNames(name, allNames, 6, historyNames), [name, allNames, historyNames]);
+  const suggestions = useMemo(() => {
+    const matches = fuzzyMatchNames(name, allNames, 6, historyNames);
+    // Once the name is typed out in full there is nothing left to complete; an open list would only cover the
+    // "Last time" row and the suggestion below it.
+    const typed = name.trim().toLowerCase();
+    return matches.every((m) => m.toLowerCase() === typed) ? [] : matches;
+  }, [name, allNames, historyNames]);
 
   useEffect(() => {
     let cancelled = false;

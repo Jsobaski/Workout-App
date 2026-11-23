@@ -12,9 +12,12 @@ export interface MuscleTrends {
   dates: string[];
   /** Displayed score per date; null before the muscle had any data. */
   series: Record<MuscleGroupId, (number | null)[]>;
-  /** Least-squares slope in points per week, or null with fewer than 3 scored points. */
+  /** Least-squares slope in points per week; null with fewer than 3 scored points or less than MIN_TREND_WEEKS of scored history. */
   slopePerWeek: Record<MuscleGroupId, number | null>;
 }
+
+/** A slope over a shorter span than this is mostly noise (and the first weeks always look like a climb), so it isn't shown. */
+export const MIN_TREND_WEEKS = 6;
 
 export type TrendDirection = "rising" | "steady" | "falling";
 /** A slope smaller than this (points per week) reads as steady. */
@@ -72,7 +75,8 @@ export function buildMuscleTrends(
         ys.push(v);
       }
     });
-    slopePerWeek[id] = linearSlope(xs, ys);
+    const spanWeeks = xs.length > 0 ? xs[xs.length - 1] - xs[0] : 0;
+    slopePerWeek[id] = spanWeeks >= MIN_TREND_WEEKS ? linearSlope(xs, ys) : null;
   }
   return { dates, series, slopePerWeek };
 }

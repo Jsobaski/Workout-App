@@ -58,6 +58,7 @@ const FAMILY_INFO: Record<LiftFamily, StandardInfo> = {
   barbellBench: { confidence: "approximate", name: "barbell bench press", note: "The intermediate level is sourced (about 1.23x bodyweight at 180 lb); the other levels follow the shape of Strength Level's male bench standards." },
   tricepExt: { confidence: "approximate", name: "triceps pushdown / extension", note: "Strength Level male bodyweight ratios for the pushdown (0.25 to 1.5x bodyweight)." },
   curl: { confidence: "approximate", name: "curl", note: "Consistent with Strength Level's male cable-curl and dumbbell-curl standards; dumbbell curls are scored per hand." },
+  shrug: { confidence: "approximate", name: "shrug", note: "Strength Level barbell shrug bodyweight ratios (0.5x to 3.0x); dumbbell shrugs are logged per hand, so they use half." },
   wristCurl: { confidence: "approximate", name: "wrist curl", note: "Strength Level and FitnessVolt dumbbell wrist curl data; reverse wrist curl is 0.57 of it (weaker wrist extensors)." },
   lateralRaise: { confidence: "approximate", name: "lateral raise", note: "Strength Level's male dumbbell lateral raise standards, per hand, at an assumed 180 lb lifter." },
   legPress: { confidence: "approximate", name: "leg press", note: "A blend of Strength Level's seated and sled leg press tables, which are inconsistent. How you log plates vs total weight changes the result." },

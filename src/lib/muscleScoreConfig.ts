@@ -88,6 +88,7 @@ export type LiftFamily =
   | "curl"
   | "tricepExt"
   | "wristCurl"
+  | "shrug"
   | "lateralRaise"
   | "facePull"
   | "pulldown"
@@ -129,6 +130,9 @@ export const LIFT_FAMILY_STANDARDS: Record<LiftFamily, [number, number, number, 
   // Reverse wrist curl is this table x 0.57: the extensors are weaker than the flexors (isokinetic extensor/flexor peak
   // torque ratio 0.57 in a 40-subject study; Strength Level's dumbbell reverse vs. normal wrist curl levels are ~0.56-0.71x).
   wristCurl: [0.04, 0.115, 0.34, 0.6, 0.9],
+  // Barbell shrug (total load), Strength Level bodyweight ratios: beginner 0.5x, novice 1.0x, intermediate 1.5x, advanced 2.25x, elite 3.0x
+  // (about 103/178/279/401/539 lb at the site's typical male). Dumbbell shrugs are logged per hand, so they use half.
+  shrug: [0.5, 1.0, 1.5, 2.25, 3.0],
   // Per hand. Strength Level male dumbbell lateral raise 8 / 18 / 34 / 54 / 79 lb, about 0.045 / 0.10 / 0.19 / 0.30 / 0.44x
   // of a ~180 lb lifter (their bodyweight isn't stated, so approximate).
   lateralRaise: [0.045, 0.1, 0.19, 0.3, 0.44],

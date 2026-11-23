@@ -213,9 +213,9 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "pec deck": { muscles: [...primary("midLowerChest"), ...secondary("upperChest", "frontDelts")], scoring: proxy("bench", 0.6), loadBasis: "stack" },
 
   // ---- Back, traps, rear delts ----
-  "shrugs": { muscles: [...primary("traps"), ...minor("forearms")], scoring: proxy("deadlift", 0.9) },
+  "shrugs": { muscles: [...primary("traps"), ...minor("forearms")], scoring: standard("shrug") },
   // Dumbbells are logged per hand, so the table is half the barbell (total-load) shrug's.
-  "db shrugs": { muscles: [...primary("traps"), ...minor("forearms")], scoring: proxy("deadlift", 0.45) },
+  "db shrugs": { muscles: [...primary("traps"), ...minor("forearms")], scoring: proxy("shrug", 0.5) },
   "t-bar row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps", "lowerBack")], scoring: proxy("row", 0.9), loadBasis: "plates" },
   "one-arm dumbbell row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps")], scoring: proxy("row", 0.5) },
   "chest-supported row": { muscles: [...primary("upperBack"), ...secondary("lats", "biceps")], scoring: proxy("row", 0.85) },

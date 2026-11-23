@@ -123,7 +123,7 @@ export default function MuscleTrendLines({
           );
         })}
       </ul>
-      <p className="mt-2 text-[11px] text-neutral-600">Slope is the average change in points per week over the period.</p>
+      <p className="mt-2 text-[11px] text-neutral-600">Slope is the average change in points per week; it appears once a muscle has about 6 weeks of scored history.</p>
     </section>
   );
 }
