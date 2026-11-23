@@ -63,7 +63,7 @@ export default function ExercisePreferences() {
           value={settings.standards}
           onChange={(e) => saveSettings({ ...settings, standards: e.target.value as StandardsReference })}
           aria-label="Strength standards"
-          className="w-full min-w-0 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+          className="w-full min-w-0 rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
         >
           {(Object.keys(STANDARDS_REFERENCE_LABELS) as StandardsReference[]).map((k) => (
             <option key={k} value={k}>
@@ -90,7 +90,7 @@ export default function ExercisePreferences() {
                     type="checkbox"
                     checked={on}
                     onChange={(e) => togglePattern(p.id, e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-sky-500"
+                    className="mt-0.5 h-4 w-4 rounded border-white/10 bg-neutral-900 accent-sky-500"
                   />
                   <span>
                     <span className="text-sm text-neutral-200">{p.label}</span>
@@ -103,7 +103,7 @@ export default function ExercisePreferences() {
                     defaultValue={settings.patterns[p.id]?.note ?? ""}
                     onBlur={(e) => setPatternNote(p.id, e.target.value)}
                     placeholder="Note (optional)"
-                    className="mt-2 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100"
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100"
                   />
                 )}
               </div>
@@ -125,7 +125,7 @@ export default function ExercisePreferences() {
                 type="checkbox"
                 checked={settings.focusMuscles.includes(g.id)}
                 onChange={(e) => toggleFocus(g.id, e.target.checked)}
-                className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-emerald-600"
+                className="h-4 w-4 rounded border-white/10 bg-neutral-900 accent-emerald-600"
               />
               {g.label}
             </label>

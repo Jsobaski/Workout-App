@@ -39,7 +39,7 @@ export default function GolfActivitySection({
           {entries.map((entry) => (
             <div
               key={entry.id}
-              className="flex items-start justify-between gap-2 rounded-lg bg-neutral-800/50 px-3 py-2"
+              className="flex items-start justify-between gap-2 rounded-2xl bg-white/[0.04] px-3 py-2"
             >
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium text-neutral-100">
@@ -56,7 +56,7 @@ export default function GolfActivitySection({
               </div>
               <button
                 onClick={() => onDelete(entry.id)}
-                className="shrink-0 rounded-md px-2 py-1 text-xs text-red-400 hover:bg-red-950"
+                className="shrink-0 rounded-full px-2 py-1 text-xs text-red-400 hover:bg-red-950"
               >
                 Delete
               </button>
@@ -68,7 +68,7 @@ export default function GolfActivitySection({
       <div className="mt-3 flex justify-end border-t border-neutral-800 pt-3">
         <button
           onClick={onAdd}
-          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+          className="rounded-full bg-emerald-400 px-3 py-1.5 text-sm font-medium text-neutral-950 hover:bg-emerald-300"
         >
           + Log Golf Activity
         </button>

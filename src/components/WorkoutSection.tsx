@@ -86,7 +86,7 @@ export default function WorkoutSection({
             ) : (
               <div
                 key={entry.id}
-                className={`flex items-start justify-between gap-2 rounded-lg bg-neutral-800/50 px-3 py-2 ${
+                className={`flex items-start justify-between gap-2 rounded-2xl bg-white/[0.04] px-3 py-2 ${
                   entry.supersetId ? "border-l-2 border-emerald-600" : ""
                 }`}
               >
@@ -135,13 +135,13 @@ export default function WorkoutSection({
                 <div className="flex shrink-0 gap-1">
                   <button
                     onClick={() => setEditingId(entry.id)}
-                    className="rounded-md px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-700"
+                    className="rounded-full px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-700"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => onDelete(entry.id)}
-                    className="rounded-md px-2 py-1 text-xs text-red-400 hover:bg-red-950"
+                    className="rounded-full px-2 py-1 text-xs text-red-400 hover:bg-red-950"
                   >
                     Delete
                   </button>
@@ -160,7 +160,7 @@ export default function WorkoutSection({
           <button
             onClick={handleCopy}
             disabled={entries.length === 0}
-            className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm font-medium text-neutral-300 hover:bg-neutral-800 disabled:opacity-40"
+            className="rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-neutral-300 hover:bg-neutral-800 disabled:opacity-40"
           >
             {copied ? "Copied!" : "Copy"}
           </button>
@@ -171,21 +171,21 @@ export default function WorkoutSection({
           />
           <button
             onClick={onChooseSplit}
-            className="rounded-lg border border-emerald-700 px-3 py-1.5 text-sm font-medium text-emerald-400 hover:bg-emerald-950"
+            className="rounded-full border border-emerald-700 px-3 py-1.5 text-sm font-medium text-emerald-400 hover:bg-emerald-950"
           >
             Choose Split
           </button>
           {canSuggest && (
             <button
               onClick={onSuggest}
-              className="rounded-lg border border-emerald-700 px-3 py-1.5 text-sm font-medium text-emerald-400 hover:bg-emerald-950"
+              className="rounded-full border border-emerald-700 px-3 py-1.5 text-sm font-medium text-emerald-400 hover:bg-emerald-950"
             >
               Suggest Today&apos;s Workout
             </button>
           )}
           <button
             onClick={onAdd}
-            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+            className="rounded-full bg-emerald-400 px-3 py-1.5 text-sm font-medium text-neutral-950 hover:bg-emerald-300"
           >
             + Log Exercise
           </button>
@@ -247,7 +247,7 @@ function EditWorkoutRow({
       <input
         value={exerciseName}
         onChange={(e) => setExerciseName(e.target.value)}
-        className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+        className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
         placeholder="Exercise name"
       />
       <label className="flex items-center gap-2 text-xs text-neutral-400">
@@ -255,7 +255,7 @@ function EditWorkoutRow({
           type="checkbox"
           checked={bodyweight}
           onChange={(e) => toggleBodyweight(e.target.checked)}
-          className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-emerald-600"
+          className="h-4 w-4 rounded border-white/10 bg-neutral-900 accent-emerald-600"
         />
         Bodyweight exercise (no added weight)
       </label>
@@ -264,7 +264,7 @@ function EditWorkoutRow({
           type="checkbox"
           checked={timed}
           onChange={(e) => toggleTimed(e.target.checked)}
-          className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-emerald-600"
+          className="h-4 w-4 rounded border-white/10 bg-neutral-900 accent-emerald-600"
         />
         Timed (seconds) — e.g. planks, holds
       </label>
@@ -273,7 +273,7 @@ function EditWorkoutRow({
           type="checkbox"
           checked={banded}
           onChange={(e) => toggleBanded(e.target.checked)}
-          className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-emerald-600"
+          className="h-4 w-4 rounded border-white/10 bg-neutral-900 accent-emerald-600"
         />
         Resistance band
       </label>
@@ -286,7 +286,7 @@ function EditWorkoutRow({
                 type="number"
                 value={s.durationSec ?? 0}
                 onChange={(e) => updateSet(i, "durationSec", Number(e.target.value))}
-                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
+                className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
                 placeholder="Seconds"
               />
             ) : (
@@ -294,7 +294,7 @@ function EditWorkoutRow({
                 type="number"
                 value={s.reps}
                 onChange={(e) => updateSet(i, "reps", Number(e.target.value))}
-                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
+                className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
                 placeholder="Reps"
               />
             )}
@@ -302,7 +302,7 @@ function EditWorkoutRow({
               <select
                 value={s.bandColor ?? "green"}
                 onChange={(e) => updateSetBand(i, e.target.value as BandColor)}
-                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
+                className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
               >
                 {BAND_OPTIONS.map((o) => (
                   <option key={o.color} value={o.color}>
@@ -316,7 +316,7 @@ function EditWorkoutRow({
                   type="number"
                   value={s.weight}
                   onChange={(e) => updateSet(i, "weight", Number(e.target.value))}
-                  className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
+                  className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
                   placeholder="Weight"
                 />
               )
@@ -340,14 +340,14 @@ function EditWorkoutRow({
       <textarea
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+        className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
         placeholder="Notes (optional)"
         rows={2}
       />
       <div className="flex justify-end gap-2">
         <button
           onClick={onCancel}
-          className="rounded-md px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-700"
+          className="rounded-full px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-700"
         >
           Cancel
         </button>
@@ -363,7 +363,7 @@ function EditWorkoutRow({
               notes: notes.trim() || undefined,
             })
           }
-          className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-500"
+          className="rounded-full bg-emerald-400 px-3 py-1 text-xs font-medium text-neutral-950 hover:bg-emerald-300"
         >
           Save
         </button>

@@ -177,7 +177,7 @@ export default function WorkoutSplitModal({
               onClick={() => setDayId(d.id)}
               className={`rounded-full px-3 py-1.5 text-xs font-medium ${
                 d.id === dayId
-                  ? "bg-emerald-600 text-white"
+                  ? "bg-emerald-400 text-neutral-950"
                   : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
               }`}
             >
@@ -208,7 +208,7 @@ export default function WorkoutSplitModal({
                       type="checkbox"
                       checked={row.selected}
                       onChange={(e) => updateRow(exercise.name, { selected: e.target.checked })}
-                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-neutral-700 bg-neutral-900 accent-emerald-600"
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-white/10 bg-neutral-900 accent-emerald-600"
                     />
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium text-neutral-100">
@@ -251,7 +251,7 @@ export default function WorkoutSplitModal({
                           type="checkbox"
                           checked={row.bodyweight}
                           onChange={(e) => toggleBodyweight(exercise.name, e.target.checked)}
-                          className="h-3.5 w-3.5 rounded border-neutral-700 bg-neutral-900 accent-emerald-600"
+                          className="h-3.5 w-3.5 rounded border-white/10 bg-neutral-900 accent-emerald-600"
                         />
                         Bodyweight
                       </label>
@@ -263,7 +263,7 @@ export default function WorkoutSplitModal({
                             value={s.reps}
                             onChange={(e) => updateSet(exercise.name, i, "reps", Number(e.target.value))}
                             placeholder="Reps"
-                            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
+                            className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
                           />
                           {!row.bodyweight && (
                             <input
@@ -271,7 +271,7 @@ export default function WorkoutSplitModal({
                               value={s.weight}
                               onChange={(e) => updateSet(exercise.name, i, "weight", Number(e.target.value))}
                               placeholder="Weight (lb)"
-                              className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
+                              className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
                             />
                           )}
                           {row.sets.length > 1 && (
@@ -307,14 +307,14 @@ export default function WorkoutSplitModal({
       <div className="mt-5 flex justify-end gap-2">
         <button
           onClick={onClose}
-          className="rounded-lg px-4 py-2 text-sm text-neutral-400 hover:bg-neutral-800"
+          className="rounded-full px-4 py-2 text-sm text-neutral-400 hover:bg-neutral-800"
         >
           Cancel
         </button>
         <button
           onClick={handleLogSelected}
           disabled={saving || loadingDay || selectedCount === 0}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="rounded-full bg-emerald-400 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-300 disabled:opacity-50"
         >
           {saving
             ? "Logging…"

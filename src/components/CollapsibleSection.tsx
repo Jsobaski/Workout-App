@@ -15,7 +15,7 @@ export default function CollapsibleSection({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section className="rounded-xl border border-neutral-800 bg-neutral-900/60">
+    <section className="rounded-3xl border border-white/[0.07] bg-neutral-900/80">
       <button
         className="flex w-full items-center justify-between px-4 py-3 text-left"
         onClick={() => setOpen((o) => !o)}

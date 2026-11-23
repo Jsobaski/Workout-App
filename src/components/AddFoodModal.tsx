@@ -255,9 +255,9 @@ export default function AddFoodModal({
       <div className="mb-4 flex gap-2">
         <button
           onClick={() => setMode("text")}
-          className={`flex-1 rounded-lg py-2 text-sm font-medium ${
+          className={`flex-1 rounded-full py-2 text-sm font-medium ${
             mode === "text"
-              ? "bg-emerald-600 text-white"
+              ? "bg-emerald-400 text-neutral-950"
               : "bg-neutral-800 text-neutral-300"
           }`}
         >
@@ -265,9 +265,9 @@ export default function AddFoodModal({
         </button>
         <button
           onClick={() => setMode("photo")}
-          className={`flex-1 rounded-lg py-2 text-sm font-medium ${
+          className={`flex-1 rounded-full py-2 text-sm font-medium ${
             mode === "photo"
-              ? "bg-emerald-600 text-white"
+              ? "bg-emerald-400 text-neutral-950"
               : "bg-neutral-800 text-neutral-300"
           }`}
         >
@@ -313,7 +313,7 @@ export default function AddFoodModal({
               <button
                 onClick={runLabelScan}
                 disabled={scanning}
-                className="mt-2 w-full rounded-lg border border-blue-700 py-2 text-sm font-medium text-blue-400 hover:bg-blue-950 disabled:opacity-40"
+                className="mt-2 w-full rounded-full border border-blue-700 py-2 text-sm font-medium text-blue-400 hover:bg-blue-950 disabled:opacity-40"
               >
                 {scanning ? "Reading label…" : "Scan Label (free, no AI)"}
               </button>
@@ -335,7 +335,7 @@ export default function AddFoodModal({
                   key={f.id}
                   type="button"
                   onClick={() => pickRecent(f)}
-                  className="rounded-full border border-neutral-700 bg-neutral-800/60 px-3 py-1 text-xs text-neutral-300 hover:border-emerald-700 hover:bg-emerald-950/40"
+                  className="rounded-full border border-white/10 bg-neutral-800/60 px-3 py-1 text-xs text-neutral-300 hover:border-emerald-700 hover:bg-emerald-950/40"
                 >
                   {f.itemName} · {f.calories} kcal
                 </button>
@@ -357,7 +357,7 @@ export default function AddFoodModal({
             onKeyDown={handleNameKeyDown}
             placeholder="Item name (e.g. Grilled chicken breast, banana, egg)"
             autoComplete="off"
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+            className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
           />
           {mode === "text" && showNameSuggestions && nameSuggestions.length > 0 && (
             <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-neutral-700 bg-neutral-900 shadow-lg">
@@ -407,7 +407,7 @@ export default function AddFoodModal({
             min="0.25"
             value={servings}
             onChange={(e) => setServings(e.target.value)}
-            className="w-20 rounded-md border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100"
+            className="w-20 rounded-xl border border-white/10 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100"
           />
         </div>
 
@@ -419,14 +419,14 @@ export default function AddFoodModal({
                 value={calories}
                 onChange={(e) => setCalories(e.target.value)}
                 placeholder="Calories per serving (optional)"
-                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+                className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
               />
               <input
                 type="number"
                 value={proteinG}
                 onChange={(e) => setProteinG(e.target.value)}
                 placeholder="Protein g per serving (optional)"
-                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+                className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
               />
             </div>
             {servingsNum !== 1 && (Number(calories) > 0 || Number(proteinG) > 0) && (
@@ -445,7 +445,7 @@ export default function AddFoodModal({
               (mode === "text" && !itemName.trim()) ||
               (mode === "photo" && !photoBlob)
             }
-            className="w-full rounded-lg border border-emerald-700 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950 disabled:opacity-40"
+            className="w-full rounded-full border border-emerald-700 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950 disabled:opacity-40"
           >
             {estimating ? "Estimating…" : "Estimate with AI"}
           </button>
@@ -461,14 +461,14 @@ export default function AddFoodModal({
                 type="number"
                 value={calories}
                 onChange={(e) => setCalories(e.target.value)}
-                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+                className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
                 placeholder="Calories"
               />
               <input
                 type="number"
                 value={proteinG}
                 onChange={(e) => setProteinG(e.target.value)}
-                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+                className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
                 placeholder="Protein (g)"
               />
             </div>
@@ -506,14 +506,14 @@ export default function AddFoodModal({
       <div className="mt-5 flex justify-end gap-2">
         <button
           onClick={onClose}
-          className="rounded-lg px-4 py-2 text-sm text-neutral-400 hover:bg-neutral-800"
+          className="rounded-full px-4 py-2 text-sm text-neutral-400 hover:bg-neutral-800"
         >
           Cancel
         </button>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="rounded-full bg-emerald-400 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-300 disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save"}
         </button>

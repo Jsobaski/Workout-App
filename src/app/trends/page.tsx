@@ -34,15 +34,15 @@ export default function TrendsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-neutral-100">Trends</h1>
-        <div className="flex gap-1 rounded-lg bg-neutral-800 p-1">
+        <h1 className="text-4xl font-bold tracking-tight text-neutral-50">Trends</h1>
+        <div className="flex gap-1 rounded-full bg-neutral-800/80 p-1">
           {RANGE_OPTIONS.map((d) => (
             <button
               key={d}
               onClick={() => setDays(d)}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium ${
+              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                 days === d
-                  ? "bg-emerald-600 text-white"
+                  ? "bg-emerald-400 text-neutral-950"
                   : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
@@ -157,7 +157,7 @@ export default function TrendsPage() {
             value={selectedExercise ?? ""}
             onChange={(e) => setSelectedExercise(e.target.value || null)}
             aria-label="Exercise"
-            className="w-full min-w-0 max-w-full truncate rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-200 sm:w-56"
+            className="w-full min-w-0 max-w-full truncate rounded-xl border border-white/10 bg-neutral-900 px-2 py-1 text-xs text-neutral-200 sm:w-56"
           >
             <option value="">Pick an exercise…</option>
             {exerciseNames.map((name) => (
@@ -243,7 +243,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
+    <section className="rounded-3xl border border-white/[0.07] bg-neutral-900/80 p-4">
       <div className="mb-2 flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <h2 className="shrink-0 text-sm font-semibold text-neutral-300">
           {title}

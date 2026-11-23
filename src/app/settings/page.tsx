@@ -115,7 +115,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-neutral-100">Coaching Context</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-neutral-50">Coaching Context</h1>
         <p className="mt-1 text-sm text-neutral-500">
           This informs workout suggestions and nutrition targets — it&apos;s not
           logged daily, just kept up to date.
@@ -127,7 +127,7 @@ export default function SettingsPage() {
           value={context.goals}
           onChange={(e) => field("goals", e.target.value)}
           rows={3}
-          className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+          className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
           placeholder="e.g. build strength, improve mobility, train for an upcoming event"
         />
       </FormSection>
@@ -189,14 +189,14 @@ export default function SettingsPage() {
           value={context.injuryNotes}
           onChange={(e) => field("injuryNotes", e.target.value)}
           rows={3}
-          className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+          className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
           placeholder="e.g. shoulder pain overhead, knee sensitivity on deep squats"
         />
       </FormSection>
 
       <button
         onClick={() => save(context)}
-        className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-medium text-white hover:bg-emerald-500"
+        className="w-full rounded-full bg-emerald-400 py-2.5 text-sm font-medium text-neutral-950 hover:bg-emerald-300"
       >
         {saved ? "Saved ✓" : "Save"}
       </button>
@@ -210,14 +210,14 @@ export default function SettingsPage() {
           <button
             onClick={handleExport}
             disabled={exporting}
-            className="flex-1 rounded-lg border border-emerald-700 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950 disabled:opacity-50"
+            className="flex-1 rounded-full border border-emerald-700 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950 disabled:opacity-50"
           >
             {exporting ? "Exporting…" : "Export data"}
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={restoring}
-            className="flex-1 rounded-lg border border-neutral-700 py-2 text-sm font-medium text-neutral-300 hover:bg-neutral-800 disabled:opacity-50"
+            className="flex-1 rounded-full border border-white/10 py-2 text-sm font-medium text-neutral-300 hover:bg-neutral-800 disabled:opacity-50"
           >
             {restoring ? "Importing…" : "Import data"}
           </button>
@@ -277,12 +277,12 @@ export default function SettingsPage() {
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
               placeholder="PIN"
-              className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+              className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
             />
             <button
               onClick={handleUnlock}
               disabled={pinChecking || !pinInput.trim()}
-              className="shrink-0 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+              className="shrink-0 rounded-full bg-emerald-400 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-300 disabled:opacity-50"
             >
               {pinChecking ? "Checking…" : "Unlock"}
             </button>
@@ -306,7 +306,7 @@ function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
+    <section className="rounded-3xl border border-white/[0.07] bg-neutral-900/80 p-4">
       <h2 className="mb-3 text-sm font-semibold text-neutral-300">{title}</h2>
       {children}
     </section>
@@ -331,7 +331,7 @@ function LabeledNumber({
         onChange={(e) =>
           onChange(e.target.value === "" ? null : Number(e.target.value))
         }
-        className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+        className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
       />
     </label>
   );
@@ -354,7 +354,7 @@ function LabeledSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+        className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
       >
         <option value="">—</option>
         {options.map((o) => (

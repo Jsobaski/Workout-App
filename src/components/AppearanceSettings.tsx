@@ -18,7 +18,7 @@ export default function AppearanceSettings() {
         <select
           value={appearance.theme}
           onChange={(e) => saveAppearance({ ...appearance, theme: e.target.value })}
-          className="w-full min-w-0 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+          className="w-full min-w-0 rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
         >
           <option value="auto">Automatic (follows the calendar)</option>
           <option value="off">Off (always the default theme)</option>
@@ -46,7 +46,7 @@ export default function AppearanceSettings() {
           type="checkbox"
           checked={appearance.celebrations}
           onChange={(e) => saveAppearance({ ...appearance, celebrations: e.target.checked })}
-          className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-emerald-500"
+          className="h-4 w-4 rounded border-white/10 bg-neutral-900 accent-emerald-500"
         />
         Celebrate wins (emoji backdrop for records, tier-ups and badges)
       </label>
@@ -58,7 +58,7 @@ export default function AppearanceSettings() {
               wins: [{ id: "preview", kind: "pr", dateKey: todayKey(), emoji: "🏆", title: "New Back Squat PR", detail: "Preview of a celebration" }],
             })
           }
-          className="rounded-lg border border-emerald-700 px-3 py-1.5 text-sm font-medium text-emerald-400 hover:bg-emerald-950"
+          className="rounded-full border border-emerald-700 px-3 py-1.5 text-sm font-medium text-emerald-400 hover:bg-emerald-950"
         >
           Preview a celebration
         </button>

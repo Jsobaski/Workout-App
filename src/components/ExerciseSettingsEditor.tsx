@@ -105,7 +105,7 @@ export default function ExerciseSettingsEditor({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search exercises"
-        className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+        className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
       />
       <div className="max-h-96 space-y-1.5 overflow-y-auto pr-1">
         {filtered.map((key) => {
@@ -155,7 +155,7 @@ export default function ExerciseSettingsEditor({
                       type="checkbox"
                       checked={override?.onlyThisExercise === true}
                       onChange={(e) => update(key, { onlyThisExercise: e.target.checked })}
-                      className="h-3.5 w-3.5 shrink-0 rounded border-neutral-700 bg-neutral-900 accent-sky-500"
+                      className="h-3.5 w-3.5 shrink-0 rounded border-white/10 bg-neutral-900 accent-sky-500"
                     />
                     Restrict only this exercise instead
                   </label>
@@ -176,7 +176,7 @@ export default function ExerciseSettingsEditor({
                           const v = Number(e.target.value);
                           if (e.target.value !== "" && Number.isFinite(v) && v >= 0) update(key, { loadMultiplier: v });
                         }}
-                        className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+                        className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
                       />
                     </label>
                     <label className="block">
@@ -184,7 +184,7 @@ export default function ExerciseSettingsEditor({
                       <select
                         value={cfg.loadBasis}
                         onChange={(e) => update(key, { loadBasis: e.target.value })}
-                        className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+                        className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
                       >
                         {BASIS_KEYS.map((b) => (
                           <option key={b} value={b}>
@@ -208,7 +208,7 @@ export default function ExerciseSettingsEditor({
                           const v = Number(e.target.value);
                           if (e.target.value !== "" && Number.isFinite(v) && v >= 0) update(key, { bodyweightFraction: v });
                         }}
-                        className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+                        className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
                       />
                     </label>
                   </div>
@@ -226,7 +226,7 @@ export default function ExerciseSettingsEditor({
                           setReferenceKey(e.target.value);
                           setProposal(null);
                         }}
-                        className="min-w-0 flex-1 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-xs text-neutral-100"
+                        className="min-w-0 flex-1 rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-xs text-neutral-100"
                       >
                         <option value="">Compare with…</option>
                         {loggedKeys
@@ -241,7 +241,7 @@ export default function ExerciseSettingsEditor({
                         type="button"
                         disabled={!referenceKey}
                         onClick={() => runHelper(key)}
-                        className="shrink-0 rounded-md border border-emerald-700 px-3 py-1.5 text-xs text-emerald-400 disabled:opacity-40"
+                        className="shrink-0 rounded-full border border-emerald-700 px-3 py-1.5 text-xs text-emerald-400 disabled:opacity-40"
                       >
                         Suggest
                       </button>
@@ -273,14 +273,14 @@ export default function ExerciseSettingsEditor({
                               update(key, { loadMultiplier: proposal.result!.multiplier });
                               setProposal(null);
                             }}
-                            className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white"
+                            className="rounded-full bg-emerald-400 px-3 py-1 text-xs font-medium text-neutral-950"
                           >
                             Accept
                           </button>
                           <button
                             type="button"
                             onClick={() => setProposal(null)}
-                            className="rounded-md border border-neutral-700 px-3 py-1 text-xs text-neutral-300"
+                            className="rounded-full border border-white/10 px-3 py-1 text-xs text-neutral-300"
                           >
                             Reject
                           </button>
@@ -294,7 +294,7 @@ export default function ExerciseSettingsEditor({
                     <select
                       value={choice}
                       onChange={(e) => setRestriction(key, e.target.value as RestrictionChoice)}
-                      className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+                      className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
                     >
                       <option value="inherit">
                         Follow my settings{cfg.restrictionSource === "pattern" ? " (restricted by pattern)" : " (not restricted)"}
@@ -309,7 +309,7 @@ export default function ExerciseSettingsEditor({
                       defaultValue={override?.restrictionNote ?? ""}
                       onBlur={(e) => update(key, { restrictionNote: e.target.value.trim() })}
                       placeholder="Note (optional)"
-                      className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100"
+                      className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100"
                     />
                   )}
                   {!cfg.restricted && (
@@ -323,7 +323,7 @@ export default function ExerciseSettingsEditor({
                           update(key, { limit: v === "" || parseLimit(v) ? v : override?.limit });
                         }}
                         placeholder="e.g. 2x10"
-                        className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100"
+                        className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100"
                       />
                     </label>
                   )}
@@ -332,7 +332,7 @@ export default function ExerciseSettingsEditor({
                       type="checkbox"
                       checked={cfg.needsConfirmation}
                       onChange={(e) => update(key, { needsConfirmation: e.target.checked })}
-                      className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 accent-amber-500"
+                      className="h-4 w-4 rounded border-white/10 bg-neutral-900 accent-amber-500"
                     />
                     Flag as &quot;confirm first&quot; when suggested
                   </label>

@@ -197,7 +197,7 @@ function Stat({
   note?: string;
 }) {
   return (
-    <div className="rounded-lg bg-neutral-800/50 px-3 py-2">
+    <div className="rounded-2xl bg-white/[0.04] px-3 py-2">
       <dt className="text-xs text-neutral-500">{label}</dt>
       <dd className="font-semibold text-neutral-100">{value}</dd>
       {note && <dd className="text-[11px] text-neutral-500">{note}</dd>}
@@ -216,7 +216,7 @@ function RecapActions({ recap }: { recap: WeeklyRecap }) {
           setCopied(true);
           setTimeout(() => setCopied(false), 1500);
         }}
-        className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm font-medium text-neutral-300 hover:bg-neutral-800"
+        className="rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-neutral-300 hover:bg-neutral-800"
       >
         {copied ? "Copied!" : "Copy"}
       </button>

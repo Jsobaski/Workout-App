@@ -70,7 +70,7 @@ export default function LogWorkoutModal({
         <button
           type="button"
           onClick={() => setMovements((prev) => [...prev, newMovementDraft(nextKey.current++)])}
-          className="w-full rounded-lg border border-dashed border-emerald-700 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950"
+          className="w-full rounded-full border border-dashed border-emerald-700 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950"
         >
           + Add another movement (superset)
         </button>
@@ -79,13 +79,13 @@ export default function LogWorkoutModal({
       </div>
 
       <div className="mt-5 flex justify-end gap-2">
-        <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-neutral-400 hover:bg-neutral-800">
+        <button onClick={onClose} className="rounded-full px-4 py-2 text-sm text-neutral-400 hover:bg-neutral-800">
           Cancel
         </button>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="rounded-full bg-emerald-400 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-300 disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save"}
         </button>

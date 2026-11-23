@@ -62,7 +62,7 @@ export default function MeasurementsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-neutral-100">Measurements</h1>
+          <h1 className="text-4xl font-bold tracking-tight text-neutral-50">Measurements</h1>
           <p className="text-xs text-neutral-500">
             Check in every few weeks — month-to-month change is easier to read
             than day-to-day noise.
@@ -70,7 +70,7 @@ export default function MeasurementsPage() {
         </div>
         <button
           onClick={() => setShowLog(true)}
-          className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+          className="shrink-0 rounded-full bg-emerald-400 px-3 py-1.5 text-sm font-medium text-neutral-950 hover:bg-emerald-300"
         >
           + Log Measurements
         </button>
@@ -79,13 +79,13 @@ export default function MeasurementsPage() {
       {loading && <p className="text-sm text-neutral-500">Loading…</p>}
 
       {fieldsWithData.length > 0 && chartField && (
-        <section className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
+        <section className="rounded-3xl border border-white/[0.07] bg-neutral-900/80 p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-neutral-300">Trend</h2>
             <select
               value={chartField.key}
               onChange={(e) => setChartFieldKey(e.target.value)}
-              className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-200"
+              className="rounded-xl border border-white/10 bg-neutral-900 px-2 py-1 text-xs text-neutral-200"
             >
               {fieldsWithData.map((f) => (
                 <option key={f.key} value={f.key}>
@@ -142,7 +142,7 @@ export default function MeasurementsPage() {
                 </span>
                 <button
                   onClick={() => removeMeasurementEntry(entry.id)}
-                  className="rounded-md px-2 py-1 text-xs text-red-400 hover:bg-red-950"
+                  className="rounded-full px-2 py-1 text-xs text-red-400 hover:bg-red-950"
                 >
                   Delete
                 </button>

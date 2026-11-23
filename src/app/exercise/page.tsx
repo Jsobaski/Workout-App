@@ -42,7 +42,7 @@ function ExerciseHistoryContent() {
     return (
       <div className="space-y-3">
         <BackLink />
-        <h1 className="text-xl font-semibold text-neutral-100">{name || "Exercise"}</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-neutral-50">{name || "Exercise"}</h1>
         <p className="text-sm text-neutral-500">{name ? "No logged sessions for this exercise yet." : "Pick an exercise from Today or Trends to see its history."}</p>
       </div>
     );
@@ -75,7 +75,7 @@ function HistoryView({ history }: { history: ExerciseHistory }) {
     <div className="space-y-4">
       <BackLink />
       <div>
-        <h1 className="text-xl font-semibold text-neutral-100">{history.name}</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-neutral-50">{history.name}</h1>
         <p className="text-xs text-neutral-500">
           {sessions.length} session{sessions.length === 1 ? "" : "s"}, first logged {formatDisplayDate(sessions[0].dateKey).replace(/^\w+, /, "")}
         </p>
@@ -88,7 +88,7 @@ function HistoryView({ history }: { history: ExerciseHistory }) {
         <Tile label="Sets logged" value={String(history.totalSets)} note={`${history.prs.length} PR${history.prs.length === 1 ? "" : "s"}`} />
       </dl>
 
-      <section className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
+      <section className="rounded-3xl border border-white/[0.07] bg-neutral-900/80 p-4">
         <h2 className="mb-2 text-sm font-semibold text-neutral-300">{METRIC_TITLE[metric]} over time</h2>
         {sessions.length < 2 ? (
           <p className="py-6 text-center text-sm text-neutral-500">Log it again to see a line.</p>
@@ -119,7 +119,7 @@ function HistoryView({ history }: { history: ExerciseHistory }) {
         {history.prs.length > 0 && <p className="mt-1 text-[11px] text-neutral-500">Gold dots are personal records.</p>}
       </section>
 
-      <section className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
+      <section className="rounded-3xl border border-white/[0.07] bg-neutral-900/80 p-4">
         <h2 className="mb-2 text-sm font-semibold text-neutral-300">Personal records</h2>
         {history.prs.length === 0 ? (
           <p className="text-sm text-neutral-500">No records yet. The first session sets the baseline.</p>
@@ -137,7 +137,7 @@ function HistoryView({ history }: { history: ExerciseHistory }) {
         )}
       </section>
 
-      <section className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
+      <section className="rounded-3xl border border-white/[0.07] bg-neutral-900/80 p-4">
         <h2 className="mb-2 text-sm font-semibold text-neutral-300">Sessions</h2>
         <ul className="divide-y divide-neutral-800 text-sm">
           {[...sessions].reverse().map((s) => (
@@ -162,7 +162,7 @@ function HistoryView({ history }: { history: ExerciseHistory }) {
 
 function Tile({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <div className="rounded-lg bg-neutral-800/50 px-3 py-2">
+    <div className="rounded-2xl bg-white/[0.04] px-3 py-2">
       <dt className="text-xs text-neutral-500">{label}</dt>
       <dd className="font-semibold text-neutral-100">{value}</dd>
       {note && <dd className="text-[11px] text-neutral-500">{note}</dd>}

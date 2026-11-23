@@ -46,7 +46,7 @@ export default function NutritionSection({
       }
     >
       {((targetCalories && (targetCalories[0] || targetCalories[1])) || targetProtein) && (
-        <div className="mb-3 space-y-2.5">
+        <div className="mb-4 flex gap-3">
           {targetCalories && (targetCalories[0] || targetCalories[1]) && (
             <NutrientProgress
               label="Calories"
@@ -90,7 +90,7 @@ export default function NutritionSection({
             ) : (
               <div
                 key={entry.id}
-                className="flex items-center justify-between gap-2 rounded-lg bg-neutral-800/50 px-3 py-2"
+                className="flex items-center justify-between gap-2 rounded-2xl bg-white/[0.04] px-3 py-2"
               >
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium text-neutral-100">
@@ -105,13 +105,13 @@ export default function NutritionSection({
                 <div className="flex shrink-0 gap-1">
                   <button
                     onClick={() => setEditingId(entry.id)}
-                    className="rounded-md px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-700"
+                    className="rounded-full px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-700"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => onDelete(entry.id)}
-                    className="rounded-md px-2 py-1 text-xs text-red-400 hover:bg-red-950"
+                    className="rounded-full px-2 py-1 text-xs text-red-400 hover:bg-red-950"
                   >
                     Delete
                   </button>
@@ -130,13 +130,13 @@ export default function NutritionSection({
           <button
             onClick={handleCopy}
             disabled={entries.length === 0}
-            className="rounded-lg border border-neutral-700 px-3 py-1.5 text-sm font-medium text-neutral-300 hover:bg-neutral-800 disabled:opacity-40"
+            className="rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-neutral-300 hover:bg-neutral-800 disabled:opacity-40"
           >
             {copied ? "Copied!" : "Copy"}
           </button>
           <button
             onClick={onAdd}
-            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+            className="rounded-full bg-emerald-400 px-3 py-1.5 text-sm font-medium text-neutral-950 hover:bg-emerald-300"
           >
             + Add Food
           </button>
@@ -146,6 +146,7 @@ export default function NutritionSection({
   );
 }
 
+// A progress ring: filled to value / target (full and amber when over), with the numbers beside it.
 function NutrientProgress({
   label,
   value,
@@ -160,25 +161,37 @@ function NutrientProgress({
   unit: string;
 }) {
   if (!target) return null;
-  const pct = Math.min(100, Math.round((value / target) * 100));
+  const fraction = Math.min(1, value / target);
   const over = value > target;
-
+  const radius = 31;
+  const circumference = 2 * Math.PI * radius;
   return (
-    <div>
-      <div className="mb-1 flex items-center justify-between text-xs">
-        <span className="text-neutral-500">{label}</span>
-        <span className={over ? "text-amber-400" : "text-neutral-300"}>
-          {value.toLocaleString()} / {rangeLabel}
-          {unit}
-        </span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-neutral-800">
-        <div
-          className={`h-full rounded-full transition-all ${
-            over ? "bg-amber-500" : "bg-emerald-500"
-          }`}
-          style={{ width: `${pct}%` }}
+    <div className="flex min-w-0 flex-1 items-center gap-3">
+      <svg width="76" height="76" viewBox="0 0 76 76" role="img" aria-label={`${label} ${Math.round(fraction * 100)} percent of target`} className="shrink-0">
+        <circle cx="38" cy="38" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+        <circle
+          cx="38"
+          cy="38"
+          r={radius}
+          fill="none"
+          stroke={over ? "#f59e0b" : "var(--color-emerald-400, #34d399)"}
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={`${fraction * circumference} ${circumference}`}
+          transform="rotate(-90 38 38)"
+          style={{ transition: "stroke-dasharray 0.6s ease" }}
         />
+      </svg>
+      <div className="min-w-0">
+        <div className="text-xs text-neutral-400">{label}</div>
+        <div className={`text-xl font-bold tracking-tight ${over ? "text-amber-400" : "text-neutral-50"}`}>
+          {value.toLocaleString()}
+          <span className="text-sm font-medium text-neutral-400">{unit}</span>
+        </div>
+        <div className="text-xs text-neutral-500">
+          of {rangeLabel}
+          {unit}
+        </div>
       </div>
     </div>
   );
@@ -202,7 +215,7 @@ function EditFoodRow({
       <input
         value={itemName}
         onChange={(e) => setItemName(e.target.value)}
-        className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+        className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
         placeholder="Item name"
       />
       <div className="flex gap-2">
@@ -210,21 +223,21 @@ function EditFoodRow({
           type="number"
           value={calories}
           onChange={(e) => setCalories(e.target.value)}
-          className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+          className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
           placeholder="Calories"
         />
         <input
           type="number"
           value={proteinG}
           onChange={(e) => setProteinG(e.target.value)}
-          className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+          className="w-full rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
           placeholder="Protein (g)"
         />
       </div>
       <div className="flex justify-end gap-2">
         <button
           onClick={onCancel}
-          className="rounded-md px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-700"
+          className="rounded-full px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-700"
         >
           Cancel
         </button>
@@ -237,7 +250,7 @@ function EditFoodRow({
               proteinG: Number(proteinG) || 0,
             })
           }
-          className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-500"
+          className="rounded-full bg-emerald-400 px-3 py-1 text-xs font-medium text-neutral-950 hover:bg-emerald-300"
         >
           Save
         </button>

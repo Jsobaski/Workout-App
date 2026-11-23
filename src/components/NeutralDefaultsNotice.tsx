@@ -70,14 +70,14 @@ export default function NeutralDefaultsNotice() {
         <button
           disabled={busy}
           onClick={() => choose("kept")}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="rounded-full bg-emerald-400 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-300 disabled:opacity-50"
         >
           Keep these
         </button>
         <button
           disabled={busy}
           onClick={() => choose("cleared")}
-          className="rounded-lg border border-neutral-600 px-4 py-2 text-sm text-neutral-200 hover:bg-neutral-800 disabled:opacity-50"
+          className="rounded-full border border-neutral-600 px-4 py-2 text-sm text-neutral-200 hover:bg-neutral-800 disabled:opacity-50"
         >
           Clear them
         </button>

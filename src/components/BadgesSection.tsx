@@ -39,7 +39,7 @@ export default function BadgesSection() {
   }, [workoutEntries, foodEntries, golfActivityEntries, proteinTargetG]);
 
   return (
-    <section aria-labelledby="badges-heading" className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
+    <section aria-labelledby="badges-heading" className="rounded-3xl border border-white/[0.07] bg-neutral-900/80 p-4">
       <h2 id="badges-heading" className="mb-2 text-sm font-semibold text-neutral-300">
         Badges
       </h2>

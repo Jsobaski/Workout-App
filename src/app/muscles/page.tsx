@@ -97,13 +97,13 @@ export default function MusclesPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-neutral-100">Muscles</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-neutral-50">Muscles</h1>
         <button
           onClick={() => setUseSampleData((v) => !v)}
-          className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
+          className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
             useSampleData
               ? "border-amber-600 bg-amber-950 text-amber-300"
-              : "border-neutral-700 text-neutral-400 hover:bg-neutral-800"
+              : "border-white/10 text-neutral-400 hover:bg-neutral-800"
           }`}
         >
           {useSampleData ? "Previewing sample data" : "Preview with sample data"}
@@ -114,7 +114,7 @@ export default function MusclesPage() {
         <button
           onClick={handleCopy}
           disabled={loading}
-          className="rounded-lg border border-emerald-700 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950 disabled:opacity-40"
+          className="rounded-full border border-emerald-700 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950 disabled:opacity-40"
         >
           {copied ? "Copied ✓" : "Copy Muscle Data"}
         </button>
@@ -146,23 +146,19 @@ export default function MusclesPage() {
         </div>
       )}
 
-      <div className="flex gap-2">
-        <button
-          onClick={() => setView("front")}
-          className={`flex-1 rounded-lg py-2 text-sm font-medium ${
-            view === "front" ? "bg-emerald-600 text-white" : "bg-neutral-800 text-neutral-300"
-          }`}
-        >
-          Front
-        </button>
-        <button
-          onClick={() => setView("back")}
-          className={`flex-1 rounded-lg py-2 text-sm font-medium ${
-            view === "back" ? "bg-emerald-600 text-white" : "bg-neutral-800 text-neutral-300"
-          }`}
-        >
-          Back
-        </button>
+      <div className="flex rounded-full border border-white/10 bg-neutral-900 p-1" role="group" aria-label="Body map view">
+        {(["front", "back"] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            aria-pressed={view === v}
+            className={`flex-1 rounded-full py-2 text-sm font-semibold ${
+              view === v ? "bg-neutral-700 text-neutral-50" : "text-neutral-400 hover:text-neutral-200"
+            }`}
+          >
+            {v === "front" ? "Front" : "Back"}
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-xs text-neutral-500">
@@ -172,7 +168,7 @@ export default function MusclesPage() {
             type="date"
             value={beforeDateKey}
             onChange={(e) => setBeforeDateKey(e.target.value)}
-            className="w-full min-w-0 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200"
+            className="w-full min-w-0 rounded-xl border border-white/10 bg-neutral-900 px-2 py-1 text-neutral-200"
           />
         </label>
         <label className="min-w-0">
@@ -181,7 +177,7 @@ export default function MusclesPage() {
             type="date"
             value={afterDateKey}
             onChange={(e) => setAfterDateKey(e.target.value)}
-            className="w-full min-w-0 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200"
+            className="w-full min-w-0 rounded-xl border border-white/10 bg-neutral-900 px-2 py-1 text-neutral-200"
           />
         </label>
       </div>
@@ -242,7 +238,7 @@ export default function MusclesPage() {
         </Link>
       </div>
 
-      <section className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
+      <section className="rounded-3xl border border-white/[0.07] bg-neutral-900/80 p-4">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-neutral-300">Muscle Comparison</h2>
           <div className="flex gap-1 text-xs">
@@ -250,8 +246,8 @@ export default function MusclesPage() {
               <button
                 key={v}
                 onClick={() => setComparisonView(v)}
-                className={`rounded-md px-2.5 py-1 font-medium ${
-                  comparisonView === v ? "bg-emerald-600 text-white" : "bg-neutral-800 text-neutral-400"
+                className={`rounded-full px-2.5 py-1 font-medium ${
+                  comparisonView === v ? "bg-emerald-400 text-neutral-950" : "bg-neutral-800 text-neutral-400"
                 }`}
               >
                 {v === "change" ? "Change" : "Radar"}

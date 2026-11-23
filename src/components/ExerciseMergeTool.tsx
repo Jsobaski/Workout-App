@@ -76,14 +76,14 @@ export default function ExerciseMergeTool() {
             <button
               type="button"
               onClick={() => merge(i, g)}
-              className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-500"
+              className="rounded-full bg-emerald-400 px-3 py-1 text-xs font-medium text-neutral-950 hover:bg-emerald-300"
             >
               Merge into &quot;{targets[i]}&quot;
             </button>
             <button
               type="button"
               onClick={() => setDismissed((d) => new Set(d).add(i))}
-              className="rounded-md border border-neutral-700 px-3 py-1 text-xs text-neutral-300"
+              className="rounded-full border border-white/10 px-3 py-1 text-xs text-neutral-300"
             >
               Not duplicates
             </button>

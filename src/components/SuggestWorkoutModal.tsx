@@ -122,7 +122,7 @@ export default function SuggestWorkoutModal({
           <p className="text-sm text-red-400">{error}</p>
           <button
             onClick={onClose}
-            className="w-full rounded-lg bg-neutral-800 py-2 text-sm text-neutral-200"
+            className="w-full rounded-full bg-neutral-800 py-2 text-sm text-neutral-200"
           >
             Log an exercise manually instead
           </button>
@@ -147,10 +147,10 @@ export default function SuggestWorkoutModal({
                 key={i}
                 onClick={() => handleTap(ex)}
                 disabled={added || adding}
-                className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                className={`w-full rounded-full border p-3 text-left transition-colors ${
                   added
                     ? "border-emerald-800 bg-emerald-950/20 opacity-70"
-                    : "border-neutral-800 bg-neutral-800/40 hover:border-emerald-700 hover:bg-emerald-950/30"
+                    : "border-white/10 bg-neutral-800/40 hover:border-emerald-700 hover:bg-emerald-950/30"
                 } disabled:cursor-default`}
               >
                 <div className="flex items-center justify-between">

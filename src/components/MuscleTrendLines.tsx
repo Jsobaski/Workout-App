@@ -65,7 +65,7 @@ export default function MuscleTrendLines({
   if (rows.length === 0) return null;
 
   return (
-    <section className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
+    <section className="rounded-3xl border border-white/[0.07] bg-neutral-900/80 p-4">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-neutral-300">Score over time</h2>
         <div className="flex gap-1 text-xs">
@@ -73,7 +73,7 @@ export default function MuscleTrendLines({
             <button
               key={r.label}
               onClick={() => setRange(r)}
-              className={`rounded-md px-2.5 py-1 font-medium ${range.label === r.label ? "bg-emerald-600 text-white" : "bg-neutral-800 text-neutral-400"}`}
+              className={`rounded-full px-2.5 py-1 font-medium ${range.label === r.label ? "bg-emerald-400 text-neutral-950" : "bg-neutral-800 text-neutral-400"}`}
             >
               {r.label}
             </button>

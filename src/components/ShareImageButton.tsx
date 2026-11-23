@@ -56,7 +56,7 @@ export default function ShareImageButton({
       disabled={disabled || state === "working"}
       className={
         className ??
-        "rounded-lg border border-neutral-700 px-3 py-1.5 text-sm font-medium text-neutral-300 hover:bg-neutral-800 disabled:opacity-40"
+        "rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-neutral-300 hover:bg-neutral-800 disabled:opacity-40"
       }
     >
       {state === "working" ? "Making image…" : state === "done" ? "Image ready" : state === "error" ? "Couldn't make image" : "Share image"}

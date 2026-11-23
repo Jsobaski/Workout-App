@@ -63,7 +63,7 @@ export default function LogMeasurementsModal({
             type="date"
             value={dateKey}
             onChange={(e) => setDateKey(dateKeyFor(new Date(`${e.target.value}T00:00:00`)))}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+            className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
           />
         </div>
 
@@ -82,7 +82,7 @@ export default function LogMeasurementsModal({
                 step="0.1"
                 value={values[field.key] ?? ""}
                 onChange={(e) => setField(field.key, e.target.value)}
-                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+                className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
               />
               {field.hint && (
                 <p className="mt-0.5 text-[11px] text-neutral-600">{field.hint}</p>
@@ -96,7 +96,7 @@ export default function LogMeasurementsModal({
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Notes (optional)"
           rows={2}
-          className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+          className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
         />
 
         {error && <p className="text-xs text-red-400">{error}</p>}
@@ -105,14 +105,14 @@ export default function LogMeasurementsModal({
       <div className="mt-5 flex justify-end gap-2">
         <button
           onClick={onClose}
-          className="rounded-lg px-4 py-2 text-sm text-neutral-400 hover:bg-neutral-800"
+          className="rounded-full px-4 py-2 text-sm text-neutral-400 hover:bg-neutral-800"
         >
           Cancel
         </button>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="rounded-full bg-emerald-400 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-300 disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save"}
         </button>

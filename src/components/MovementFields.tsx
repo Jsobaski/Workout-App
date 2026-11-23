@@ -152,7 +152,7 @@ export default function MovementFields({
           onKeyDown={handleNameKeyDown}
           placeholder="Exercise name"
           autoComplete="off"
-          className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+          className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
         />
         {showSuggestions && suggestions.length > 0 && (
           <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-neutral-700 bg-neutral-900 shadow-lg">
@@ -287,7 +287,7 @@ export default function MovementFields({
         onChange={(e) => patch({ notes: e.target.value })}
         placeholder="Notes (optional) — e.g. neck cramped, cut short"
         rows={2}
-        className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+        className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
       />
     </div>
   );

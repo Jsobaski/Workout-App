@@ -18,11 +18,11 @@ export default function WeeklyFocusCard({
   const focusList = buildFocusList(statsByGroup, deltas, settings);
 
   return (
-    <section className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
+    <section className="rounded-3xl border border-white/[0.07] bg-neutral-900/80 p-4">
       <h2 className="mb-3 text-sm font-semibold text-neutral-300">Focus This Week</h2>
       <div className="space-y-3">
         {focusList.map((item, i) => (
-          <div key={item.group} className="flex items-start gap-3 rounded-lg bg-neutral-800/50 px-3 py-2.5">
+          <div key={item.group} className="flex items-start gap-3 rounded-2xl bg-white/[0.04] px-3 py-2.5">
             <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
               {i + 1}
             </span>
