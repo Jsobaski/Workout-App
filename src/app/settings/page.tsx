@@ -5,6 +5,8 @@ import { useCoachingContext } from "@/hooks/useCoachingContext";
 import { buildBackup, downloadBackup, restoreBackup } from "@/lib/backup";
 import ExerciseMergeTool from "@/components/ExerciseMergeTool";
 import ExercisePreferences from "@/components/ExercisePreferences";
+import { useExerciseSettings } from "@/hooks/useExerciseSettings";
+import { STANDARDS_REFERENCE_LABELS, StandardsReference } from "@/lib/standards";
 import AppearanceSettings from "@/components/AppearanceSettings";
 import AboutSection from "@/components/AboutSection";
 import { clearSavedPin, getSavedPin, setSavedPin, verifyPin } from "@/lib/appPin";
@@ -20,6 +22,8 @@ const AGE_RANGES = ["18-24", "25-34", "35-44", "45-54", "55-64", "65+"];
 
 export default function SettingsPage() {
   const { context, setContext, loading, save, saved } = useCoachingContext();
+  // One shared state for exercise preferences, so the sex setting and the preferences panel never overwrite each other.
+  const exerciseState = useExerciseSettings();
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
   const [backupError, setBackupError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -140,6 +144,17 @@ export default function SettingsPage() {
             options={AGE_RANGES}
             onChange={(v) => field("ageRange", v)}
           />
+          <label className="block">
+            <span className="mb-1 block text-xs text-neutral-500">Sex (for strength standards)</span>
+            <select
+              value={exerciseState.settings.standards}
+              onChange={(e) => exerciseState.saveSettings({ ...exerciseState.settings, standards: e.target.value as StandardsReference })}
+              className="w-full min-w-0 rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+            >
+              <option value="general">{STANDARDS_REFERENCE_LABELS.general}</option>
+              <option value="women">{STANDARDS_REFERENCE_LABELS.women}</option>
+            </select>
+          </label>
           <LabeledSelect
             label="Activity level"
             value={context.activityLevel}
@@ -162,6 +177,10 @@ export default function SettingsPage() {
             onChange={(v) => field("trainingFrequencyTarget", v)}
           />
         </div>
+      <p className="mt-3 text-xs text-neutral-500">
+          Sex only chooses which published strength standards your muscle scores use (men&apos;s tables by default; female applies
+          the published women-to-men ratios). Age range doesn&apos;t change scoring yet.
+        </p>
       </FormSection>
 
       <FormSection title="Nutrition targets">
@@ -247,7 +266,7 @@ export default function SettingsPage() {
 
       <div id="exercise-settings">
         <FormSection title="Exercise preferences">
-          <ExercisePreferences />
+          <ExercisePreferences state={exerciseState} />
         </FormSection>
       </div>
 

@@ -8,8 +8,8 @@ export type StandardsReference = "general" | "women";
 export type Standard = [number, number, number, number, number];
 
 export const STANDARDS_REFERENCE_LABELS: Record<StandardsReference, string> = {
-  general: "Published men's tables (default)",
-  women: "Women's reference (published ratios applied)",
+  general: "Male / not specified",
+  women: "Female",
 };
 
 const LOWER_BODY: MuscleGroupId[] = ["quads", "hamstrings", "glutes", "calves", "lowerBack", "abs", "obliques"];
