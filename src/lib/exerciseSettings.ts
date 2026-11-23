@@ -47,7 +47,7 @@ export interface ExerciseSettingsData {
   patterns: PatternRestrictions;
   /** Muscles the user has tagged as priorities (e.g. relevant to their sport). Default: none. */
   focusMuscles: MuscleGroupId[];
-  /** Which published strength standards to score against. Default "general" (men's published tables); "women" applies the published women's ratios. */
+  /** Which published strength standards to score against. Default "unspecified" (men's published tables, the same as "male"); "female" applies the published women-to-men ratios. */
   standards: StandardsReference;
 }
 
@@ -61,7 +61,7 @@ export interface ExerciseSettingsRecord {
 }
 
 export function emptyExerciseSettings(): ExerciseSettingsData {
-  return { overrides: {}, patterns: {}, focusMuscles: [], standards: "general" };
+  return { overrides: {}, patterns: {}, focusMuscles: [], standards: "unspecified" };
 }
 
 const MUSCLE_IDS = new Set<string>(MUSCLE_GROUPS.map((g) => g.id));
@@ -109,7 +109,9 @@ export function normalizeExerciseSettings(raw: unknown): ExerciseSettingsData {
     result.patterns[id as MovementPattern] = note ? { note } : {};
   }
 
-  if (record.standards === "women") result.standards = "women";
+  // "general" / "women" are the names an earlier version stored.
+  if (record.standards === "female" || record.standards === "women") result.standards = "female";
+  else if (record.standards === "male") result.standards = "male";
 
   if (Array.isArray(record.focusMuscles)) {
     result.focusMuscles = record.focusMuscles.filter((m): m is MuscleGroupId => typeof m === "string" && MUSCLE_IDS.has(m));

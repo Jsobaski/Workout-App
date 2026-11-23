@@ -4,12 +4,14 @@ import { ExerciseMapping } from "./exerciseMuscleMap";
 import { LIFT_FAMILY_STANDARDS, LiftFamily, WOMEN_STANDARD_FACTOR } from "./muscleScoreConfig";
 import { MuscleGroupId } from "./muscleTaxonomy";
 
-export type StandardsReference = "general" | "women";
+/** Optional profile setting. The published tables are men's; "female" applies the published women-to-men ratios, and "male" and "unspecified" both use the men's tables. */
+export type StandardsReference = "unspecified" | "male" | "female";
 export type Standard = [number, number, number, number, number];
 
 export const STANDARDS_REFERENCE_LABELS: Record<StandardsReference, string> = {
-  general: "Male / not specified",
-  women: "Female",
+  male: "Male",
+  female: "Female",
+  unspecified: "Not specified (default)",
 };
 
 const LOWER_BODY: MuscleGroupId[] = ["quads", "hamstrings", "glutes", "calves", "lowerBack", "abs", "obliques"];
@@ -22,7 +24,7 @@ export function womenFactor(mapping: ExerciseMapping): number {
   return lower * 2 >= group.length ? WOMEN_STANDARD_FACTOR.lower : WOMEN_STANDARD_FACTOR.upper;
 }
 
-export function standardForMapping(mapping: ExerciseMapping, reference: StandardsReference = "general"): Standard | null {
+export function standardForMapping(mapping: ExerciseMapping, reference: StandardsReference = "unspecified"): Standard | null {
   let table: Standard;
   if (mapping.scoring.method === "standard") {
     table = LIFT_FAMILY_STANDARDS[mapping.scoring.family];
@@ -33,7 +35,7 @@ export function standardForMapping(mapping: ExerciseMapping, reference: Standard
   } else {
     return null; // volumeOnly
   }
-  if (reference === "women") {
+  if (reference === "female") {
     const f = womenFactor(mapping);
     return table.map((v) => v * f) as Standard;
   }

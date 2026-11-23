@@ -11,7 +11,7 @@ import { buildExerciseHistory } from "./exerciseHistory";
 
 const TODAY = "2026-10-20";
 const lift = (name: string, reps: number, weight: number) => workout("1", "2026-10-15", name, reps, weight);
-const score = (name: string, reps: number, weight: number, bw: number, standards: "general" | "women" = "general") => {
+const score = (name: string, reps: number, weight: number, bw: number, standards: "unspecified" | "male" | "female" = "unspecified") => {
   const settings = { ...emptyExerciseSettings(), standards };
   return computeMuscleEngine([lift(name, reps, weight)], bw, TODAY, 10, settings).statsByGroup;
 };
@@ -86,24 +86,33 @@ describe("re-anchored barbell standards", () => {
 
 describe("optional women's reference", () => {
   it("is off by default and lowers the required multiple (so the same lift scores higher), upper body more than lower", () => {
-    expect(emptyExerciseSettings().standards).toBe("general");
-    const general = score("Bench Press", 1, 150, 180, "general").midLowerChest.exerciseScores[0].peakScore;
-    const women = score("Bench Press", 1, 150, 180, "women").midLowerChest.exerciseScores[0].peakScore;
+    expect(emptyExerciseSettings().standards).toBe("unspecified");
+    const general = score("Bench Press", 1, 150, 180, "unspecified").midLowerChest.exerciseScores[0].peakScore;
+    const women = score("Bench Press", 1, 150, 180, "female").midLowerChest.exerciseScores[0].peakScore;
     expect(women).toBeGreaterThan(general);
     expect(WOMEN_STANDARD_FACTOR.upper).toBeLessThan(WOMEN_STANDARD_FACTOR.lower);
     expect(womenFactor(EXERCISE_MUSCLE_MAP["bench press"])).toBe(WOMEN_STANDARD_FACTOR.upper);
     expect(womenFactor(EXERCISE_MUSCLE_MAP["back squat"])).toBe(WOMEN_STANDARD_FACTOR.lower);
     const m = EXERCISE_MUSCLE_MAP["back squat"];
-    expect(standardForMapping(m, "women")![2]).toBeCloseTo(standardForMapping(m, "general")![2] * WOMEN_STANDARD_FACTOR.lower);
+    expect(standardForMapping(m, "female")![2]).toBeCloseTo(standardForMapping(m, "unspecified")![2] * WOMEN_STANDARD_FACTOR.lower);
+  });
+
+  it("Male and Not specified use the same (men's published) tables", () => {
+    const base = score("Back Squat", 1, 250, 180, "unspecified").quads.exerciseScores[0].peakScore;
+    expect(score("Back Squat", 1, 250, 180, "male").quads.exerciseScores[0].peakScore).toBe(base);
+    expect(score("Back Squat", 1, 250, 180, "female").quads.exerciseScores[0].peakScore).toBeGreaterThan(base);
   });
 
   it("is stored with the local settings and survives a reload; older records default to general", async () => {
     const { db } = await freshDatabase();
-    expect((await db.getExerciseSettings()).standards).toBe("general");
-    await db.saveExerciseSettings({ ...emptyExerciseSettings(), standards: "women" });
-    expect((await db.getExerciseSettings()).standards).toBe("women");
-    expect(normalizeExerciseSettings({ overrides: {} }).standards).toBe("general");
-    expect(normalizeExerciseSettings({ standards: "bogus" }).standards).toBe("general");
+    expect((await db.getExerciseSettings()).standards).toBe("unspecified");
+    await db.saveExerciseSettings({ ...emptyExerciseSettings(), standards: "female" });
+    expect((await db.getExerciseSettings()).standards).toBe("female");
+    expect(normalizeExerciseSettings({ overrides: {} }).standards).toBe("unspecified");
+    expect(normalizeExerciseSettings({ standards: "bogus" }).standards).toBe("unspecified");
+    expect(normalizeExerciseSettings({ standards: "male" }).standards).toBe("male");
+    expect(normalizeExerciseSettings({ standards: "women" }).standards).toBe("female"); // the name an earlier version stored
+    expect(normalizeExerciseSettings({ standards: "general" }).standards).toBe("unspecified");
   });
 });
 

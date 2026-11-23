@@ -283,7 +283,7 @@ export function computeMuscleEngine(
       }
 
       const best = bestByExercise.get(cfg.key)!;
-      const standards = standardForMapping(cfg.mapping, settings?.standards ?? "general");
+      const standards = standardForMapping(cfg.mapping, settings?.standards ?? "unspecified");
       if (isPrimary && standards && best.bestE1RM > 0 && (firstDirectDate == null || entry.dateKey < firstDirectDate)) {
         firstDirectDate = entry.dateKey;
       }

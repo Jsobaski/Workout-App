@@ -162,7 +162,7 @@ describe("a database with a restricted pattern and a cleared override", () => {
       overrides: { "single-leg romanian deadlift": { restricted: false, limit: "2x10" } },
       patterns: { hip_hinge: { note: "pattern note" }, squat: {} },
       focusMuscles: ["glutes"],
-      standards: "general",
+      standards: "unspecified",
     };
     await db.saveExerciseSettings(saved);
     const loaded = await db.getExerciseSettings();

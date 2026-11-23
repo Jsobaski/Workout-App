@@ -151,8 +151,11 @@ export default function SettingsPage() {
               onChange={(e) => exerciseState.saveSettings({ ...exerciseState.settings, standards: e.target.value as StandardsReference })}
               className="w-full min-w-0 rounded-xl border border-white/10 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
             >
-              <option value="general">{STANDARDS_REFERENCE_LABELS.general}</option>
-              <option value="women">{STANDARDS_REFERENCE_LABELS.women}</option>
+              {(["male", "female", "unspecified"] as StandardsReference[]).map((k) => (
+                <option key={k} value={k}>
+                  {STANDARDS_REFERENCE_LABELS[k]}
+                </option>
+              ))}
             </select>
           </label>
           <LabeledSelect
@@ -178,8 +181,9 @@ export default function SettingsPage() {
           />
         </div>
       <p className="mt-3 text-xs text-neutral-500">
-          Sex only chooses which published strength standards your muscle scores use (men&apos;s tables by default; female applies
-          the published women-to-men ratios). Age range doesn&apos;t change scoring yet.
+          Sex only chooses which published strength standards your muscle scores use. The published tables are men&apos;s, so
+          Male and Not specified both use them; Female applies the published women-to-men ratios. Age range doesn&apos;t change
+          scoring yet.
         </p>
       </FormSection>
 

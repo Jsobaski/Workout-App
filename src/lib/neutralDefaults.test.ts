@@ -37,7 +37,7 @@ describe("empty database", () => {
   it("has no settings: nothing restricted, no patterns, no priority muscles, no migration pending", async () => {
     const { db, migration } = await freshDatabase();
     const settings = await db.getExerciseSettings();
-    expect(settings).toEqual({ overrides: {}, patterns: {}, focusMuscles: [], standards: "general" });
+    expect(settings).toEqual({ overrides: {}, patterns: {}, focusMuscles: [], standards: "unspecified" });
     expect(hasAnyRestrictions(settings)).toBe(false);
     expect(await db.hasAnyLoggedData()).toBe(false);
     expect(await migration.checkNeutralMigration()).toBeNull();
