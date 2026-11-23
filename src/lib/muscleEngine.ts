@@ -254,6 +254,8 @@ export function computeMuscleEngine(
     // Training days in the consistency window, each weighted by the strongest
     // contribution that day (a primary day counts 1, a secondary day 0.4).
     const dayWeights = new Map<string, number>();
+    // The same weights over the whole history, for consistency-only muscles (see bestWindowDayWeightSum).
+    const allDayWeights = new Map<string, number>();
 
     for (const { entry, cfg, meaningful } of resolved) {
       const contribution = cfg.mapping.muscles.find((m) => m.group === groupDef.id);
@@ -278,6 +280,7 @@ export function computeMuscleEngine(
         }
       }
 
+      allDayWeights.set(entry.dateKey, Math.max(allDayWeights.get(entry.dateKey) ?? 0, contribution.weight));
       if (entry.dateKey >= windowStart && entry.dateKey <= asOfDateKey) {
         dayWeights.set(entry.dateKey, Math.max(dayWeights.get(entry.dateKey) ?? 0, contribution.weight));
       }
@@ -358,7 +361,13 @@ export function computeMuscleEngine(
     // press); with no primary lift it's capped at a small flat amount.
     const secondaryCap = hasLoadablePrimary ? SECONDARY_CAP_FRACTION * bestPrimaryScore : SECONDARY_ONLY_CAP;
     const bestWeightedLiftScore = Math.max(bestPrimaryScore, Math.min(bestSecondaryScore, secondaryCap));
-    const weightedDays = Array.from(dayWeights.values()).reduce((a, b) => a + b, 0);
+    // Strength-scored muscles keep their lift score between sessions, so only the small consistency top-up looks at
+    // the last window. A consistency-only muscle (planks, holds) has nothing else, so it behaves the same way: it
+    // keeps the best consistency it has reached (its peak) and then decays from the last real work, rather than
+    // dropping to 0 the moment the window empties.
+    const weightedDays = hasLoadablePrimary
+      ? Array.from(dayWeights.values()).reduce((a, b) => a + b, 0)
+      : bestWindowDayWeightSum(allDayWeights, VOLUME_BONUS_WINDOW_DAYS, asOfDateKey, VOLUME_BONUS_TARGET_SESSIONS);
     // A muscle with no *primary* loadable driver (anti-rotation holds,
     // planks, bodyweight-only reps) has no load standard to meaningfully
     // score against — consistency itself becomes the primary signal instead
@@ -453,6 +462,28 @@ export function computeMuscleEngine(
   }
 
   return { statsByGroup, needsMapping: Array.from(needsMapping).sort() };
+}
+
+/**
+ * The most weighted training days in any window of `windowDays` ending on a training day (or on asOfDateKey), capped
+ * at the days that already earn the full bonus. This is a consistency-only muscle's lifetime peak.
+ */
+function bestWindowDayWeightSum(
+  weights: Map<string, number>,
+  windowDays: number,
+  asOfDateKey: string,
+  fullBonusDays: number
+): number {
+  const dates = Array.from(weights.keys());
+  let best = 0;
+  for (const end of [...dates, asOfDateKey]) {
+    const start = shiftDateKey(end, -windowDays);
+    let sum = 0;
+    for (const d of dates) if (d >= start && d <= end) sum += weights.get(d)!;
+    if (sum > best) best = sum;
+    if (best >= fullBonusDays) return best;
+  }
+  return best;
 }
 
 export function tierForScore(score: number): MuscleTier {
