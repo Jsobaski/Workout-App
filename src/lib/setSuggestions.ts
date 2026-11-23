@@ -32,7 +32,10 @@ export const OFF_DAY_RATIO = 0.9;
 export const REP_FLOOR = 8;
 export const REP_CEILING = DEFAULT_REP_CEILING;
 
-export type SuggestionKind = "add-weight" | "add-rep" | "add-seconds" | "repeat" | "ease-back";
+/** A next weight more than this fraction above the current one (when it comes from real history) is too big a single jump. */
+export const BIG_JUMP_FRACTION = 0.1;
+
+export type SuggestionKind = "add-weight" | "try-heavier" | "add-rep" | "add-seconds" | "repeat" | "ease-back";
 
 export interface SetSuggestion {
   kind: SuggestionKind;
@@ -59,6 +62,21 @@ function workingSets(session: HistorySession): SetEntry[] {
   const top = topWeight(session);
   return top <= 0 ? session.sets : session.sets.filter((s) => s.weight >= top * 0.9);
 }
+/** Weights worked at in one set of sets: lighter warm-up ramps are left out so they never look like equipment steps. */
+function workingWeights(sets: SetEntry[]): number[] {
+  const top = Math.max(0, ...sets.map((s) => s.weight));
+  return top <= 0 ? [] : sets.filter((s) => s.weight >= top * 0.9).map((s) => s.weight);
+}
+
+/**
+ * The next weight above `current` this lift has actually been worked at (stacks and add-on plates have uneven steps,
+ * so what was logged is a better guide than a formula). Null when nothing heavier was ever logged.
+ */
+export function nextLoggedWeight(weights: number[], current: number): number | null {
+  const above = weights.filter((w) => w > current + 0.01);
+  return above.length > 0 ? Math.min(...above) : null;
+}
+
 /** The rep count every working set reached that day. */
 const minWorkingReps = (session: HistorySession) => Math.min(...workingSets(session).map((s) => s.reps));
 
@@ -124,14 +142,24 @@ export function inferIncrement(weights: number[]): number | null {
   return null;
 }
 
-/** Every distinct weight logged on a movement and on the movements automatically grouped with it. */
+/** The smallest weight increase between one session's top weight and the next (the user's own smallest real step). */
+function smallestProgressionStep(sessions: HistorySession[]): number | null {
+  let best: number | null = null;
+  for (let i = 1; i < sessions.length; i++) {
+    const gap = Math.round((topWeight(sessions[i]) - topWeight(sessions[i - 1])) * 100) / 100;
+    if (gap > 0 && (best == null || gap < best)) best = gap;
+  }
+  return best;
+}
+
+/** Every distinct weight worked at (warm-up ramps excluded) on a movement and on the movements automatically grouped with it. */
 export function loggedWeightsForGroup(entries: WorkoutEntry[], name: string, settings?: ExerciseSettingsData): number[] {
   const key = exerciseGroupKey(name);
   const keys = new Set([key, ...liftGroupMembers(key, settings)]);
   const weights = new Set<number>();
   for (const e of entries) {
     if (e.timed || e.bodyweight || e.banded || !keys.has(exerciseGroupKey(e.exerciseName))) continue;
-    for (const s of e.sets) if (s.weight > 0) weights.add(s.weight);
+    for (const w of workingWeights(e.sets)) if (w > 0) weights.add(w);
   }
   return Array.from(weights);
 }
@@ -159,8 +187,8 @@ export function suggestNextSets(history: ExerciseHistory | null, today: string, 
     return { ...s, sets, reason: changed ? `${s.reason} (kept within your ${limit.sets}x${limit.reps} limit)` : s.reason };
   };
 
-  const increment = history.metric === "e1rm" ? inferIncrement(options.loggedWeights ?? history.sessions.flatMap((x) => x.sets.map((set) => set.weight))) : null;
-  const stepFor = (weight: number) => increment ?? fallbackStep(weight);
+  const loggedWeights = options.loggedWeights ?? history.sessions.flatMap((x) => workingWeights(x.sets));
+  const increment = history.metric === "e1rm" ? inferIncrement(loggedWeights) : null;
 
   // Coming back after a long break: lighter, same reps.
   const daysSince = Math.max(0, daysBetween(last.dateKey, today));
@@ -215,14 +243,36 @@ export function suggestNextSets(history: ExerciseHistory | null, today: string, 
   const ceilingNote = learned.learned && !limit ? " (your usual top)" : "";
 
   if (minReps >= ceiling) {
-    const step = stepFor(top);
-    const next = Math.round((top + step) * 100) / 100;
     const restart = Math.min(ceiling, Math.max(MIN_RESTART_REPS, Math.round(ceiling * RESTART_FRACTION)));
+    // Prefer the next weight this lift has already been worked at; otherwise the smallest step seen in the history
+    // (the repeated gap, or the smallest jump between sessions); otherwise a plain default.
+    // "Logged on this lift" means this exact movement: grouped variants only inform the step size, never the target.
+    const logged = history.metric === "e1rm" ? nextLoggedWeight(sessions.flatMap((x) => workingWeights(x.sets)), top) : null;
+    const observedStep = increment ?? smallestProgressionStep(sessions);
+    const observed = logged != null ? logged : observedStep != null ? Math.round((top + observedStep) * 100) / 100 : null;
+    const next = observed ?? Math.round((top + fallbackStep(top)) * 100) / 100;
+    const jump = Math.round((next - top) * 100) / 100;
+
+    // A step that is just the equipment's regular increment (every 20 lb plate pair, every 2.5 lb dumbbell) is the
+    // normal progression, not a big jump; only an irregular step above BIG_JUMP_FRACTION gets the one-set trial.
+    const isRegularStep = increment != null && Math.abs(jump / increment - Math.round(jump / increment)) < 0.02;
+    if (observed != null && jump > top * BIG_JUMP_FRACTION && !isRegularStep) {
+      // One big weight step: keep the weight you've earned and try the heavier one for a single set.
+      const base = copy();
+      const trial: SetEntry = { ...base[base.length - 1], weight: next, reps: restart };
+      const sets = limit && base.length >= limit.sets ? [...base.slice(0, -1), trial] : [...base, trial];
+      return withinLimit({
+        kind: "try-heavier",
+        sets,
+        flags,
+        reason: `Every working set reached ${ceiling} reps${ceilingNote}: repeat ${fmt(top)} lb, then try ${fmt(next)} lb for one set (+${fmt(jump)} lb is a big step)`,
+      });
+    }
     return withinLimit({
       kind: "add-weight",
       sets: copy().map((s) => (isWorking(s) ? { ...s, weight: next, reps: restart } : s)),
       flags,
-      reason: `Every working set reached ${ceiling} reps${ceilingNote}: add ${fmt(next - top)} lb and start back at ${restart}`,
+      reason: `Every working set reached ${ceiling} reps${ceilingNote}: add ${fmt(jump)} lb and start back at ${restart}`,
     });
   }
   return withinLimit({
