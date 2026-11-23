@@ -315,6 +315,7 @@ export async function saveExerciseSettings(data: ExerciseSettingsData): Promise<
     overrides: data.overrides,
     patterns: data.patterns,
     focusMuscles: data.focusMuscles,
+    standards: data.standards,
   };
   await db.put("settings", record);
 }

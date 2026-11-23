@@ -2,9 +2,13 @@
 // Every number here is deterministic given its inputs so this module is
 // fully unit-testable and safe to recompute from logs on every render.
 import {
+  BODYWEIGHT_CLAMP_LB,
+  BODYWEIGHT_EXPONENT,
   DECAY_FLOOR_RATIO,
   DECAY_GRACE_DAYS,
   DECAY_HALF_LIFE_DAYS,
+  E1RM_REP_CAP,
+  REFERENCE_BODYWEIGHT_LB,
   SOFT_CAP_SCALE,
   SOFT_CAP_START,
   STANDARD_SCORE_BREAKPOINTS,
@@ -16,6 +20,24 @@ export function epley1RM(weight: number, reps: number): number {
   if (reps <= 0 || weight < 0) return 0;
   if (reps === 1) return weight;
   return weight * (1 + reps / 30);
+}
+
+/**
+ * Estimated 1RM used for scoring and history: Epley, but reps beyond E1RM_REP_CAP don't count, since the formula
+ * overstates high-rep sets (15 reps would otherwise read as a 1.5x max).
+ */
+export function estimate1RM(weight: number, reps: number): number {
+  return epley1RM(weight, Math.min(reps, E1RM_REP_CAP));
+}
+
+/**
+ * A lift's strength relative to the lifter's size, on the scale the standard tables use (the multiple a 180 lb lifter
+ * would need): e1RM / bodyweight, scaled by (bodyweight / 180) ^ (1 - BODYWEIGHT_EXPONENT) so that absolute strength
+ * is compared at bodyweight ^ 2/3 rather than proportionally.
+ */
+export function normalizedBodyweightRatio(e1RM: number, bodyweightLb: number): number {
+  const bw = Math.min(BODYWEIGHT_CLAMP_LB[1], Math.max(BODYWEIGHT_CLAMP_LB[0], bodyweightLb));
+  return (e1RM / bw) * Math.pow(bw / REFERENCE_BODYWEIGHT_LB, 1 - BODYWEIGHT_EXPONENT);
 }
 
 export function clampScore(score: number): number {

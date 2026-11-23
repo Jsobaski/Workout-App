@@ -2,7 +2,7 @@
 // Name variants of one movement (aliases, brand names) are combined through the canonical
 // exercise key; unmapped names match case-insensitively. Values use the weights as logged.
 import { canonicalExerciseKey, exerciseDisplayName } from "./exerciseMuscleMap";
-import { epley1RM } from "./muscleScoring";
+import { estimate1RM } from "./muscleScoring";
 import { SetEntry, WorkoutEntry } from "./types";
 
 export type HistoryMetric = "e1rm" | "reps" | "seconds";
@@ -46,7 +46,7 @@ function metricFor(entry: WorkoutEntry): HistoryMetric {
 function setValue(set: SetEntry, metric: HistoryMetric): number {
   if (metric === "seconds") return set.durationSec ?? 0;
   if (metric === "reps") return set.reps;
-  return epley1RM(set.weight, set.reps);
+  return estimate1RM(set.weight, set.reps);
 }
 
 function setVolume(set: SetEntry, metric: HistoryMetric): number {

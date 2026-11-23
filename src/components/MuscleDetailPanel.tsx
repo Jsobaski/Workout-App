@@ -1,6 +1,8 @@
 "use client";
 
 import Modal from "./Modal";
+import { EXERCISE_MUSCLE_MAP } from "@/lib/exerciseMuscleMap";
+import { describeStandard } from "@/lib/standards";
 import { MuscleGroupId, muscleGroup } from "@/lib/muscleTaxonomy";
 import { MuscleStats, tierForScore } from "@/lib/muscleEngine";
 import { formatShortDate } from "@/lib/date";
@@ -117,6 +119,7 @@ export default function MuscleDetailPanel({
                     </span>
                   </div>
                 )}
+                {stats.bestLift && <ScoringNote liftKey={stats.bestLift.key} />}
                 {delta && describeDeltaStatus(delta) && (
                   <div className="col-span-2">
                     Change vs {TREND_WINDOW_DAYS} days ago:{" "}
@@ -164,5 +167,27 @@ export default function MuscleDetailPanel({
         })}
       </div>
     </Modal>
+  );
+}
+
+const CONFIDENCE_STYLE = {
+  sourced: "bg-emerald-950 text-emerald-300",
+  approximate: "bg-amber-950 text-amber-300",
+  estimate: "bg-neutral-800 text-neutral-300",
+} as const;
+const CONFIDENCE_LABEL = { sourced: "published data", approximate: "approximate", estimate: "estimate" } as const;
+
+// "How this is scored": where the best lift's strength standard comes from, so the tier isn't a black box.
+function ScoringNote({ liftKey }: { liftKey: string }) {
+  const mapping = EXERCISE_MUSCLE_MAP[liftKey];
+  const info = mapping ? describeStandard(mapping) : null;
+  if (!info) return null;
+  return (
+    <div className="col-span-2 mt-1 rounded-lg bg-neutral-900 p-2 text-[11px] leading-snug text-neutral-400">
+      <span className={`mr-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${CONFIDENCE_STYLE[info.confidence]}`}>
+        {CONFIDENCE_LABEL[info.confidence]}
+      </span>
+      How this is scored: against the {info.name} standard for your bodyweight. {info.note}
+    </div>
   );
 }

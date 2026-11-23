@@ -73,6 +73,11 @@ export type LiftFamily =
   | "squat"
   | "deadlift"
   | "bench"
+  // Barbell squat / deadlift / bench re-anchored to published standards (see below); the older
+  // squat / deadlift / bench tables stay for dumbbell, machine, bodyweight and proxy-scored lifts.
+  | "barbellSquat"
+  | "barbellDeadlift"
+  | "barbellBench"
   | "ohp"
   | "row"
   | "pullup"
@@ -94,28 +99,68 @@ export const LIFT_FAMILY_STANDARDS: Record<LiftFamily, [number, number, number, 
   squat: [0.25, 0.75, 1.25, 1.75, 2.25],
   deadlift: [0.5, 1.0, 1.5, 2.0, 2.5],
   bench: [0.25, 0.5, 0.85, 1.2, 1.5],
+  // The three barbell lifts, anchored to published standards (all values are multiples of bodyweight at a 180 lb
+  // reference lifter; scoring scales them to the user's bodyweight, see REFERENCE_BODYWEIGHT_LB). Approximate:
+  //  squat: Strength Level male 145 / 209 / 289 / 382 / 482 lb (beginner..elite) and FitnessVolt's modeled 180 lb
+  //    male (intermediate 292 lb = 1.62x, advanced 373 lb = 2.07x), i.e. about 0.80 / 1.15 / 1.60 / 2.10 / 2.65x.
+  //  deadlift: Strength Level male 173 / 246 / 336 / 440 / 552 lb and FitnessVolt 180 lb intermediate 340 lb (1.89x),
+  //    about 0.95 / 1.35 / 1.85 / 2.45 / 3.05x.
+  //  bench: the intermediate anchor, 1.23-1.25x (Gravitus 225 lb and FitnessVolt 221 lb at 180 lb), is sourced; the
+  //    other levels follow the shape of Strength Level's male bench row (0.47 / 0.70 / 1 / 1.34 / 1.73 of intermediate).
+  barbellSquat: [0.8, 1.15, 1.6, 2.1, 2.65],
+  barbellDeadlift: [0.95, 1.35, 1.85, 2.45, 3.05],
+  barbellBench: [0.58, 0.86, 1.23, 1.65, 2.12],
   ohp: [0.2, 0.4, 0.6, 0.85, 1.1],
   row: [0.3, 0.55, 0.85, 1.15, 1.5],
   pullup: [0.7, 0.9, 1.15, 1.4, 1.65],
   hipThrust: [0.5, 1.0, 1.5, 2.0, 2.5],
-  curl: [0.15, 0.3, 0.5, 0.7, 0.95], // barbell/machine total; DB curls use a 0.55 factor (logged per hand)
-  tricepExt: [0.15, 0.35, 0.6, 0.85, 1.15], // cable pushdown / machine extension
+  // Barbell/machine total; DB curls use a 0.55 factor (logged per hand). Strength Level male: cable curl 13 / 29 / 51 / 81 /
+  // 115 kg and dumbbell curl 14 / 29 / 52 / 80 / 113 lb per hand; this table is consistent with both (approximate).
+  curl: [0.15, 0.32, 0.57, 0.88, 1.2],
+  // Cable pushdown / machine extension: Strength Level male bodyweight ratios 0.25 / 0.50 / 0.75 / 1.00 / 1.50x.
+  tricepExt: [0.25, 0.5, 0.75, 1.0, 1.5],
   // Wrist curl (per dumbbell, e1RM / bodyweight). Anchors are published community/standards data for the
   // dumbbell wrist curl, male lifters: Strength Level (beginner 8 / novice 28 / intermediate 62 / advanced 108 /
   // elite 164 lb per hand, ~0.04 / 0.16 / 0.34 / 0.60 / 0.91 x a ~180 lb average lifter) and FitnessVolt
   // (180 lb male: intermediate ~65 lb = 0.36x, advanced ~110 lb = 0.61x). The two agree on the upper anchors, which are
-  // used as published (0.34 / 0.60 / 0.90). The 25-point anchor sits at 0.12 rather than the published novice 0.16 so a
-  // returning lifter's ordinary starting load (about 15 lb x 15, e1RM ~0.11x at 205 lb) reads Developing, not Needs Work.
+  // used as published (0.34 / 0.60 / 0.90). The 25-point anchor sits at 0.115 rather than the published novice 0.16 so a
+  // returning lifter's ordinary starting load (about 15 lb x 15, e1RM 20 lb after the 10-rep cap, ~0.10x at 205 lb) reads
+  // Developing, not Needs Work.
   // Reverse wrist curl is this table x 0.57: the extensors are weaker than the flexors (isokinetic extensor/flexor peak
   // torque ratio 0.57 in a 40-subject study; Strength Level's dumbbell reverse vs. normal wrist curl levels are ~0.56-0.71x).
-  wristCurl: [0.04, 0.12, 0.34, 0.6, 0.9],
-  lateralRaise: [0.04, 0.08, 0.14, 0.2, 0.28], // per hand
+  wristCurl: [0.04, 0.115, 0.34, 0.6, 0.9],
+  // Per hand. Strength Level male dumbbell lateral raise 8 / 18 / 34 / 54 / 79 lb, about 0.045 / 0.10 / 0.19 / 0.30 / 0.44x
+  // of a ~180 lb lifter (their bodyweight isn't stated, so approximate).
+  lateralRaise: [0.045, 0.1, 0.19, 0.3, 0.44],
   facePull: [0.15, 0.3, 0.5, 0.7, 0.95],
   pulldown: [0.4, 0.7, 1.0, 1.35, 1.7],
-  legPress: [0.6, 1.25, 2.0, 2.75, 3.5],
+  // Leg press: Strength Level male seated press intermediate about 2.5x and its sled press 1.25 / 2.0 / 2.75 / 4.0 / 5.25x
+  // (their tables are inconsistent, so this blends them; approximate).
+  legPress: [1.2, 1.9, 2.6, 3.7, 4.9],
   legExtension: [0.25, 0.5, 0.9, 1.3, 1.7],
   legCurl: [0.2, 0.4, 0.65, 0.9, 1.2],
 };
+// ---- Bodyweight scaling ----
+// Every table above is a multiple of bodyweight for a 180 lb lifter. Strength does not grow in proportion to
+// bodyweight (a heavier lifter is stronger in absolute terms, but not by the same percentage), so the required
+// multiple is scaled by (bodyweight / 180) ^ -1/3, i.e. absolute strength standards grow with bodyweight ^ 2/3, the
+// standard allometric scaling used for comparing lifters of different sizes. Bodyweight is clamped to a sensible range.
+export const REFERENCE_BODYWEIGHT_LB = 180;
+export const BODYWEIGHT_EXPONENT = 2 / 3;
+export const BODYWEIGHT_CLAMP_LB: [number, number] = [90, 400];
+
+// ---- Estimated 1RM ----
+// Epley is unreliable for high-rep sets (a set of 15 is not a 1.5x max), so reps beyond this don't add to the estimate.
+export const E1RM_REP_CAP = 10;
+
+// ---- Women's reference ----
+// Optional scoring preference. The tables above are men's published standards; the women's setting multiplies the
+// required bodyweight multiple by these factors. Source: a 809,986-entry powerlifting normative study (PubMed
+// 39060209), 90th percentile young adults, women relative to men: bench 1.35/1.95 = 0.69, squat 2.26/2.83 = 0.80,
+// deadlift 2.66/3.25 = 0.82. Extended to every other lift by body region (upper body like the bench, lower body and
+// trunk like the squat and deadlift); approximate.
+export const WOMEN_STANDARD_FACTOR = { upper: 0.7, lower: 0.8 } as const;
+
 export const STANDARD_SCORE_BREAKPOINTS = [0, 25, 50, 75, 100] as const;
 
 // ---- Focus ranking ----

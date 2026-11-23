@@ -77,12 +77,12 @@ const SQUAT: Pick<ExerciseMapping, "patterns"> = { patterns: ["squat"] };
 // no exercise is restricted, flagged or load-adjusted — all of that is local to
 // each device (see exerciseSettings.ts).
 export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
-  "trap bar deadlift": { muscles: [...primary("glutes", "lowerBack"), ...secondary("hamstrings", "traps", "forearms")], scoring: standard("deadlift"), ...HINGE },
-  "barbell deadlift": { muscles: [...primary("glutes", "lowerBack", "hamstrings"), ...secondary("traps", "forearms")], scoring: standard("deadlift"), ...HINGE },
+  "trap bar deadlift": { muscles: [...primary("glutes", "lowerBack"), ...secondary("hamstrings", "traps", "forearms")], scoring: standard("barbellDeadlift"), ...HINGE },
+  "barbell deadlift": { muscles: [...primary("glutes", "lowerBack", "hamstrings"), ...secondary("traps", "forearms")], scoring: standard("barbellDeadlift"), ...HINGE },
   "romanian deadlift": { muscles: [...primary("hamstrings", "glutes"), ...secondary("lowerBack")], scoring: standard("deadlift"), ...HINGE },
   "db romanian deadlift": { muscles: [...primary("hamstrings", "glutes"), ...secondary("lowerBack", "forearms")], scoring: standard("deadlift"), ...HINGE },
 
-  "back squat": { muscles: [...primary("quads"), ...secondary("glutes", "lowerBack")], scoring: standard("squat"), ...SQUAT },
+  "back squat": { muscles: [...primary("quads"), ...secondary("glutes", "lowerBack")], scoring: standard("barbellSquat"), ...SQUAT },
   "leg press": { muscles: [...primary("quads"), ...secondary("glutes")], scoring: standard("legPress"), loadBasis: "plates" },
   "leg extension": { muscles: primary("quads"), scoring: standard("legExtension"), loadBasis: "stack" },
   "lying leg curl": { muscles: [...primary("hamstrings"), ...minor("calves")], scoring: standard("legCurl"), loadBasis: "stack" },
@@ -95,7 +95,7 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "hip thrust": { muscles: [...primary("glutes"), ...secondary("hamstrings")], scoring: standard("hipThrust") },
   "glute bridge": { muscles: [...primary("glutes"), ...secondary("hamstrings")], scoring: proxy("hipThrust", 0.6), bodyweightFraction: 0.5 },
 
-  "bench press": { muscles: [...primary("midLowerChest"), ...secondary("triceps", "frontDelts")], scoring: standard("bench") },
+  "bench press": { muscles: [...primary("midLowerChest"), ...secondary("triceps", "frontDelts")], scoring: standard("barbellBench") },
   "db bench press": { muscles: [...primary("midLowerChest"), ...secondary("triceps", "frontDelts")], scoring: standard("bench") },
   "incline db press": { muscles: [...primary("upperChest", "frontDelts"), ...secondary("triceps")], scoring: standard("bench") },
   "push up": { muscles: [...primary("midLowerChest"), ...secondary("triceps", "frontDelts", "abs")], scoring: standard("bench"), bodyweightFraction: 0.64 },

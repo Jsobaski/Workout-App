@@ -14,6 +14,7 @@ import {
 } from "./exerciseMuscleMap";
 import { DEFAULT_BODYWEIGHT_FRACTION } from "./muscleScoreConfig";
 import { MUSCLE_GROUPS, MuscleGroupId } from "./muscleTaxonomy";
+import type { StandardsReference } from "./standards";
 
 export interface ExerciseSettingOverride {
   /** logged weight x this = effective load. Unset -> 1.0. Manual only — nothing adjusts it automatically. */
@@ -46,6 +47,8 @@ export interface ExerciseSettingsData {
   patterns: PatternRestrictions;
   /** Muscles the user has tagged as priorities (e.g. relevant to their sport). Default: none. */
   focusMuscles: MuscleGroupId[];
+  /** Which published strength standards to score against. Default "general" (men's published tables); "women" applies the published women's ratios. */
+  standards: StandardsReference;
 }
 
 /** Shape persisted in the IndexedDB `settings` store. */
@@ -54,10 +57,11 @@ export interface ExerciseSettingsRecord {
   overrides?: ExerciseSettingsOverrides;
   patterns?: PatternRestrictions;
   focusMuscles?: MuscleGroupId[];
+  standards?: StandardsReference;
 }
 
 export function emptyExerciseSettings(): ExerciseSettingsData {
-  return { overrides: {}, patterns: {}, focusMuscles: [] };
+  return { overrides: {}, patterns: {}, focusMuscles: [], standards: "general" };
 }
 
 const MUSCLE_IDS = new Set<string>(MUSCLE_GROUPS.map((g) => g.id));
@@ -104,6 +108,8 @@ export function normalizeExerciseSettings(raw: unknown): ExerciseSettingsData {
     const note = typeof value.note === "string" && value.note.trim() ? value.note.trim() : undefined;
     result.patterns[id as MovementPattern] = note ? { note } : {};
   }
+
+  if (record.standards === "women") result.standards = "women";
 
   if (Array.isArray(record.focusMuscles)) {
     result.focusMuscles = record.focusMuscles.filter((m): m is MuscleGroupId => typeof m === "string" && MUSCLE_IDS.has(m));

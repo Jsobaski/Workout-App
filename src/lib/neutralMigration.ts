@@ -74,5 +74,5 @@ export function applyKeepLegacyDefaults(current: ExerciseSettingsData): Exercise
   }
   const focus = new Set(current.focusMuscles);
   for (const id of LEGACY_PRIORITY_MUSCLES) focus.add(id);
-  return { overrides, patterns: current.patterns, focusMuscles: Array.from(focus) };
+  return { ...current, overrides, patterns: current.patterns, focusMuscles: Array.from(focus) };
 }

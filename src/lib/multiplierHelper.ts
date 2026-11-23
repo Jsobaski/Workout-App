@@ -7,7 +7,7 @@ import { WorkoutEntry } from "./types";
 import { canonicalExerciseKey, exerciseDisplayName } from "./exerciseMuscleMap";
 import { ExerciseSettingsData, effectiveLoadForSet, resolveConfigForKey } from "./exerciseSettings";
 import { BODYWEIGHT_FALLBACK_LB } from "./muscleScoreConfig";
-import { epley1RM } from "./muscleScoring";
+import { estimate1RM } from "./muscleScoring";
 
 export interface PairedWeek {
   /** Monday of the week (YYYY-MM-DD). */
@@ -40,7 +40,7 @@ function bestE1RMByWeek(
     if (entry.timed || canonicalExerciseKey(entry.exerciseName) !== canonicalKey) continue;
     const week = weekStartKey(entry.dateKey);
     for (const set of entry.sets) {
-      const e1RM = epley1RM(loadFor(entry, set.weight), set.reps);
+      const e1RM = estimate1RM(loadFor(entry, set.weight), set.reps);
       if (e1RM > (best.get(week) ?? 0)) best.set(week, e1RM);
     }
   }

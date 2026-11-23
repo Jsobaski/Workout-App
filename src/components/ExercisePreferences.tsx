@@ -7,6 +7,7 @@ import { getCoachingContext, listAllWorkoutEntries } from "@/lib/db";
 import { MOVEMENT_PATTERNS, MovementPattern } from "@/lib/exerciseMuscleMap";
 import { MUSCLE_GROUPS, MuscleGroupId } from "@/lib/muscleTaxonomy";
 import { WorkoutEntry } from "@/lib/types";
+import { STANDARDS_REFERENCE_LABELS, StandardsReference } from "@/lib/standards";
 
 // All local preferences in one panel so they share a single settings state
 // (separate instances could overwrite each other's edits when saving).
@@ -51,6 +52,27 @@ export default function ExercisePreferences() {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h3 className="mb-1 text-xs font-semibold text-neutral-300">Strength standards</h3>
+        <p className="mb-2 text-xs text-neutral-500">
+          Tiers compare your lifts to published strength standards, scaled to your bodyweight in Settings. The default
+          uses published men&apos;s tables. The women&apos;s reference lowers the required multiple using published
+          men-to-women ratios. Optional; it only changes how your scores are calculated.
+        </p>
+        <select
+          value={settings.standards}
+          onChange={(e) => saveSettings({ ...settings, standards: e.target.value as StandardsReference })}
+          aria-label="Strength standards"
+          className="w-full min-w-0 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+        >
+          {(Object.keys(STANDARDS_REFERENCE_LABELS) as StandardsReference[]).map((k) => (
+            <option key={k} value={k}>
+              {STANDARDS_REFERENCE_LABELS[k]}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div>
         <h3 className="mb-1 text-xs font-semibold text-neutral-300">Restricted movement patterns</h3>
         <p className="mb-2 text-xs text-neutral-500">

@@ -6,7 +6,7 @@ import { WorkoutEntry } from "./types";
 import { shiftDateKey } from "./date";
 import { BodyMapRegion } from "./bodyMapGeometry";
 import { MUSCLE_GROUPS, MuscleGroupId } from "./muscleTaxonomy";
-import { ExerciseMapping } from "./exerciseMuscleMap";
+import { standardForMapping } from "./standards";
 import { liftGroupMap } from "./liftGroups";
 import {
   ExerciseSettingsData,
@@ -19,7 +19,6 @@ import {
   BODYWEIGHT_FALLBACK_LB,
   DEFAULT_STALE_THRESHOLD_DAYS,
   FRESHNESS_SET_THRESHOLD_RATIO,
-  LIFT_FAMILY_STANDARDS,
   MUSCLE_TIERS,
   MuscleTier,
   PROVISIONAL_CAP_EPSILON,
@@ -35,13 +34,16 @@ import {
   applyDecay,
   daysBetween,
   decayFactor,
-  epley1RM,
+  estimate1RM,
+  normalizedBodyweightRatio,
   ratioToUncappedScore,
   softCapScore,
   volumeConsistencyBonus,
 } from "./muscleScoring";
 
 export interface BestLift {
+  /** Canonical exercise key, for looking up how the lift is scored. */
+  key: string;
   exerciseName: string;
   e1RM: number;
   dateKey: string;
@@ -110,18 +112,6 @@ function quantityForSet(set: { reps: number; durationSec?: number }, isTimed: bo
   return isTimed ? set.durationSec ?? 0 : set.reps;
 }
 
-function standardsForMapping(mapping: ExerciseMapping): [number, number, number, number, number] | null {
-  if (mapping.scoring.method === "standard") {
-    return LIFT_FAMILY_STANDARDS[mapping.scoring.family];
-  }
-  if (mapping.scoring.method === "proxy") {
-    const base = LIFT_FAMILY_STANDARDS[mapping.scoring.family];
-    const factor = mapping.scoring.factor;
-    return [base[0] * factor, base[1] * factor, base[2] * factor, base[3] * factor, base[4] * factor];
-  }
-  return null; // volumeOnly
-}
-
 interface ResolvedEntry {
   entry: WorkoutEntry;
   cfg: ResolvedExerciseConfig;
@@ -170,7 +160,7 @@ export function computeMuscleEngine(
       loadMultiplier: cfg.loadMultiplier,
     });
     const quantity = quantityForSet(set, entry.timed);
-    const e1RM = epley1RM(load, quantity);
+    const e1RM = estimate1RM(load, quantity);
     return { e1RM, effort: load > 0 ? e1RM : quantity };
   }
 
@@ -293,7 +283,7 @@ export function computeMuscleEngine(
       }
 
       const best = bestByExercise.get(cfg.key)!;
-      const standards = standardsForMapping(cfg.mapping);
+      const standards = standardForMapping(cfg.mapping, settings?.standards ?? "general");
       if (isPrimary && standards && best.bestE1RM > 0 && (firstDirectDate == null || entry.dateKey < firstDirectDate)) {
         firstDirectDate = entry.dateKey;
       }
@@ -312,7 +302,7 @@ export function computeMuscleEngine(
       // credit is capped at 100 before weighting so a huge number on an
       // easy-to-max lift can't make a barely-trained muscle look strong.
       const scoredE1RM = best.bestE1RM;
-      const rawLiftScore = ratioToUncappedScore(scoredE1RM / effectiveBodyweight, standards);
+      const rawLiftScore = ratioToUncappedScore(normalizedBodyweightRatio(scoredE1RM, effectiveBodyweight), standards);
       const liftScore = isPrimary ? rawLiftScore : Math.min(rawLiftScore, 100);
       const weighted = liftScore * contribution.weight;
       const peakScore = softCapScore(weighted);
@@ -331,7 +321,7 @@ export function computeMuscleEngine(
         if (bestLift == null || weighted > bestPrimaryScore) {
           bestPrimaryScore = weighted;
           bestLiftKey = cfg.key;
-          bestLift = { exerciseName: best.name, e1RM: scoredE1RM, dateKey: best.bestE1RMDateKey };
+          bestLift = { key: cfg.key, exerciseName: best.name, e1RM: scoredE1RM, dateKey: best.bestE1RMDateKey };
         }
       } else if (weighted > bestSecondaryScore) {
         bestSecondaryScore = weighted;

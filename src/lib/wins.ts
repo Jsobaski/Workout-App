@@ -7,7 +7,7 @@ import { shiftDateKey } from "./date";
 import { ExerciseSettingsData, effectiveLoadForSet, resolveExerciseConfig } from "./exerciseSettings";
 import { MUSCLE_TIERS, BODYWEIGHT_FALLBACK_LB } from "./muscleScoreConfig";
 import { MuscleStats, computeMuscleEngine, tierForScore } from "./muscleEngine";
-import { epley1RM } from "./muscleScoring";
+import { estimate1RM } from "./muscleScoring";
 import { MUSCLE_GROUPS } from "./muscleTaxonomy";
 import { WorkoutEntry } from "./types";
 
@@ -49,7 +49,7 @@ function dailyBests(entries: WorkoutEntry[], opts: WinOptions) {
         bodyweightFraction: cfg?.bodyweightFraction ?? 0,
         loadMultiplier: cfg?.loadMultiplier ?? 1,
       });
-      best = Math.max(best, epley1RM(load, set.reps));
+      best = Math.max(best, estimate1RM(load, set.reps));
     }
     if (best <= 0) continue;
     const slot = byExercise.get(key) ?? { name: cfg?.displayName ?? entry.exerciseName.trim(), days: new Map() };

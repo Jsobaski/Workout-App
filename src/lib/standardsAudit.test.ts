@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { EXERCISE_MUSCLE_MAP } from "./exerciseMuscleMap";
 import { computeMuscleEngine, tierForScore } from "./muscleEngine";
-import { LIFT_FAMILY_STANDARDS } from "./muscleScoreConfig";
+import { LIFT_FAMILY_STANDARDS, MUSCLE_TIERS } from "./muscleScoreConfig";
 import { ratioForScore, ratioToUncappedScore, softCapScore } from "./muscleScoring";
 import { WorkoutEntry } from "./types";
 
@@ -17,7 +17,7 @@ type Profile = [beginner: number, intermediate: number, advanced: number];
 // 1RM / bodyweight.
 const REFERENCE: Record<string, { category: Category; ratios: Profile }> = {
   // machines & cable stacks
-  "leg press": { category: "machine", ratios: [1.0, 2.0, 3.2] },
+  "leg press": { category: "machine", ratios: [1.3, 2.5, 3.6] }, // Strength Level male: intermediate ~2.5x, advanced ~3.6x
   "leg extension": { category: "machine", ratios: [0.4, 0.9, 1.5] },
   "lying leg curl": { category: "machine", ratios: [0.3, 0.55, 0.9] },
   "seated leg curl": { category: "machine", ratios: [0.3, 0.55, 0.9] },
@@ -42,7 +42,7 @@ const REFERENCE: Record<string, { category: Category; ratios: Profile }> = {
   "preacher curl machine": { category: "machine", ratios: [0.25, 0.5, 0.8] },
   "tricep pushdown": { category: "machine", ratios: [0.3, 0.6, 1.0] },
   "tricep extension machine": { category: "machine", ratios: [0.3, 0.6, 1.0] },
-  "single arm cable tricep extension": { category: "machine", ratios: [0.1, 0.25, 0.4] },
+  "single arm cable tricep extension": { category: "machine", ratios: [0.1, 0.25, 0.45] },
   "cable hip abduction": { category: "machine", ratios: [0.1, 0.25, 0.5] },
   // isolation
   "lateral raise": { category: "isolation", ratios: [0.05, 0.12, 0.22] },
@@ -68,15 +68,15 @@ const REFERENCE: Record<string, { category: Category; ratios: Profile }> = {
   "tricep kickback": { category: "isolation", ratios: [0.06, 0.14, 0.25] },
   "pullover": { category: "isolation", ratios: [0.15, 0.3, 0.5] },
   // compounds (strict checks limited to "never Elite before advanced")
-  "trap bar deadlift": { category: "compound", ratios: [0.9, 1.5, 2.2] },
-  "barbell deadlift": { category: "compound", ratios: [0.85, 1.4, 2.1] },
+  "trap bar deadlift": { category: "compound", ratios: [1.0, 1.9, 2.5] },
+  "barbell deadlift": { category: "compound", ratios: [0.95, 1.85, 2.45] }, // Strength Level male beginner / intermediate / advanced, ~180 lb
   "romanian deadlift": { category: "compound", ratios: [0.65, 1.1, 1.7] },
   "db romanian deadlift": { category: "compound", ratios: [0.2, 0.4, 0.7] },
-  "back squat": { category: "compound", ratios: [0.7, 1.2, 1.8] },
+  "back squat": { category: "compound", ratios: [0.8, 1.6, 2.1] }, // Strength Level male beginner / intermediate / advanced, ~180 lb
   "front squat": { category: "compound", ratios: [0.55, 0.95, 1.45] },
   "goblet squat": { category: "compound", ratios: [0.25, 0.5, 0.85] },
   "hip thrust": { category: "compound", ratios: [0.8, 1.5, 2.3] },
-  "bench press": { category: "compound", ratios: [0.5, 0.9, 1.4] },
+  "bench press": { category: "compound", ratios: [0.6, 1.2, 1.65] }, // intermediate ~1.23x at 180 lb (Gravitus, FitnessVolt)
   "db bench press": { category: "compound", ratios: [0.3, 0.55, 0.85] },
   "incline db press": { category: "compound", ratios: [0.25, 0.45, 0.7] },
   "overhead press": { category: "compound", ratios: [0.35, 0.6, 0.9] },
@@ -164,11 +164,13 @@ describe("strength standards audit", () => {
     expect(missing).toEqual([]);
   });
 
-  it("tiers come out the same at every bodyweight (scoring is bodyweight-relative)", () => {
+  it("scoring scales with bodyweight to the 2/3 power: the same multiple of bodyweight never scores lower for a heavier lifter, and moves at most two tiers across 130-250 lb", () => {
     for (const key of Object.keys(REFERENCE)) {
       for (let level = 0; level < 3; level++) {
-        const tiers = BODYWEIGHTS.map((bw) => tierForScore(engineScore(key, bw, level)).id);
-        expect(new Set(tiers).size, `${key} ${LEVELS[level]}`).toBe(1);
+        const scores = BODYWEIGHTS.map((bw) => engineScore(key, bw, level));
+        for (let i = 1; i < scores.length; i++) expect(scores[i], `${key} ${LEVELS[level]}`).toBeGreaterThanOrEqual(scores[i - 1] - 1e-9);
+        const tiers = BODYWEIGHTS.map((bw) => MUSCLE_TIERS.findIndex((t) => t.id === tierForScore(engineScore(key, bw, level)).id));
+        expect(Math.max(...tiers) - Math.min(...tiers), `${key} ${LEVELS[level]}`).toBeLessThanOrEqual(2);
       }
     }
   });

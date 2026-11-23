@@ -42,7 +42,7 @@ describe("scoring scale", () => {
   });
 
   it("a huge lift shows an uncapped raw value above the displayed score", () => {
-    const { statsByGroup } = computeMuscleEngine([make("1", "2026-10-15", "Lateral Raise", [{ reps: 12, weight: 60 }])], BW, TODAY);
+    const { statsByGroup } = computeMuscleEngine([make("1", "2026-10-15", "Lateral Raise", [{ reps: 12, weight: 80 }])], BW, TODAY);
     const s = statsByGroup.sideRearDelts;
     expect(s.effectiveRaw!).toBeGreaterThan(100);
     expect(s.effective!).toBeLessThan(100);
@@ -57,7 +57,7 @@ describe("bodyweight credit", () => {
       TODAY
     );
     const glutes = statsByGroup.glutes;
-    expect(glutes.bestLift!.e1RM).toBeCloseTo(BW * 0.5 * (1 + 12 / 30), 5); // 143.5, not ~287
+    expect(glutes.bestLift!.e1RM).toBeCloseTo(BW * 0.5 * (1 + 10 / 30), 5); // reps beyond 10 add nothing to the estimate: 136.7, not ~287
     expect(glutes.effective!).toBeLessThan(60);
     expect(tierForScore(glutes.effective!).id).not.toBe("elite");
   });
