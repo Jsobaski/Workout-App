@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { canonicalExerciseKey, lookupExerciseMapping } from "./exerciseMuscleMap";
 import { exercisesForMuscle } from "./exerciseSuggestions";
 import { inferMuscleGroups } from "./muscleGroups";
+import { computeMuscleEngine } from "./muscleEngine";
 
 // Exact exercise names from a real user bug report: these showed up in the
 // "needs mapping" banner despite representing real training — either the
@@ -168,6 +169,23 @@ describe("exercises added from the user's checklist", () => {
     for (const [alias, canon] of [["Wide-Grip Pulldown", "lat pulldown"], ["Pec Deck (Machine Fly)", "pec deck"], ["Reverse Fly", "rear delt fly"], ["lunges", "forward lunge"], ["EZ Curl", "ez-bar curl"], ["Sit-ups", "sit-up"]]) {
       expect(canonicalExerciseKey(alias), alias).toBe(canon);
     }
+  });
+
+  it("glute press aliases map to the standing glute press; Glute Drive (a seated hip-thrust machine) does not", () => {
+    for (const alias of ["Glute Press", "Nautilus Glute Press", "Standing Glute Press", "Glute Press Machine"]) {
+      expect(canonicalExerciseKey(alias), alias).toBe("glute press machine");
+    }
+    for (const name of ["Glute Drive Machine", "Glute Drive"]) {
+      expect(canonicalExerciseKey(name), name).toBeNull();
+      expect(lookupExerciseMapping(name), name).toBeNull();
+    }
+    const result = computeMuscleEngine(
+      [{ id: "g", dateKey: "2026-10-10", timestamp: Date.parse("2026-10-10T12:00:00"), exerciseName: "Glute Drive Machine", muscleGroups: [], sets: [{ reps: 10, weight: 300 }] }],
+      205,
+      "2026-10-12"
+    );
+    expect(result.needsMapping).toEqual(["Glute Drive Machine"]);
+    expect(result.statsByGroup.glutes.hasAnyData).toBe(false);
   });
 
   it("movement-pattern tags are on the new hinge, rotation, split-stance and squat exercises", () => {

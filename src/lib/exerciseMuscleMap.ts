@@ -296,7 +296,6 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "db bulgarian split squats": "db bulgarian split squat",
   "glute press": "glute press machine",
   "nautilus glute press": "glute press machine",
-  "glute drive machine": "glute press machine",
   "standing glute press": "glute press machine",
   "farmers carry": "farmer carry",
   "farmer's carry": "farmer carry",
