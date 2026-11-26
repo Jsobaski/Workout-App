@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { canonicalExerciseKey, lookupExerciseMapping } from "./exerciseMuscleMap";
 import { exercisesForMuscle } from "./exerciseSuggestions";
 import { inferMuscleGroups } from "./muscleGroups";
-import { computeMuscleEngine } from "./muscleEngine";
 
 // Exact exercise names from a real user bug report: these showed up in the
 // "needs mapping" banner despite representing real training — either the
@@ -171,21 +170,20 @@ describe("exercises added from the user's checklist", () => {
     }
   });
 
-  it("glute press aliases map to the standing glute press; Glute Drive (a seated hip-thrust machine) does not", () => {
+  it("Glute Press (standing, one leg, stack) and Glute Drive (seated hip thrust, plates) are different machines", () => {
     for (const alias of ["Glute Press", "Nautilus Glute Press", "Standing Glute Press", "Glute Press Machine"]) {
       expect(canonicalExerciseKey(alias), alias).toBe("glute press machine");
     }
-    for (const name of ["Glute Drive Machine", "Glute Drive"]) {
-      expect(canonicalExerciseKey(name), name).toBeNull();
-      expect(lookupExerciseMapping(name), name).toBeNull();
+    for (const alias of ["Glute Drive Machine", "Glute Drive", "Hammer Strength Glute Drive", "Hip Thrust Machine", "Seated Hip Thrust Machine"]) {
+      expect(canonicalExerciseKey(alias), alias).toBe("glute drive machine");
     }
-    const result = computeMuscleEngine(
-      [{ id: "g", dateKey: "2026-10-10", timestamp: Date.parse("2026-10-10T12:00:00"), exerciseName: "Glute Drive Machine", muscleGroups: [], sets: [{ reps: 10, weight: 300 }] }],
-      205,
-      "2026-10-12"
-    );
-    expect(result.needsMapping).toEqual(["Glute Drive Machine"]);
-    expect(result.statsByGroup.glutes.hasAnyData).toBe(false);
+    const drive = lookupExerciseMapping("Glute Drive Machine")!;
+    expect(drive.muscles.filter((m) => m.weight >= 1).map((m) => m.group)).toEqual(["glutes"]);
+    expect(drive.muscles.find((m) => m.group === "hamstrings")!.weight).toBeLessThan(1);
+    expect(drive.patterns).toContain("hip_hinge");
+    expect(drive.scoring).toEqual({ method: "standard", family: "hipThrust" });
+    // The barbell hip thrust stays its own lift.
+    expect(canonicalExerciseKey("Hip Thrust")).toBe("hip thrust");
   });
 
   it("movement-pattern tags are on the new hinge, rotation, split-stance and squat exercises", () => {

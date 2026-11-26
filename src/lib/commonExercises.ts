@@ -67,6 +67,7 @@ export const COMMON_EXERCISES = [
   "Hip Adduction Machine",
   "Cable Glute Kickback",
   "Glute Press Machine",
+  "Glute Drive Machine",
   "Frog Pump",
   "Seated Calf Raise",
   "Sled Push",

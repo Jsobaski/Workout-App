@@ -199,6 +199,10 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   // Adductors aren't a tracked muscle, so this only earns incidental credit.
   "hip adduction machine": { muscles: [...secondary("quads", "glutes")], scoring: proxy("squat", 0.6), bodyweightFraction: 0, loadBasis: "stack" },
   "cable glute kickback": { muscles: primary("glutes"), scoring: proxy("squat", 0.3), bodyweightFraction: 0, loadBasis: "stack" },
+  // Seated hip thrust machine (e.g. Hammer Strength Glute Drive): the same hip-extension movement as the barbell hip thrust,
+  // loaded by plates (or a stack), so it uses the hip thrust table with its own load basis rather than sharing a lift with the
+  // barbell version. Glutes primary, hamstrings assist (gluteus maximus is the prime mover in every hip thrust source found).
+  "glute drive machine": { muscles: [...primary("glutes"), ...secondary("hamstrings")], scoring: standard("hipThrust"), bodyweightFraction: 0, loadBasis: "plates", patterns: ["hip_hinge"] },
   // Selectorized machine: one leg presses a pad back (hip extension), loaded by the stack. Glutes primary, hamstrings assist.
   // Scored against half the squat table (estimate; no published standard for this machine).
   "glute press machine": { muscles: [...primary("glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.5), bodyweightFraction: 0, loadBasis: "stack", patterns: ["hip_hinge"] },
@@ -294,6 +298,11 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "romanian deadlift straight bar": "romanian deadlift",
   "db bench press (flat)": "db bench press",
   "db bulgarian split squats": "db bulgarian split squat",
+  "glute drive": "glute drive machine",
+  "hammer strength glute drive": "glute drive machine",
+  "plate loaded glute drive": "glute drive machine",
+  "seated hip thrust machine": "glute drive machine",
+  "hip thrust machine": "glute drive machine",
   "glute press": "glute press machine",
   "nautilus glute press": "glute press machine",
   "standing glute press": "glute press machine",
