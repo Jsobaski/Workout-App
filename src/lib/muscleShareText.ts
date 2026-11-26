@@ -24,6 +24,7 @@ import {
   E1RM_TAPER_CREDIT,
   PROVISIONAL_MIN_SESSIONS,
   REFERENCE_BODYWEIGHT_LB,
+  SECONDARY_ONLY_CAP,
   STANDARDS_VERSION,
   TREND_WINDOW_DAYS,
   VOLUME_BONUS_WINDOW_DAYS,
@@ -34,6 +35,35 @@ const RECENT_DAYS = 14;
 
 const shortDate = (dateKey: string) =>
   new Date(`${dateKey}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+/** What the PROVISIONAL flag did to the shown tier, so the tier, the score and the note always agree. */
+function provisionalNote(s: MuscleStats): string {
+  const a = s.arithmetic;
+  const head = `PROVISIONAL: ${s.provisionalSessions ?? 0} of ${PROVISIONAL_MIN_SESSIONS} sessions`;
+  if (a?.provisionalHeld) {
+    return `${head}, computed ${a.computedTier} (${formatScore(a.effectiveBeforeHold)}), shown one tier lower until the third session`;
+  }
+  const keptEarlier = a?.basisFloor != null && a.basisFloor > 0;
+  return `${head}, tier not lowered (${keptEarlier ? "the score it already had from earlier work is kept" : `${a?.computedTier ?? "this tier"} is already the lowest tier`})`;
+}
+
+/** The full arithmetic from per-lift credits to the final score, one line per muscle. */
+function arithmeticLine(s: MuscleStats): string | null {
+  const a = s.arithmetic;
+  if (!a) return null;
+  const n = (v: number) => v.toFixed(1);
+  const parts = [
+    `primary ${n(a.primary.peak)}${a.primary.name ? ` (${a.primary.name}${a.primary.effective < a.primary.peak - 0.05 ? `, ${n(a.primary.effective)} after decay` : ""})` : ""}`,
+    `secondary ${n(a.secondary.credited)}${a.secondary.name ? ` (best ${a.secondary.name} ${n(a.secondary.raw)}, capped at ${n(a.secondary.cap)})` : ""}`,
+    `consistency ${n(a.consistency.points)} (${a.consistency.weightedDays.toFixed(1)} weighted days, max ${n(a.consistency.maxPoints)})`,
+  ];
+  let text = `    = ${parts.join(" + ")} = ${n(a.rawSum)}`;
+  if (a.incidentalOnly) text += `; incidental exposure only, capped at ${n(SECONDARY_ONLY_CAP)}`;
+  if (a.basisFloor != null && a.basisFloor > a.rawSum) text += `; basis-change floor keeps the earlier score ${n(a.basisFloor)}`;
+  text += ` → raw ${n(a.peakRaw)} → soft cap → peak ${n(a.peakSoftCapped)} → decay ×${a.decayShare.toFixed(2)} → ${n(a.effectiveBeforeHold)}`;
+  if (s.provisional) text += s.arithmetic?.provisionalHeld ? ` → provisional hold → ${n(s.effective ?? 0)}` : " → provisional (not lowered)";
+  return text;
+}
 
 /** Per-lift contribution and decay (or the consistency window) behind one muscle's score, so it can be explained from the export. */
 function breakdownLines(s: MuscleStats, asOfDateKey: string): string[] {
@@ -125,7 +155,7 @@ export function formatMuscleSummaryText(opts: {
       continue;
     }
     const parts = [`${tierForScore(s.effective).label} (${formatScore(s.effective)})`];
-    if (s.provisional) parts.push(`PROVISIONAL: ${s.provisionalSessions ?? 0} of ${PROVISIONAL_MIN_SESSIONS} sessions, tier held one level below computed${s.uncappedEffective != null ? ` (${formatScore(s.uncappedEffective)})` : ""}`);
+    if (s.provisional) parts.push(provisionalNote(s));
     if (s.effectiveRaw != null) parts.push(`raw ${Math.round(s.effectiveRaw)}`);
     const change = deltaByGroup[g.id].status === "paused" ? null : describeDeltaStatus(deltaByGroup[g.id]);
     if (change) parts.push(`${change}${deltaByGroup[g.id].delta != null ? ` vs ${TREND_WINDOW_DAYS}d ago` : ""}`);
@@ -143,6 +173,8 @@ export function formatMuscleSummaryText(opts: {
     }
     lines.push(`- ${g.label}${tag}: ${parts.join(", ")}`);
     lines.push(...breakdownLines(s, asOfDateKey));
+    const arithmetic = arithmeticLine(s);
+    if (arithmetic) lines.push(arithmetic);
   }
 
   if (result.needsMapping.length > 0) {

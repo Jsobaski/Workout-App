@@ -68,6 +68,31 @@ export interface ExerciseScoreSnapshot {
   restricted: boolean;
 }
 
+/** Every term between the per-lift credits and a muscle's final score, so any score can be reproduced by hand. */
+export interface ScoreArithmetic {
+  /** Best primary lift's weighted credit (peak, and after its own decay). 0 when there is no scored primary lift. */
+  primary: { name: string | null; peak: number; effective: number };
+  /** Best secondary/minor credit before and after the cap (0.5 x the primary credit, or a flat cap with no primary). */
+  secondary: { name: string | null; raw: number; cap: number; credited: number };
+  /** Consistency bonus in points, the most it could be, and the weighted training days behind it. */
+  consistency: { points: number; maxPoints: number; weightedDays: number };
+  /** The earlier score kept by the basis-change floor, when it applies. */
+  basisFloor: number | null;
+  /** True when the muscle only has incidental (secondary/minor) exposure, so its whole score is capped at SECONDARY_ONLY_CAP. */
+  incidentalOnly: boolean;
+  /** primary + secondary + consistency, before the floor and the soft cap. */
+  rawSum: number;
+  /** Raw peak after the floor and any incidental cap, then after the soft cap (the displayed peak before any provisional hold). */
+  peakRaw: number;
+  peakSoftCapped: number;
+  /** Combined decay share applied to get the effective score, and the effective score before any provisional hold. */
+  decayShare: number;
+  effectiveBeforeHold: number;
+  /** Provisional hold: the tier the score computes to, and whether the hold actually lowered the score. */
+  computedTier: string;
+  provisionalHeld: boolean;
+}
+
 /** Where a consistency-scored muscle's peak came from: the window and the exercises on its training days. */
 export interface ConsistencyPeak {
   windowStart: string;
@@ -111,6 +136,7 @@ export interface MuscleStats {
   exerciseScores: ExerciseScoreSnapshot[];
   /** Set for consistency-scored muscles: the window that produced the peak. Null for strength-scored ones. */
   consistencyPeak: ConsistencyPeak | null;
+  arithmetic: ScoreArithmetic | null;
 }
 
 export interface MuscleEngineResult {
@@ -259,6 +285,8 @@ export function computeMuscleEngine(
     // The same two, after each lift's own decay (see exerciseScores).
     let bestPrimaryEff = 0;
     let bestSecondaryEff = 0;
+    let bestSecondaryName: string | null = null;
+    let hasPrimaryExposure = false;
     let bestLift: BestLift | null = null;
     let bestLiftKey: string | null = null;
     let lastPrimary: string | null = null;
@@ -283,6 +311,7 @@ export function computeMuscleEngine(
       hasAnyData = true;
       contributingExercises.add(cfg.displayName);
       const isPrimary = contribution.weight >= 1.0;
+      if (isPrimary) hasPrimaryExposure = true;
 
       // Only primary work moves the "last trained" clock; secondary/minor
       // exposure is tracked separately and never resets staleness.
@@ -354,6 +383,7 @@ export function computeMuscleEngine(
         }
       } else if (weighted > bestSecondaryScore) {
         bestSecondaryScore = weighted;
+        bestSecondaryName = cfg.displayName;
       }
     }
 
@@ -379,6 +409,7 @@ export function computeMuscleEngine(
         contributingExercises: [],
         exerciseScores: [],
         consistencyPeak: null,
+        arithmetic: null,
       };
       continue;
     }
@@ -425,7 +456,11 @@ export function computeMuscleEngine(
     const bonusMax = hasLoadablePrimary ? VOLUME_BONUS_MAX_POINTS : 70;
     const bonusPoints = volumeConsistencyBonus(weightedDays, VOLUME_BONUS_TARGET_SESSIONS, bonusMax);
     if (consistencyPeak) consistencyPeak.bonusPoints = bonusPoints;
-    let peakRaw = bestWeightedLiftScore + bonusPoints;
+    const rawSum = bestWeightedLiftScore + bonusPoints;
+    // A muscle that only ever gets incidental (secondary/minor) exposure can't be scored above the incidental cap, no
+    // matter how often that exposure shows up: showing up as a helper isn't training the muscle.
+    const incidentalOnly = !hasPrimaryExposure;
+    let peakRaw = incidentalOnly ? Math.min(rawSum, SECONDARY_ONLY_CAP) : rawSum;
     let peak = softCapScore(peakRaw);
 
     // Basis change: a muscle that was scored from incidental credit / consistency (no direct lift) and now
@@ -479,6 +514,11 @@ export function computeMuscleEngine(
     const perLiftRatio = peakRaw > 0 ? Math.min(1, effectiveRawPerLift / peakRaw) : muscleDecay;
     let effective = pausedRestricted ? peak : peak * perLiftRatio;
     const uncappedEffective = effective;
+    const decayShare = pausedRestricted ? 1 : perLiftRatio;
+    const effectiveBeforeHold = effective;
+    const peakBeforeHold = peak;
+    const computedTierLabel = tierForScore(effective).label;
+    let provisionalHeld = false;
 
     // Provisional: the strength score comes solely from one lift group that has
     // been logged on fewer than PROVISIONAL_MIN_SESSIONS days (grouped exercises
@@ -501,6 +541,7 @@ export function computeMuscleEngine(
         // The cap never pushes a muscle below the score it already had (see the basis-change floor).
         effective = Math.max(Math.min(effective, cap), Math.min(effective, floorEffective ?? 0));
         peak = Math.max(Math.min(peak, cap), Math.min(peak, floorPeak ?? 0));
+        provisionalHeld = effective < effectiveBeforeHold - 1e-9;
       }
     }
     const effectiveRaw = pausedRestricted ? peakRaw : peakRaw * perLiftRatio;
@@ -526,6 +567,25 @@ export function computeMuscleEngine(
       contributingExercises: Array.from(contributingExercises).sort(),
       exerciseScores: Array.from(exerciseScores.values()),
       consistencyPeak,
+      arithmetic: {
+        primary: { name: bestLift?.exerciseName ?? null, peak: bestPrimaryScore, effective: bestPrimaryEff },
+        secondary: {
+          name: bestSecondaryName,
+          raw: bestSecondaryScore,
+          cap: secondaryCap,
+          credited: Math.min(bestSecondaryScore, secondaryCap),
+        },
+        consistency: { points: bonusPoints, maxPoints: bonusMax, weightedDays },
+        basisFloor: floorPeak != null ? floorRaw : null,
+        incidentalOnly,
+        rawSum,
+        peakRaw,
+        peakSoftCapped: peakBeforeHold,
+        decayShare,
+        effectiveBeforeHold,
+        computedTier: computedTierLabel,
+        provisionalHeld,
+      },
     };
   }
 
