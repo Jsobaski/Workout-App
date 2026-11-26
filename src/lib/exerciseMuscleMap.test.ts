@@ -195,3 +195,36 @@ describe("exercises added from the user's checklist", () => {
     expect(tags("Hack Squat")).toContain("squat");
   });
 });
+
+import { buildExerciseHistory } from "./exerciseHistory";
+import { buildMuscleSeedData } from "./muscleSeedData";
+import { COMMON_EXERCISES } from "./commonExercises";
+import { nameKey } from "./exerciseDuplicates";
+import { computeMuscleEngine } from "./muscleEngine";
+import { WorkoutEntry } from "./types";
+
+describe("generic and duplicate names resolve automatically", () => {
+  const log = (id: string, dateKey: string, exerciseName: string, weight: number): WorkoutEntry => ({
+    id, dateKey, timestamp: Date.parse(`${dateKey}T12:00:00`), exerciseName, muscleGroups: [], sets: [{ reps: 10, weight }],
+  });
+
+  it('"Curls" resolves to DB Bicep Curl with no manual linking, and its history joins that lift', () => {
+    expect(canonicalExerciseKey("Curls")).toBe("db bicep curl");
+    expect(canonicalExerciseKey("curls")).toBe("db bicep curl");
+    const entries = [log("a", "2026-10-01", "Curls", 25), log("b", "2026-10-08", "DB Bicep Curl", 30)];
+    expect(buildExerciseHistory(entries, "Curls")!.sessions).toHaveLength(2);
+    expect(buildExerciseHistory(entries, "DB Bicep Curl")!.sessions).toHaveLength(2);
+    expect(computeMuscleEngine(entries, 205, "2026-10-10").needsMapping).toEqual([]);
+  });
+
+  it("every name in the sample data resolves to a library exercise, and no two library names differ only in spelling", () => {
+    const seedNames = Array.from(new Set(buildMuscleSeedData("2026-10-17").map((e) => e.exerciseName)));
+    for (const name of seedNames) expect(canonicalExerciseKey(name), name).not.toBeNull();
+    const byKey = new Map<string, Set<string | null>>();
+    for (const name of [...seedNames, ...COMMON_EXERCISES]) {
+      const k = nameKey(name);
+      byKey.set(k, (byKey.get(k) ?? new Set()).add(canonicalExerciseKey(name)));
+    }
+    for (const [k, keys] of byKey) expect(keys.size, `${k} resolves to several lifts: ${[...keys].join(", ")}`).toBe(1);
+  });
+});

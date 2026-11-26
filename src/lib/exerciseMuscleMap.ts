@@ -149,11 +149,10 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "calf raise": { muscles: primary("calves"), scoring: proxy("squat", 1.3) },
 
   // ---- Generic placeholder names ----
-  // Older logs (and quick typing) use generic names like "Core" or "Curls".
+  // Older logs (and quick typing) use generic names like "Core". ("Curls" is an alias of DB Bicep Curl instead, so its history joins that lift.)
   // They still score real history — just never suggested as a "new" exercise
   // to do (hidden: true).
   core: { muscles: [...primary("abs")], scoring: volumeOnly, bodyweightFraction: 0, hidden: true },
-  curls: { muscles: [...primary("biceps"), ...minor("forearms")], scoring: proxy("curl", 0.55), hidden: true },
   woodchopper: { muscles: primary("obliques"), scoring: volumeOnly, bodyweightFraction: 0, hidden: true, ...ROTATION },
   "cable tricep work": { muscles: primary("triceps"), scoring: standard("tricepExt"), hidden: true },
 
@@ -298,6 +297,7 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "romanian deadlift straight bar": "romanian deadlift",
   "db bench press (flat)": "db bench press",
   "db bulgarian split squats": "db bulgarian split squat",
+  curls: "db bicep curl",
   "glute drive": "glute drive machine",
   "hammer strength glute drive": "glute drive machine",
   "plate loaded glute drive": "glute drive machine",
