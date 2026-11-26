@@ -31,12 +31,12 @@ describe("consistency peaks use a recent lookback", () => {
     expect(withRecent.isStale).toBe(true);
   });
 
-  it("an in-lookback peak still counts, but decays from the day it was reached, not from the latest thin session", () => {
-    const peakWindow = eightPlanks([75, 72, 69, 66, 63, 60, 57, 54]);
+  it("an in-lookback (42 day) peak still counts, but decays from the day it was reached, not from the latest thin session", () => {
+    const peakWindow = eightPlanks([41, 44, 47, 50, 53, 56, 59, 62]);
     const s = run([...peakWindow, plank("r", 29)]).statsByGroup.obliques;
     expect(s.peak!).toBeCloseTo(70, 0);
-    // The peak window ended 54 days ago: it is worth 70 x decay(54), not 70 x decay(29).
-    expect(s.effective!).toBeCloseTo(70 * decayFactor(54), 1);
+    // The peak window ended 41 days ago: it is worth 70 x decay(41), not 70 x decay(29).
+    expect(s.effective!).toBeCloseTo(70 * decayFactor(41), 1);
     expect(s.effective!).toBeLessThan(70 * decayFactor(29));
   });
 
@@ -76,10 +76,10 @@ describe("one decay rule: each piece of evidence decays from when it happened", 
   });
 
   it("a lift and a consistency window of the same age lose the same share", () => {
-    const lift = run([entry("x", 54, "Back Squat", x3(5, 225)), entry("y", 61, "Back Squat", x3(5, 225)), entry("z", 68, "Back Squat", x3(5, 225))]).statsByGroup.quads;
-    expect(lift.effective! / lift.peak!).toBeCloseTo(decayFactor(54), 2);
-    const planks = run(eightPlanksEndingAgo(54)).statsByGroup.obliques;
-    expect(planks.effective! / planks.peak!).toBeCloseTo(decayFactor(54), 2);
+    const lift = run([entry("x", 40, "Back Squat", x3(5, 225)), entry("y", 47, "Back Squat", x3(5, 225)), entry("z", 54, "Back Squat", x3(5, 225))]).statsByGroup.quads;
+    expect(lift.effective! / lift.peak!).toBeCloseTo(decayFactor(40), 2);
+    const planks = run(eightPlanksEndingAgo(40)).statsByGroup.obliques;
+    expect(planks.effective! / planks.peak!).toBeCloseTo(decayFactor(40), 2);
   });
 
   it("the export shows each lift's credit and decay, and the consistency window", () => {
@@ -91,7 +91,7 @@ describe("one decay rule: each piece of evidence decays from when it happened", 
     });
     expect(text).toMatch(/· Trap Bar Deadlift \(primary\): ~\d+ lb e1RM, credit [\d.]+ → [\d.]+, last done \w+ \d+ \(53d ago, decayed \d+%\)/);
     expect(text).toMatch(/· Back Extension \(primary\): [^\n]*\(3d ago\)/);
-    expect(text).toMatch(/· consistency peak: [\d.]+ weighted training days in \w+ \d+–\w+ \d+ \(best window of the last 90 days\) = [\d.]+ pts; from Side Plank \d+d/);
+    expect(text).toMatch(/· consistency peak: [\d.]+ weighted training days in \w+ \d+–\w+ \d+ \(best window of the last 42 days\) = [\d.]+ pts; from Side Plank \d+d/);
     expect(text).toContain("one rule for every muscle");
     expect(text).not.toContain("Restricted exercises are scored"); // only mentioned when the user has restrictions
   });

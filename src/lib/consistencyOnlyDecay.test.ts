@@ -33,7 +33,7 @@ describe("consistency-only muscles (obliques via planks)", () => {
 
   it("keeps most of its score 29+ days later instead of dropping to 0, and never below the decay floor", () => {
     const peak = at(1).peak!;
-    for (const days of [29, 45, 90]) {
+    for (const days of [29, 40]) {
       const later = at(days);
       expect(later.peak!).toBeCloseTo(peak, 6);
       expect(later.effective!).toBeGreaterThan(0);
@@ -42,7 +42,9 @@ describe("consistency-only muscles (obliques via planks)", () => {
     }
   });
 
-  it("windows older than the lookback no longer count: nothing in the last 90 days means no consistency score", () => {
+  it("a window that ended more than 42 days ago does not count: no recent window means no consistency score", () => {
+    expect(at(42).effective!).toBeGreaterThan(0); // the last window ended exactly 42 days ago: still inside
+    expect(at(43).effective!).toBe(0);
     expect(at(120).effective!).toBe(0);
   });
 
