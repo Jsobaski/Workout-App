@@ -111,7 +111,7 @@ describe("exercises added from the user's checklist", () => {
   const cases: [string, string[]][] = [
     ["Seated Leg Curl", ["hamstrings"]], ["Standing Leg Curl", ["hamstrings"]], ["Hack Squat", ["quads"]],
     ["Good Morning", ["hamstrings", "lowerBack"]], ["Forward Lunge", ["glutes", "quads"]], ["Hip Abduction Machine", ["glutes"]],
-    ["Cable Glute Kickback", ["glutes"]], ["Frog Pump", ["glutes"]], ["Seated Calf Raise", ["calves"]], ["Sled Push", ["glutes", "quads"]],
+    ["Cable Glute Kickback", ["glutes"]], ["Glute Press Machine", ["glutes"]], ["Nautilus Glute Press", ["glutes"]], ["Frog Pump", ["glutes"]], ["Seated Calf Raise", ["calves"]], ["Sled Push", ["glutes", "quads"]],
     ["Nordic Curl", ["hamstrings"]], ["Incline Barbell Bench", ["frontDelts", "upperChest"]], ["Decline Bench", ["midLowerChest"]],
     ["Close-Grip Bench", ["triceps"]], ["Dumbbell Fly", ["midLowerChest"]], ["Cable Fly", ["midLowerChest"]],
     ["Pec Deck (Machine Fly)", ["midLowerChest"]], ["Shrugs", ["traps"]], ["DB Shrugs", ["traps"]], ["T-Bar Row", ["upperBack"]],

@@ -199,6 +199,9 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   // Adductors aren't a tracked muscle, so this only earns incidental credit.
   "hip adduction machine": { muscles: [...secondary("quads", "glutes")], scoring: proxy("squat", 0.6), bodyweightFraction: 0, loadBasis: "stack" },
   "cable glute kickback": { muscles: primary("glutes"), scoring: proxy("squat", 0.3), bodyweightFraction: 0, loadBasis: "stack" },
+  // Selectorized machine: one leg presses a pad back (hip extension), loaded by the stack. Glutes primary, hamstrings assist.
+  // Scored against half the squat table (estimate; no published standard for this machine).
+  "glute press machine": { muscles: [...primary("glutes"), ...secondary("hamstrings")], scoring: proxy("squat", 0.5), bodyweightFraction: 0, loadBasis: "stack", patterns: ["hip_hinge"] },
   "frog pump": { muscles: primary("glutes"), scoring: volumeOnly, bodyweightFraction: 0 },
   "seated calf raise": { muscles: primary("calves"), scoring: proxy("squat", 1.0) },
   "sled push": { muscles: [...primary("quads", "glutes"), ...secondary("calves", "hamstrings")], scoring: volumeOnly, bodyweightFraction: 0 },
@@ -291,6 +294,10 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "romanian deadlift straight bar": "romanian deadlift",
   "db bench press (flat)": "db bench press",
   "db bulgarian split squats": "db bulgarian split squat",
+  "glute press": "glute press machine",
+  "nautilus glute press": "glute press machine",
+  "glute drive machine": "glute press machine",
+  "standing glute press": "glute press machine",
   "farmers carry": "farmer carry",
   "farmer's carry": "farmer carry",
   "single-arm farmer carry": "single arm farmer carry",

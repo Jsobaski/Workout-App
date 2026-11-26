@@ -26,6 +26,7 @@ const REFERENCE: Record<string, { category: Category; ratios: Profile }> = {
   "hip abduction machine": { category: "machine", ratios: [0.35, 0.8, 1.3] },
   "hip adduction machine": { category: "machine", ratios: [0.35, 0.8, 1.3] },
   "cable glute kickback": { category: "machine", ratios: [0.1, 0.25, 0.5] },
+  "glute press machine": { category: "machine", ratios: [0.3, 0.65, 1.0] },
   "pec deck": { category: "machine", ratios: [0.25, 0.5, 0.8] },
   "cable fly": { category: "machine", ratios: [0.1, 0.2, 0.35] },
   "cable curl": { category: "machine", ratios: [0.15, 0.3, 0.55] },
