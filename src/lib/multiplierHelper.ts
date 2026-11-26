@@ -69,6 +69,7 @@ export function proposeMultiplier(
       bodyweightLb,
       bodyweightFraction: targetCfg.bodyweightFraction,
       loadMultiplier: 1,
+      sides: targetCfg.sides,
     })
   );
   const reference = bestE1RMByWeek(entries, referenceKey, (entry, weight) =>
@@ -77,6 +78,7 @@ export function proposeMultiplier(
       bodyweightLb,
       bodyweightFraction: referenceCfg.bodyweightFraction,
       loadMultiplier: referenceCfg.loadMultiplier,
+      sides: referenceCfg.sides,
     })
   );
 

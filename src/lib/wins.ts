@@ -48,6 +48,7 @@ function dailyBests(entries: WorkoutEntry[], opts: WinOptions) {
         bodyweightLb: bodyweight,
         bodyweightFraction: cfg?.bodyweightFraction ?? 0,
         loadMultiplier: cfg?.loadMultiplier ?? 1,
+        sides: cfg?.sides ?? 1,
       });
       best = Math.max(best, estimate1RM(load, set.reps));
     }

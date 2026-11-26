@@ -12,13 +12,14 @@ export type ScoringMethod =
   | { method: "volumeOnly" }; // no meaningful e1RM (planks, dead bug, anti-rotation holds)
 
 /** What the logged weight actually represents — an informational label only; it never changes a score. */
-export type LoadBasis = "total" | "plates" | "combined" | "stack";
+export type LoadBasis = "total" | "plates" | "combined" | "stack" | "perSide";
 
 export const LOAD_BASIS_LABELS: Record<LoadBasis, string> = {
   total: "True load",
   plates: "Plates only",
   combined: "Both sides combined",
   stack: "Cable / machine stack",
+  perSide: "Per arm / per leg",
 };
 
 /**
@@ -47,6 +48,8 @@ export interface ExerciseMapping {
   bodyweightFraction?: number;
   /** What the logged weight represents. Never changes a score, but it is what keeps machines and free weights from being auto-grouped as one lift (see liftGroups.ts). */
   loadBasis?: LoadBasis;
+  /** How many sides one logged set trains, with the logged weight being per side (a one-arm-at-a-time machine logged left then right at the same reps = 2). Both the volume and the strength score count every side, exactly as if the weight were the total. Unset -> 1. This is a fact about the exercise, separate from the user's manual load multiplier. */
+  sides?: number;
   /** Movement-pattern tags (shared metadata; used only when the user restricts a pattern). */
   patterns?: MovementPattern[];
 }
@@ -164,6 +167,11 @@ export const EXERCISE_MUSCLE_MAP: Record<string, ExerciseMapping> = {
   "lateral raise machine": { muscles: [...primary("sideRearDelts"), ...secondary("frontDelts")], scoring: proxy("lateralRaise", 2), loadBasis: "stack" },
   "rear delt machine": { muscles: [...primary("sideRearDelts"), ...secondary("upperBack")], scoring: standard("facePull"), loadBasis: "stack" },
   "bicep curl machine": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: standard("curl"), loadBasis: "stack" },
+  // One arm at a time on the stack; the weight logged is per arm and one logged set is both arms at the same reps, so
+  // sides: 2 makes 30 lb per arm count as the 60 lb a both-arms curl machine would show, for volume and for scoring.
+  // Its own load basis keeps it from being grouped with the both-arms curl machines (their weights aren't per arm).
+  // Branded names resolve to it through the aliases below, like every other machine.
+  "single arm biceps curl machine": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: standard("curl"), loadBasis: "perSide", sides: 2 },
   "preacher curl machine": { muscles: [...primary("biceps"), ...minor("forearms")], scoring: standard("curl"), loadBasis: "stack" },
   "tricep extension machine": { muscles: primary("triceps"), scoring: standard("tricepExt"), loadBasis: "stack" },
   "db overhead tricep extension": { muscles: primary("triceps"), scoring: proxy("tricepExt", 0.6) },
@@ -372,6 +380,9 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "nautilus leverage chest press": "chest press machine",
   "nautilus leverage incline chest press": "incline chest press machine",
   "hoist preacher curl machine": "preacher curl machine",
+  "nautilus inspiration biceps curl (unilateral)": "single arm biceps curl machine",
+  "inspiration biceps curl": "single arm biceps curl machine",
+  "nautilus biceps curl unilateral": "single arm biceps curl machine",
   "nautilus impact bicep curl": "bicep curl machine",
   "nautilus impact tricep extension": "tricep extension machine",
   "nautilus impact rear deltoid machine": "rear delt machine",

@@ -125,6 +125,8 @@ export interface ResolvedExerciseConfig {
   displayName: string;
   mapping: ExerciseMapping;
   loadMultiplier: number;
+  /** Sides one logged set trains (see ExerciseMapping.sides). */
+  sides: number;
   loadBasis: LoadBasis;
   bodyweightFraction: number;
   restricted: boolean;
@@ -205,6 +207,7 @@ export function resolveConfigForKey(key: string, settings?: ExerciseSettingsData
     displayName: exerciseDisplayName(key),
     mapping,
     loadMultiplier: o?.loadMultiplier ?? 1,
+    sides: mapping.sides ?? 1,
     loadBasis: o?.loadBasis ?? mapping.loadBasis ?? "total",
     bodyweightFraction: o?.bodyweightFraction ?? mapping.bodyweightFraction ?? DEFAULT_BODYWEIGHT_FRACTION,
     restricted,
@@ -228,9 +231,9 @@ export function resolveExerciseConfig(exerciseName: string, settings?: ExerciseS
  */
 export function effectiveLoadForSet(
   setWeight: number,
-  opts: { isBodyweight?: boolean; bodyweightLb: number; bodyweightFraction: number; loadMultiplier: number }
+  opts: { isBodyweight?: boolean; bodyweightLb: number; bodyweightFraction: number; loadMultiplier: number; sides?: number }
 ): number {
-  const added = Math.max(0, setWeight) * opts.loadMultiplier;
+  const added = Math.max(0, setWeight) * opts.loadMultiplier * (opts.sides ?? 1);
   return opts.isBodyweight ? opts.bodyweightLb * opts.bodyweightFraction + added : added;
 }
 

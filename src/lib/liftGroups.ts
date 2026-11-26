@@ -11,7 +11,7 @@
 import { EXERCISE_MUSCLE_MAP, ExerciseMapping } from "./exerciseMuscleMap";
 import { ExerciseSettingsData, resolveConfigForKey } from "./exerciseSettings";
 
-export type GroupingBasis = "free" | "stack" | "plates" | "combined" | "bodyweight";
+export type GroupingBasis = "free" | "stack" | "plates" | "combined" | "perSide" | "bodyweight";
 
 // Words that describe equipment, grip, position or the muscle — not the lift itself.
 const NON_DISTINGUISHING = new Set([
@@ -55,7 +55,7 @@ function primaryMuscles(mapping: ExerciseMapping): string {
 export function groupingBasis(key: string, settings?: ExerciseSettingsData): GroupingBasis {
   const cfg = resolveConfigForKey(key, settings);
   if (!cfg) return "free";
-  if (cfg.loadBasis === "stack" || cfg.loadBasis === "plates" || cfg.loadBasis === "combined") return cfg.loadBasis;
+  if (cfg.loadBasis === "stack" || cfg.loadBasis === "plates" || cfg.loadBasis === "combined" || cfg.loadBasis === "perSide") return cfg.loadBasis;
   if ((cfg.mapping.bodyweightFraction ?? 0) > 0) return "bodyweight";
   return "free";
 }

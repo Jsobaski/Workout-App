@@ -42,6 +42,7 @@ const REFERENCE: Record<string, { category: Category; ratios: Profile }> = {
   "lateral raise machine": { category: "machine", ratios: [0.1, 0.25, 0.45] },
   "bicep curl machine": { category: "machine", ratios: [0.25, 0.5, 0.8] },
   "preacher curl machine": { category: "machine", ratios: [0.25, 0.5, 0.8] },
+  "single arm biceps curl machine": { category: "machine", ratios: [0.125, 0.25, 0.4] }, // per arm: half of the both-arms machine (sides: 2)
   "tricep pushdown": { category: "machine", ratios: [0.3, 0.6, 1.0] },
   "tricep extension machine": { category: "machine", ratios: [0.3, 0.6, 1.0] },
   "single arm cable tricep extension": { category: "machine", ratios: [0.1, 0.25, 0.45] },

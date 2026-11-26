@@ -31,6 +31,7 @@ export const COMMON_EXERCISES = [
   "Bicep Curl",
   "Hammer Curl",
   "Preacher Curl Machine",
+  "Single Arm Biceps Curl Machine",
   "Tricep Pushdown",
   "Skull Crusher",
   "Dip",

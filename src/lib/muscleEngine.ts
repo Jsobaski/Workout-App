@@ -199,6 +199,7 @@ export function computeMuscleEngine(
       bodyweightLb: effectiveBodyweight,
       bodyweightFraction: cfg.bodyweightFraction,
       loadMultiplier: cfg.loadMultiplier,
+      sides: cfg.sides,
     });
     const quantity = quantityForSet(set, entry.timed);
     const e1RM = estimate1RM(load, quantity);

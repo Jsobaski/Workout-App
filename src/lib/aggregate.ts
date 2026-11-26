@@ -45,10 +45,11 @@ export function entryVolumeParts(entry: WorkoutEntry, opts: VolumeOptions = {}):
   const bodyweightLb = opts.bodyweightLb && opts.bodyweightLb > 0 ? opts.bodyweightLb : BODYWEIGHT_FALLBACK_LB;
   const fraction = cfg?.bodyweightFraction ?? DEFAULT_BODYWEIGHT_FRACTION;
   const multiplier = cfg?.loadMultiplier ?? 1;
+  const sides = cfg?.sides ?? 1;
   let loaded = 0;
   let bodyweight = 0;
   for (const set of entry.sets) {
-    const load = effectiveLoadForSet(set.weight, { isBodyweight: entry.bodyweight, bodyweightLb, bodyweightFraction: fraction, loadMultiplier: multiplier });
+    const load = effectiveLoadForSet(set.weight, { isBodyweight: entry.bodyweight, bodyweightLb, bodyweightFraction: fraction, loadMultiplier: multiplier, sides });
     const credit = entry.bodyweight ? bodyweightLb * fraction : 0;
     bodyweight += set.reps * credit;
     loaded += set.reps * (load - credit);
