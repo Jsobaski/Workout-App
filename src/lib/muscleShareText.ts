@@ -36,6 +36,14 @@ const RECENT_DAYS = 14;
 const shortDate = (dateKey: string) =>
   new Date(`${dateKey}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
+/** "App build: abc1234, built 2026-11-26 14:03 UTC" (UTC so the same build always prints the same line). */
+export function buildLine(build?: { id?: string; builtAt?: string }): string {
+  const id = build?.id && build.id !== "local" ? build.id : "local (not a deployed build)";
+  const parsed = build?.builtAt ? new Date(build.builtAt) : null;
+  const when = parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString().slice(0, 16).replace("T", " ") + " UTC" : "unknown date";
+  return `App build: ${id}, built ${when}`;
+}
+
 /** What the PROVISIONAL flag did to the shown tier, so the tier, the score and the note always agree. */
 function provisionalNote(s: MuscleStats): string {
   const a = s.arithmetic;
@@ -132,10 +140,13 @@ export function formatMuscleSummaryText(opts: {
   deltaByGroup: Record<MuscleGroupId, MuscleDelta>;
   entries: WorkoutEntry[];
   settings?: ExerciseSettingsData;
+  /** Which build produced this text: short commit hash and ISO build time (see next.config.ts). */
+  build?: { id?: string; builtAt?: string };
 }): string {
-  const { asOfDateKey, bodyweightLb, result, deltaByGroup, entries, settings } = opts;
+  const { asOfDateKey, bodyweightLb, result, deltaByGroup, entries, settings, build } = opts;
   const lines = [
     `Muscle strength summary — as of ${asOfDateKey}`,
+    buildLine(build),
     bodyweightLb ? `Bodyweight: ${bodyweightLb} lb` : "Bodyweight: not set",
     "Scores are 0-100 (soft-capped, so 100 is hard to reach); 'raw' is the uncapped value. Tiers are decided on the unrounded score (shown with a decimal near a boundary): Needs Work (<20), Developing (20-39), Solid (40-59), Strong (60-79), Elite (80+).",
     `"Stale" = no meaningful primary-muscle training in ${DEFAULT_STALE_THRESHOLD_DAYS}+ days (score decays over time). Secondary credit never resets that clock.`,

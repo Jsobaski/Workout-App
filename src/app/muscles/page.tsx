@@ -84,6 +84,7 @@ export default function MusclesPage() {
       deltaByGroup: trendDeltas,
       entries,
       settings,
+      build: { id: process.env.NEXT_PUBLIC_BUILD_ID, builtAt: process.env.NEXT_PUBLIC_BUILD_TIME },
     });
     try {
       await copyToClipboard(text);

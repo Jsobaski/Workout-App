@@ -106,3 +106,20 @@ describe("export explains itself", () => {
     expect(plain).not.toContain("bodyweight credit");
   });
 });
+
+import { buildLine } from "./muscleShareText";
+describe("export build line", () => {
+  it("shows the short commit hash and the build date at the top, and is honest when unknown", () => {
+    expect(buildLine({ id: "abc1234", builtAt: "2026-11-26T14:03:09.000Z" })).toBe("App build: abc1234, built 2026-11-26 14:03 UTC");
+    expect(buildLine({ id: "local", builtAt: "2026-11-26T14:03:09.000Z" })).toBe("App build: local (not a deployed build), built 2026-11-26 14:03 UTC");
+    expect(buildLine()).toBe("App build: local (not a deployed build), built unknown date");
+    const e = [entry("1", "2026-10-10", "Bench Press", 135)];
+    const result = computeMuscleEngine(e, 180, "2026-10-14");
+    const text = formatMuscleSummaryText({
+      asOfDateKey: "2026-10-14", bodyweightLb: 180, result,
+      deltaByGroup: compareSnapshots(computeMuscleEngine(e, 180, "2026-09-14").statsByGroup, result.statsByGroup), entries: e,
+      build: { id: "abc1234", builtAt: "2026-11-26T14:03:09.000Z" },
+    });
+    expect(text.split("\n").slice(0, 2)).toEqual(["Muscle strength summary — as of 2026-10-14", "App build: abc1234, built 2026-11-26 14:03 UTC"]);
+  });
+});
